@@ -11,7 +11,11 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "lint:types": "tsc --noEmit -p tsconfig.json",
-    "check:mongo": "tsx src/tools/check-mongo.ts"
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
+    "lint:watch": "eslint \"src/**/*.{ts,tsx}\" --cache --watch --max-warnings=0",
+    "check:mongo": "tsx src/tools/check-mongo.ts",
+    "check:imports": "tsx scripts/check-import-extensions.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.0",
@@ -28,6 +32,11 @@
     "@types/node": "^22.5.4",
     "pino-pretty": "^13.1.1",
     "tsx": "^4.19.1",
-    "typescript": "^5.6.2"
+    "typescript": "^5.6.2",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-unicorn": "^55.0.0"
   }
 }

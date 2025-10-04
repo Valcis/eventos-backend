@@ -1,7 +1,6 @@
-import "dotenv/config";
-import {buildApp} from "./app.js";
-import {getDb} from "./infra/mongo/client.js";
-import {getEnv} from "./config/env.js";
+import {buildApp} from "./app";
+import {getDb} from "./infra/mongo/client";
+import {getEnv} from "./config/env";
 
 process.on("unhandledRejection", (reason) => {
     // eslint-disable-next-line no-console

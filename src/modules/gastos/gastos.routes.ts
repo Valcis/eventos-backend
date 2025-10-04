@@ -1,9 +1,9 @@
 import fp from 'fastify-plugin';
-import {parsePage, parsePageSize} from '../../utils/pagination.js';
-import {listGastos} from './gastos.repo.js';
-import {listGastosQuerySchema, listGastosResponseSchema} from './gastos.schemas.js';
-import {NotImplementedError} from '../../core/http/errors.js';
-import {ok, noContent} from '../../core/http/reply.js';
+import {parsePage, parsePageSize} from '../../utils/pagination';
+import {listGastos} from './gastos.repo';
+import {listGastosQuerySchema, listGastosResponseSchema} from './gastos.schemas';
+import {NotImplementedError} from '../../core/http/errors';
+import {ok, noContent} from '../../core/http/reply';
 
 export default fp(async (app) => {
     // Guardia anti-duplicado

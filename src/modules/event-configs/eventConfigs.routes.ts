@@ -1,6 +1,6 @@
 import fp from 'fastify-plugin';
-import {getEventConfig, upsertEventConfig} from './eventConfigs.repo.js';
-import {getEventConfigResponseSchema, putEventConfigBodySchema} from './eventConfigs.schemas.js';
+import {getEventConfig, upsertEventConfig} from './eventConfigs.repo';
+import {getEventConfigResponseSchema, putEventConfigBodySchema} from './eventConfigs.schemas';
 
 type Json = { [k: string]: unknown };
 

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type {FastifyServerOptions} from "fastify";
-import {getEnv} from "../../config/env.js";
+import {getEnv} from "../../config/env";
 
 /**
  * Reglas:

@@ -1,5 +1,5 @@
 import {MongoClient} from "mongodb";
-import {getEnv} from "../config/env.js";
+import {getEnv} from "../config/env";
 
 const uri = getEnv().MONGODB_URI;
 if (!uri) {

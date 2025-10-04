@@ -1,13 +1,13 @@
 console.log('[BOOT] loading app.ts from', import.meta.url);
 import Fastify from "fastify";
-import {buildLoggerOptions} from "./core/logging/logger.js";
-import corsPlugin from "./plugins/cors.js";
-import swaggerPlugin from "./plugins/swagger.js";
-import {healthRoutes} from "./routes/health.routes.js";
-import eventConfigsRoutes from './modules/event-configs/eventConfigs.routes.js';
-import preciosRoutes from './modules/precios/precios.routes.js';
-import gastosRoutes from './modules/gastos/gastos.routes.js';
-import reservasRoutes from './modules/reservas/reservas.routes.js';
+import {buildLoggerOptions} from "./core/logging/logger";
+import corsPlugin from "./plugins/cors";
+import swaggerPlugin from "./plugins/swagger";
+import {healthRoutes} from "./routes/health.routes";
+import eventConfigsRoutes from './modules/event-configs/eventConfigs.routes';
+import preciosRoutes from './modules/precios/precios.routes';
+import gastosRoutes from './modules/gastos/gastos.routes';
+import reservasRoutes from './modules/reservas/reservas.routes';
 
 export async function buildApp() {
     console.log('[BOOT] buildApp() about to register plugins');

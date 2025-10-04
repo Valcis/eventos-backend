@@ -1,5 +1,5 @@
-import { getDb } from '../../infra/mongo/client.js';
-import { toISO } from '../../utils/dates.js';
+import { getDb } from '../../infra/mongo/client';
+import { toISO } from '../../utils/dates';
 
 export type GastoRow = Record<string, unknown>;
 

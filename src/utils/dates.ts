@@ -1,5 +1,5 @@
 export function toISO(_date: unknown): string | null {
-    if (d instanceof Date) return d.toISOString();
+    if (_date instanceof Date) return _date.toISOString();
     if (typeof _date === 'string') {
         const dateTime = new Date(_date);
         return isNaN(dateTime.getTime()) ? null : dateTime.toISOString();

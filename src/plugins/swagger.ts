@@ -2,7 +2,7 @@ import fp from "fastify-plugin";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import type { FastifyInstance } from "fastify";
-import { getEnv } from "../config/env.js";
+import { getEnv } from "../config/env";
 
 export default fp(async (app: FastifyInstance) => {
     // Activa/desactiva Swagger según ENV (booleano)

@@ -1,9 +1,9 @@
 import fp from 'fastify-plugin';
-import {parsePage, parsePageSize} from '../../utils/pagination.js';
-import {listReservas} from './reservas.repo.js';
-import {listReservasQuerySchema, listReservasResponseSchema} from './reservas.schemas.js';
-import {NotImplementedError} from '../../core/http/errors.js';
-import {ok, noContent} from '../../core/http/reply.js';
+import {parsePage, parsePageSize} from '../../utils/pagination';
+import {listReservas} from './reservas.repo';
+import {listReservasQuerySchema, listReservasResponseSchema} from './reservas.schemas';
+import {NotImplementedError} from '../../core/http/errors';
+import {ok, noContent} from '../../core/http/reply';
 
 export default fp(async (app) => {
     if (!app.hasDecorator('reservasRoutesLoaded')) app.decorate('reservasRoutesLoaded', true);

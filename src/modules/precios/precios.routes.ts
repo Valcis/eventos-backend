@@ -1,9 +1,9 @@
 import fp from 'fastify-plugin';
-import {parsePage, parsePageSize} from '../../utils/pagination.js';
-import {listPrecios} from './precios.repo.js';
-import {listPreciosQuerySchema, listPreciosResponseSchema} from './precios.schemas.js';
-import {NotImplementedError} from '../../core/http/errors.js';
-import {ok, noContent} from '../../core/http/reply.js';
+import {parsePage, parsePageSize} from '../../utils/pagination';
+import {listPrecios} from './precios.repo';
+import {listPreciosQuerySchema, listPreciosResponseSchema} from './precios.schemas';
+import {NotImplementedError} from '../../core/http/errors';
+import {ok, noContent} from '../../core/http/reply';
 
 export default fp(async (app) => {
     // --- GUARDIA anti-registro duplicado ---

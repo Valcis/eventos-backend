@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { getDb } from "../infra/mongo/client.js";
+import { getDb } from "../infra/mongo/client";
 
 export async function healthRoutes(app: FastifyInstance): Promise<void> {
     app.get("/", {

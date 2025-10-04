@@ -1,4 +1,4 @@
-import { getDb } from '../../infra/mongo/client.js';
+import { getDb } from '../../infra/mongo/client';
 
 export type JsonObject = { [k: string]: unknown };
 export interface EventConfigDTO extends JsonObject {
