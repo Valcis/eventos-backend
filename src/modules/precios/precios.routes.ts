@@ -7,12 +7,12 @@ import {ok, noContent} from '../../core/http/reply.js';
 
 export default fp(async (app) => {
     // --- GUARDIA anti-registro duplicado ---
-    if (app.hasDecorator('preciosRoutesLoaded')) {
+    if (!app.hasDecorator('preciosRoutesLoaded')) app.decorate('preciosRoutesLoaded', true);
+    else {
         app.log.warn('preciosRoutes already registered — skipping duplicate');
         return;
     }
-    app.decorate('preciosRoutesLoaded', true);
-    // ---------------------------------------
+
     app.get('/', {
         schema: {
             summary: 'List precios (V1 paginación)',
@@ -34,7 +34,7 @@ export default fp(async (app) => {
             throw new NotImplementedError();
         });
 
-    app.put('/test/:id', {schema: {summary: 'Update precio (TBD)'}},
+    app.put('/:id', {schema: {summary: 'Update precio (TBD)'}},
         async () => {
             throw new NotImplementedError();
         });

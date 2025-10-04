@@ -6,6 +6,13 @@ import {NotImplementedError} from '../../core/http/errors.js';
 import {ok, noContent} from '../../core/http/reply.js';
 
 export default fp(async (app) => {
+    // Guardia anti-duplicado
+    if (!app.hasDecorator('gastosRoutesLoaded')) app.decorate('gastosRoutesLoaded', true);
+    else {
+        app.log.warn('gastosRoutes already registered — skipping duplicate');
+        return;
+    }
+
     app.get('/', {
         schema: {
             summary: 'List gastos (V1 paginación)',
@@ -22,18 +29,13 @@ export default fp(async (app) => {
         return ok(reply, rows, {total, page: p, pageSize: ps});
     });
 
-    app.post('/', {schema: {summary: 'Create gasto (TBD)'}},
-        async () => {
-            throw new NotImplementedError();
-        });
-
-    app.put('/:id', {schema: {summary: 'Update gasto (TBD)'}},
-        async () => {
-            throw new NotImplementedError();
-        });
-
-    app.delete('/:id', {schema: {summary: 'Delete gasto (TBD)'}},
-        async (_req, reply) => {
-            return noContent(reply);
-        });
+    app.post('/', {schema: {summary: 'Create gasto (TBD)'}}, async () => {
+        throw new NotImplementedError();
+    });
+    app.put('/:id', {schema: {summary: 'Update gasto (TBD)'}}, async () => {
+        throw new NotImplementedError();
+    });
+    app.delete('/:id', {schema: {summary: 'Delete gasto (TBD)'}}, async (_req, reply) => {
+        return noContent(reply);
+    });
 });

@@ -23,8 +23,10 @@ export async function buildApp() {
     await app.register(swaggerPlugin);
     await app.register(healthRoutes, {prefix: "/health"});
     await app.register(eventConfigsRoutes, {prefix: '/api/event-configs'});
-    await app.register(preciosRoutes, {prefix: '/api/precios0' +
-            ''});
+    await app.register(preciosRoutes, {
+        prefix: '/api/precios0' +
+            ''
+    });
     await app.register(gastosRoutes, {prefix: '/api/gastos'});
     await app.register(reservasRoutes, {prefix: '/api/reservas'});
 
@@ -40,6 +42,11 @@ export async function buildApp() {
             "request completed"
         );
     });
+
+    app.addHook('onRoute', (r) => {
+        app.log.info({method: r.method, url: r.url, routePrefix: (r as any).prefix}, 'ROUTE_ADDED');
+    });
+
 
     app.setNotFoundHandler((req, reply) => {
         req.log.warn({url: req.url, method: req.method}, "route not found");
@@ -57,7 +64,7 @@ export async function buildApp() {
 
     app.ready(err => {
         if (err) app.log.error(err);
-        app.log.info('\n' + app.printRoutes());
+        app.log.info('\\n' + app.printRoutes());
     });
 
     return app;
