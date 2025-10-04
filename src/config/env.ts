@@ -1,13 +1,12 @@
-// src/config/env.ts
 import "dotenv/config";
-import {z} from "zod";
+import { z } from "zod";
 
 const EnvZ = z.object({
-    PORT: z.coerce.number().int().min(1).max(65535).default(8080),
+    PORT: z.coerce.number().int().min(1).max(65535).default(3000),
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-    LOG_DIR: z.string().optional(),
-    LOG_FILE: z.string().optional(), // si no se pone, usará ./logs/app.log en el logger
     LOG_LEVEL: z.enum(["debug", "info", "error"]).default("info"),
+    LOG_FILE: z.string().optional(),
+    LOG_DIR: z.string().default("./logs"),
     CORS_ORIGINS: z
         .string()
         .default("")
@@ -22,7 +21,7 @@ const EnvZ = z.object({
         .default("true")
         .transform((v) => ["1", "true", "yes", "on"].includes(v.toLowerCase())),
     MONGODB_URI: z.string().min(1, "MONGODB_URI is required"),
-    MONGODB_DB: z.string().min(1, "MONGODB_DB is required"),
+    MONGODB_DB: z.string().min(1, "MONGODB_DB is required")
 });
 
 export type Env = z.infer<typeof EnvZ>;
@@ -30,12 +29,13 @@ export type Env = z.infer<typeof EnvZ>;
 export function getEnv(): Env {
     const parsed = EnvZ.safeParse(process.env);
     if (!parsed.success) {
-        // Mensaje claro de qué falta o está mal
         const flat = parsed.error.flatten();
-        const missing = Object.keys(flat.fieldErrors).map(
-            (k) => `${k}: ${(flat.fieldErrors[k] ?? []).join(", ")}`
-        );
-        console.error("Invalid environment variables:\n - " + missing.join("\n - "));
+        const details = Object.entries(flat.fieldErrors)
+            .map(([k, v]) => `- ${k}: ${v?.join(", ") ?? "invalid"}`)
+            .join("\n");
+        // Mensaje conciso en consola (sin volcar todo el error)
+        // eslint-disable-next-line no-console
+        console.error(`Invalid environment variables:\n${details}`);
         throw new Error("Invalid environment variables");
     }
     return parsed.data;

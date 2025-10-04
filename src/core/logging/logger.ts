@@ -1,43 +1,36 @@
-// src/core/logging/logger.ts
 import fs from "node:fs";
 import path from "node:path";
-import type { FastifyServerOptions } from "fastify";
-import {getEnv} from "../../config/env";
+import type {FastifyServerOptions} from "fastify";
+import {getEnv} from "../../config/env.js";
 
 /**
  * Reglas:
- * - Si LOG_FILE está definido → usarlo tal cual como archivo.
+ * - Si LOG_FILE está definido → usarlo como archivo.
  * - Si no, usar LOG_DIR/app.log (o ./logs/app.log por defecto).
- * - Crear SOLO el directorio contenedor, nunca el archivo.
+ * - Crear solo el directorio contenedor (NO el archivo).
  */
 export function buildLoggerOptions(): NonNullable<FastifyServerOptions["logger"]> {
-    const logDirEnv = getEnv().LOG_DIR ?? "./logs";
-    const logFileEnv = getEnv().LOG_FILE; // opcional
+    const env = getEnv();
+    const filePath = env.LOG_FILE ?? path.join(env.LOG_DIR, "app.log");
+    const dirPath = path.dirname(filePath);
 
-    const logFile = logFileEnv ?? path.join(logDirEnv, "app.log");
-    const logDir = path.dirname(logFile);
-
-    // Crear el directorio contenedor; NO crear el archivo
-    fs.mkdirSync(logDir, { recursive: true });
+    fs.mkdirSync(dirPath, {recursive: true});
 
     return {
-        level: process.env.LOG_LEVEL ?? (process.env.NODE_ENV === "production" ? "info" : "debug"),
+        level: env.LOG_LEVEL,
         transport: {
             targets: [
                 {
                     target: "pino-pretty",
-                    options: { colorize: true, translateTime: "SYS:standard" },
-                    level: process.env.NODE_ENV === "production" ? "info" : "debug",
+                    options: {colorize: true, translateTime: "SYS:standard"},
+                    level: env.NODE_ENV === "production" ? "info" : "debug"
                 },
                 {
                     target: "pino/file",
-                    options: {
-                        destination: logFile, // ← archivo final
-                        mkdir: false,         // ya creamos el directorio arriba
-                    },
-                    level: "debug",
-                },
-            ],
-        },
+                    options: {destination: filePath, mkdir: false},
+                    level: "debug"
+                }
+            ]
+        }
     };
 }
