@@ -1,0 +1,39 @@
+import fp from 'fastify-plugin';
+import {parsePage, parsePageSize} from '../../utils/pagination.js';
+import {listGastos} from './gastos.repo.js';
+import {listGastosQuerySchema, listGastosResponseSchema} from './gastos.schemas.js';
+import {NotImplementedError} from '../../core/http/errors.js';
+import {ok, noContent} from '../../core/http/reply.js';
+
+export default fp(async (app) => {
+    app.get('/', {
+        schema: {
+            summary: 'List gastos (V1 paginación)',
+            querystring: listGastosQuerySchema,
+            response: {200: listGastosResponseSchema}
+        }
+    }, async (req, reply) => {
+        const {eventId, page, pageSize, filters, sort} = req.query as Record<string, string>;
+        const p = parsePage(page);
+        const ps = parsePageSize(pageSize);
+        req.log.debug({eventId, page: p, pageSize: ps, filters, sort}, 'listGastos');
+        const {rows, total} = await listGastos({eventId, page: p, pageSize: ps, filters, sort});
+        req.log.info({eventId, count: rows.length, total}, 'gastos listed');
+        return ok(reply, rows, {total, page: p, pageSize: ps});
+    });
+
+    app.post('/', {schema: {summary: 'Create gasto (TBD)'}},
+        async () => {
+            throw new NotImplementedError();
+        });
+
+    app.put('/:id', {schema: {summary: 'Update gasto (TBD)'}},
+        async () => {
+            throw new NotImplementedError();
+        });
+
+    app.delete('/:id', {schema: {summary: 'Delete gasto (TBD)'}},
+        async (_req, reply) => {
+            return noContent(reply);
+        });
+});

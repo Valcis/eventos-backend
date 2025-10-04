@@ -1,8 +1,7 @@
-// src/tools/check-mongo.ts
 import {MongoClient} from "mongodb";
-import "dotenv/config";
+import {getEnv} from "../config/env.js";
 
-const uri = process.env.MONGODB_URI;
+const uri = getEnv().MONGODB_URI;
 if (!uri) {
     console.error("❌ Falta MONGODB_URI en el entorno.");
     process.exit(2);
