@@ -1,3 +1,4 @@
+console.log('[BOOT] loading app.ts from', import.meta.url);
 import Fastify from "fastify";
 import {buildLoggerOptions} from "./core/logging/logger.js";
 import corsPlugin from "./plugins/cors.js";
@@ -9,6 +10,7 @@ import gastosRoutes from './modules/gastos/gastos.routes.js';
 import reservasRoutes from './modules/reservas/reservas.routes.js';
 
 export async function buildApp() {
+    console.log('[BOOT] buildApp() about to register plugins');
     const app = Fastify({
         logger: buildLoggerOptions(),
         disableRequestLogging: true
