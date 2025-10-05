@@ -68,7 +68,9 @@ export async function buildApp() {
 
     app.ready(err => {
         if (err) app.log.error(err);
-        //app.log.info('\n'+'\n' + app.printRoutes()); // Print de arbol de rutas
+        if (process.env.NODE_ENV !== 'production') {
+            //app.log.info('\n' +app.printRoutes()); // Print de arbol de rutas
+        }
     });
 
     return app;

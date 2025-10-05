@@ -21,7 +21,7 @@ export const preciosValidator = {
         }
     },
     // durante migración, usa "moderate"; cuando limpies datos, subimos a "strict"
-    validationLevel: "moderate" as const
+    validationLevel: "strict" as const
 };
 
 export const preciosIndexes = [

@@ -29,7 +29,7 @@ export const reservasValidator = {
             additionalProperties: false
         }
     },
-    validationLevel: "moderate" as const
+    validationLevel: "strict" as const
 };
 
 export const reservasIndexes = [

@@ -32,7 +32,7 @@ export const gastosValidator = {
             additionalProperties: false
         }
     },
-    validationLevel: "moderate" as const
+    validationLevel: "strict" as const
 };
 
 export const gastosIndexes = [
