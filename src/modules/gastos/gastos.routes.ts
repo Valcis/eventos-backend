@@ -1,45 +1,33 @@
-import {FastifyPluginAsync} from "fastify";
-import {parsePage, parsePageSize} from '../../utils/pagination';
-import {listGastos} from './gastos.repo';
-import {listGastosQuerySchema, listGastosResponseSchema} from './gastos.schemas';
-import {NotImplementedError} from '../../core/http/errors';
-import {ok, noContent} from '../../core/http/reply';
-
+import type { FastifyPluginAsync } from 'fastify';
+import { parsePage, parsePageSize } from '../../utils/pagination';
+import { listQueryV1, listResponseV1 } from './gastos.schemas';
+import { listGastos, createGasto, updateGasto, deleteGasto } from './gastos.repo';
+import { ok, noContent } from '../../core/http/reply';
 
 const gastosRoutes: FastifyPluginAsync = async (app) => {
-    // Guardia anti-duplicado
-    if (!app.hasDecorator('gastosRoutesLoaded')) app.decorate('gastosRoutesLoaded', true);
-    else {
-        app.log.warn('gastosRoutes already registered — skipping duplicate');
-        return;
-    }
+  app.get('/', { schema: { summary: 'List gastos (V1 paginación)', querystring: listQueryV1, response: { 200: listResponseV1 } } }, async (req, reply) => {
+    const { eventId, page, pageSize, filters, sort } = req.query as Record<string, string>;
+    const p = parsePage(page); const ps = parsePageSize(pageSize);
+    const { rows, total } = await listGastos({ eventId, page: p, pageSize: ps, filters, sort });
+    return ok(reply, rows, { total, page: p, pageSize: ps });
+  });
 
-    app.get('/', {
-        schema: {
-            summary: 'List gastos (V1 paginación)',
-            querystring: listGastosQuerySchema,
-            response: {200: listGastosResponseSchema}
-        }
-    }, async (req, reply) => {
-        const {eventId, page, pageSize, filters, sort} = req.query as Record<string, string>;
-        const p = parsePage(page);
-        const ps = parsePageSize(pageSize);
-        req.log.debug({eventId, page: p, pageSize: ps, filters, sort}, 'listGastos');
-        const {rows, total} = await listGastos({eventId, page: p, pageSize: ps, filters, sort});
-        req.log.info({eventId, count: rows.length, total}, 'gastos listed');
-        return ok(reply, rows, {total, page: p, pageSize: ps});
-    });
+  app.post('/', { schema: { summary: 'Create gasto' } }, async (req, reply) => {
+    const id = await createGasto(req.body as any);
+    return reply.code(201).send(id);
+  });
 
-    app.post('/', {schema: {summary: 'Create gasto (TBD)'}}, async () => {
-        throw new NotImplementedError();
-    });
-    app.put('/:id', {schema: {summary: 'Update gasto (TBD)'}}, async () => {
-        throw new NotImplementedError();
-    });
-    app.delete('/:id', {schema: {summary: 'Delete gasto (TBD)'}}, async (_req, reply) => {
-        return noContent(reply);
-    });
-}
+  app.put('/:id', { schema: { summary: 'Update gasto' } }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    await updateGasto(id, req.body as any);
+    return reply.code(204).send();
+  });
 
+  app.delete('/:id', { schema: { summary: 'Delete gasto' } }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    await deleteGasto(id);
+    return noContent(reply);
+  });
+};
 
 export default gastosRoutes;
