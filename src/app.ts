@@ -9,6 +9,7 @@ import gastosRoutes from './modules/gastos/gastos.routes';
 import reservasRoutes from './modules/reservas/reservas.routes';
 import {getEnv} from "./config/env";
 import {ensureMongoArtifacts} from "./infra/mongo/artifacts";
+import requestId from "./core/logging/requestId";
 
 export async function buildApp() {
     const app = Fastify({
@@ -27,6 +28,7 @@ export async function buildApp() {
         }
     }
 
+    await app.register(requestId);
     await app.register(corsPlugin);
     await app.register(swaggerPlugin);
     await app.register(healthRoutes, {prefix: "/health"});

@@ -1,5 +1,5 @@
-import type { FastifyInstance } from "fastify";
-import { getDb } from "../infra/mongo/client";
+import type {FastifyInstance} from "fastify";
+import {getDb} from "../infra/mongo/client";
 
 export async function healthRoutes(app: FastifyInstance): Promise<void> {
     app.get("/", {
@@ -7,19 +7,19 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
             response: {
                 200: {
                     type: "object",
-                    properties: { ok: { type: "boolean" } },
+                    properties: {ok: {type: "boolean"}},
                     required: ["ok"]
                 }
             }
         }
-    }, async () => ({ ok: true }));
+    }, async () => ({ok: true}));
 
     app.get("/db", {
         schema: {
             response: {
                 200: {
                     type: "object",
-                    properties: { ok: { type: "boolean" } },
+                    properties: {ok: {type: "boolean"}},
                     required: ["ok"]
                 }
             }
@@ -28,12 +28,12 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
         try {
             const db = await getDb();
             const ping = await db.admin().ping();
-            return { ok: ping?.ok === 1 };
+            return {ok: ping?.ok === 1};
         } catch (e) {
             const err = e as Error;
-            req.log.error({ err }, "db health failed");
+            req.log.error({err}, "db health failed");
             // @ts-ignore
-            return reply.code(500).send({ ok: false });
+            return reply.code(500).send({ok: false});
         }
     });
 }

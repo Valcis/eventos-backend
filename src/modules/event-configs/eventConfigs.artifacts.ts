@@ -1,8 +1,3 @@
-// NOTE: Stubs aligned to FastifyPluginAsync pattern (no fastify-plugin wrapper).
-// Routes: GET list (V1 pagination), POST create, PUT update, DELETE remove.
-// Validators/Indexes: module-local stubs exported in artifacts.ts (to be wired in infra/mongo/artifacts.ts).
-// Keep request/response schemas loose while we migrate from localrepo; tighten later.
-
 export const eventConfigsValidator = {
     validator: {
         $jsonSchema: {
@@ -10,11 +5,25 @@ export const eventConfigsValidator = {
             required: ["eventId"],
             properties: {
                 eventId: {bsonType: ["string", "objectId"]},
-                // TODO: add embedded 'selectores' shapes from localrepo (Comercial, MetodoPago, etc.)
-                selectores: {bsonType: "object", additionalProperties: true},
-                presets: {bsonType: "object", additionalProperties: true}
+                selectores: {
+                    bsonType: "object",
+                    additionalProperties: false,
+                    patternProperties: {
+                        "^[a-zA-Z0-9_.-]$": {bsonType: ["string", "bool", "int", "long", "double", "null", "object", "array"]}
+                    }
+                },
+                presets: {
+                    bsonType: "object",
+                    additionalProperties: false,
+                    patternProperties: {
+                        "^[a-zA-Z0-9_.-]$": {
+                            bsonType: "object",
+                            additionalProperties: true
+                        }
+                    }
+                }
             },
-            additionalProperties: true
+            additionalProperties: false
         }
     },
     validationLevel: "strict" as const
