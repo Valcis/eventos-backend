@@ -1,8 +1,3 @@
-// NOTE: Stubs aligned to FastifyPluginAsync pattern (no fastify-plugin wrapper).
-// Routes: GET list (V1 pagination), POST create, PUT update, DELETE remove.
-// Validators/Indexes: module-local stubs exported in artifacts.ts (to be wired in infra/mongo/artifacts.ts).
-// Keep request/response schemas loose while we migrate from localrepo; tighten later.
-
 export const preciosValidator = {
     validator: {
         $jsonSchema: {
@@ -11,7 +6,7 @@ export const preciosValidator = {
             properties: {
                 eventId: {bsonType: ["string", "objectId"]},
                 concepto: {bsonType: "string"},
-                importe: {bsonType: "number", minimum: 0},
+                importe: {bsonType: "decimal", minimum: 0},
                 moneda: {bsonType: "string"},
                 isActive: {bsonType: "bool"},
                 createdAt: {bsonType: ["date", "string"]},
@@ -20,7 +15,6 @@ export const preciosValidator = {
             additionalProperties: false
         }
     },
-    // durante migración, usa "moderate"; cuando limpies datos, subimos a "strict"
     validationLevel: "strict" as const
 };
 

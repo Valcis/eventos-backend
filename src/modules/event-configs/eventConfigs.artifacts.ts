@@ -9,14 +9,14 @@ export const eventConfigsValidator = {
                     bsonType: "object",
                     additionalProperties: false,
                     patternProperties: {
-                        "^[a-zA-Z0-9_.-]$": {bsonType: ["string", "bool", "int", "long", "double", "null", "object", "array"]}
+                        "^[a-zA-Z0-9_.-]+$": {bsonType: ["string", "bool", "int", "long", "double", "decimal", "null", "object", "array"]}
                     }
                 },
                 presets: {
                     bsonType: "object",
                     additionalProperties: false,
                     patternProperties: {
-                        "^[a-zA-Z0-9_.-]$": {
+                        "^[a-zA-Z0-9_.-]+$": {
                             bsonType: "object",
                             additionalProperties: true
                         }

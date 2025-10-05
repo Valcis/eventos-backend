@@ -1,8 +1,3 @@
-// NOTE: Stubs aligned to FastifyPluginAsync pattern (no fastify-plugin wrapper).
-// Routes: GET list (V1 pagination), POST create, PUT update, DELETE remove.
-// Validators/Indexes: module-local stubs exported in artifacts.ts (to be wired in infra/mongo/artifacts.ts).
-// Keep request/response schemas loose while we migrate from localrepo; tighten later.
-
 export const reservasValidator = {
     validator: {
         $jsonSchema: {
@@ -17,7 +12,7 @@ export const reservasValidator = {
                 receptorId: {bsonType: "string"},
                 tipoConsumoId: {bsonType: "string"},
                 comercialId: {bsonType: "string"},
-                totalPedido: {bsonType: "number", minimum: 0},
+                totalPedido: {bsonType: "decimal", minimum: 0},
                 pagado: {bsonType: "bool"},
                 comprobado: {bsonType: "bool"},
                 locked: {bsonType: "bool"},
