@@ -1,11 +1,12 @@
-import fp from 'fastify-plugin';
+import {FastifyPluginAsync} from "fastify";
 import {parsePage, parsePageSize} from '../../utils/pagination';
 import {listPrecios} from './precios.repo';
 import {listPreciosQuerySchema, listPreciosResponseSchema} from './precios.schemas';
 import {NotImplementedError} from '../../core/http/errors';
 import {ok, noContent} from '../../core/http/reply';
 
-export default fp(async (app) => {
+
+const preciosRoutes: FastifyPluginAsync = async (app) => {
     // --- GUARDIA anti-registro duplicado ---
     if (!app.hasDecorator('preciosRoutesLoaded')) app.decorate('preciosRoutesLoaded', true);
     else {
@@ -43,4 +44,6 @@ export default fp(async (app) => {
         async (_req, reply) => {
             return noContent(reply);
         });
-});
+}
+
+export default preciosRoutes;

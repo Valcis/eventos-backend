@@ -5,3 +5,5 @@ logs/
 *.log
 .DS_Store
 .idea/
+package-lock.json
+raw_urls.txt

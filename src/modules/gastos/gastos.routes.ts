@@ -1,11 +1,12 @@
-import fp from 'fastify-plugin';
+import {FastifyPluginAsync} from "fastify";
 import {parsePage, parsePageSize} from '../../utils/pagination';
 import {listGastos} from './gastos.repo';
 import {listGastosQuerySchema, listGastosResponseSchema} from './gastos.schemas';
 import {NotImplementedError} from '../../core/http/errors';
 import {ok, noContent} from '../../core/http/reply';
 
-export default fp(async (app) => {
+
+const gastosRoutes: FastifyPluginAsync = async (app) => {
     // Guardia anti-duplicado
     if (!app.hasDecorator('gastosRoutesLoaded')) app.decorate('gastosRoutesLoaded', true);
     else {
@@ -38,4 +39,7 @@ export default fp(async (app) => {
     app.delete('/:id', {schema: {summary: 'Delete gasto (TBD)'}}, async (_req, reply) => {
         return noContent(reply);
     });
-});
+}
+
+
+export default gastosRoutes;

@@ -1,11 +1,11 @@
-import fp from 'fastify-plugin';
+import {FastifyPluginAsync} from "fastify";
 import {parsePage, parsePageSize} from '../../utils/pagination';
 import {listReservas} from './reservas.repo';
 import {listReservasQuerySchema, listReservasResponseSchema} from './reservas.schemas';
 import {NotImplementedError} from '../../core/http/errors';
 import {ok, noContent} from '../../core/http/reply';
 
-export default fp(async (app) => {
+const reservasRoutes: FastifyPluginAsync = async (app) => {
     if (!app.hasDecorator('reservasRoutesLoaded')) app.decorate('reservasRoutesLoaded', true);
     else {
         app.log.warn('reservasRoutes already registered — skipping duplicate');
@@ -37,4 +37,6 @@ export default fp(async (app) => {
     app.delete('/:id', {schema: {summary: 'Delete reserva (TBD)'}}, async (_req, reply) => {
         return noContent(reply);
     });
-});
+}
+
+export default reservasRoutes;

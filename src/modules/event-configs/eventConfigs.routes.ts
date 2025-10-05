@@ -1,4 +1,4 @@
-import fp from 'fastify-plugin';
+import {FastifyPluginAsync} from "fastify";
 import {getEventConfig, upsertEventConfig} from './eventConfigs.repo';
 import {getEventConfigResponseSchema, putEventConfigBodySchema} from './eventConfigs.schemas';
 
@@ -29,7 +29,7 @@ function validateMetodoPagoBizum(patch: Json): void {
     }
 }
 
-export default fp(async (app) => {
+const eventConfigsRoutes: FastifyPluginAsync = async (app) => {
     if (!app.hasDecorator('eventConfigsRoutesLoaded')) app.decorate('eventConfigsRoutesLoaded', true);
     else {
         app.log.warn('eventConfigsRoutes already registered — skipping duplicate');
@@ -74,4 +74,6 @@ export default fp(async (app) => {
         req.log.info({eventId}, 'eventConfig upserted');
         return reply.code(204).send();
     });
-});
+}
+
+export default eventConfigsRoutes;
