@@ -16,7 +16,7 @@ import {
     deleteReserva,
     type ReservaRow
 } from './reservas.repo';
-import {ok, noContent} from '../../core/http/reply';
+import {ok, noContent, created} from '../../core/http/reply';
 import {buildSelectorMaps} from '../event-configs/selectors.utils';
 import {getEventConfig} from '../event-configs/eventConfigs.repo';
 import {formatCurrencyEUR} from '../../utils/currency';
@@ -107,7 +107,7 @@ const reservasRoutes: FastifyPluginAsync = async (app) => {
             ...(b.updatedAt ? {updatedAt: new Date(b.updatedAt)} : {})
         };
         const row = await createReserva(input);
-        return reply.code(201).send({data: row});
+        return created(reply, row);
     });
 
     app.put<{ Params: IdParams; Body: UpdateReservaBody }>('/:id', {

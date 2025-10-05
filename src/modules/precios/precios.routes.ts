@@ -5,7 +5,7 @@ import {
     createPrecioResponse, type CreatePrecioBody, type UpdatePrecioBody,
 } from './precios.schemas';
 import {listPrecios, createPrecio, updatePrecio, deletePrecio, type PrecioRow} from './precios.repo';
-import {ok, noContent} from '../../core/http/reply';
+import {ok, created, noContent} from '../../core/http/reply';
 import {formatCurrencyEUR} from '../../utils/currency';
 
 
@@ -63,7 +63,7 @@ const preciosRoutes: FastifyPluginAsync = async (app) => {
             ...(b.updatedAt ? {updatedAt: new Date(b.updatedAt)} : {})
         };
         const row = await createPrecio(input);
-        return reply.code(201).send({data: row});
+        return created(reply, row);
     });
 
     // UPDATE

@@ -27,6 +27,7 @@ export const listResponseV1 = {
             required: ['total', 'page', 'pageSize']
         }
     },
+    additionalProperties: false,
     required: ['data', 'meta']
 } as const;
 
@@ -128,10 +129,26 @@ export const gastoExample = {
     updatedAt: '2025-10-03T18:02:11.000Z'
 };
 
+export const gastoRow = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id', 'eventId', 'concepto', 'importe', 'categoria'],
+    properties: {
+        id: {type: 'string'},
+        eventId: {type: 'string'},
+        concepto: {type: 'string'},
+        importe: {type: 'number', minimum: 0},
+        categoria: {type: 'string'},
+        createdAt: {type: 'string'},
+        updatedAt: {type: 'string'}
+    }
+} as const;
+
 export const createGastoResponse = {
     type: 'object',
-    properties: {data: {type: 'object', additionalProperties: true}},
     required: ['data'],
+    additionalProperties: false,
+    properties: {data: gastoRow},
     examples: [{data: gastoExample}]
 } as const;
 

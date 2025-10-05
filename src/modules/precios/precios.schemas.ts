@@ -85,11 +85,28 @@ export const precioExample = {
     updatedAt: '2025-10-03T18:02:11.000Z'
 };
 
+export const precioRow = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id','eventId','concepto','importe','moneda','isActive'],
+    properties: {
+        id: { type: 'string' },
+        eventId: { type: 'string' },
+        concepto: { type: 'string' },
+        importe: { type: 'number', minimum: 0 },
+        moneda: { type: 'string' },
+        isActive: { type: 'boolean' },
+        createdAt: { type: 'string' },
+        updatedAt: { type: 'string' }
+    }
+} as const;
+
 export const createPrecioResponse = {
     type: 'object',
-    properties: {data: {type: 'object', additionalProperties: true}},
     required: ['data'],
-    examples: [{data: precioExample}]
+    additionalProperties: false,
+    properties: { data: precioRow },
+    examples: [{ data: precioExample }]
 } as const;
 
 export const listResponseV1WithExample = {

@@ -17,7 +17,7 @@ export const preciosValidator = {
                 createdAt: {bsonType: ["date", "string"]},
                 updatedAt: {bsonType: ["date", "string"]}
             },
-            additionalProperties: true
+            additionalProperties: false
         }
     },
     // durante migración, usa "moderate"; cuando limpies datos, subimos a "strict"

@@ -47,6 +47,33 @@ export default fp(async (app: FastifyInstance) => {
                             moneda: {type: "string"}
                         },
                         additionalProperties: false
+                    },
+                    Gasto: {
+                        type: "object",
+                        additionalProperties: false,
+                        required: ["id", "eventId", "concepto", "importe", "categoria"],
+                        properties: {
+                            id: {type: "string"},
+                            eventId: {type: "string"},
+                            concepto: {type: "string"},
+                            importe: {type: "number"},
+                            categoria: {type: "string"},
+                            createdAt: {type: "string"},
+                            updatedAt: {type: "string"}
+                        }
+                    },
+                    Reserva: {
+                        type: "object",
+                        additionalProperties: false,
+                        required: ["id", "eventId", "reservaId", "estado"],
+                        properties: {
+                            id: {type: "string"},
+                            eventId: {type: "string"},
+                            reservaId: {type: "string"},
+                            estado: {type: "string"},
+                            createdAt: {type: "string"},
+                            updatedAt: {type: "string"}
+                        }
                     }
                 }
             }

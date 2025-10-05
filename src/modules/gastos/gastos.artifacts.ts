@@ -29,7 +29,7 @@ export const gastosValidator = {
                 createdAt: {bsonType: ["date", "string"]},
                 updatedAt: {bsonType: ["date", "string"]}
             },
-            additionalProperties: true
+            additionalProperties: false
         }
     },
     validationLevel: "moderate" as const

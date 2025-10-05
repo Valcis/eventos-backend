@@ -3,14 +3,14 @@
 
 ## Desarrollo
 ```bash
-pnpm i
-pnpm dev
+npm i
+npm dev
 ```
 
 ## Producción
 ```bash
-pnpm build
-pnpm start
+npm build
+npm start
 ```
 
 ## Salud
@@ -18,7 +18,9 @@ pnpm start
 - `GET /health/db`
 
 ## Mongo Artifacts
-- `MONGO_BOOT=true` para asegurar validadores e índices.
+- Establece `MONGO_BOOT=1` para ejecutar `ensureMongoArtifacts()` en el arranque.
+- Esto creará colecciones si faltan y aplicará `collMod` para actualizar validadores e índices.
+- Si cambias validadores (por ejemplo, `additionalProperties: false`), arranca con `MONGO_BOOT=1` hasta que el cambio esté desplegado en todos los entornos.
 
 ## Problemas comunes
 - **Falta `dist/`** → ejecuta `pnpm build` o revisa `tsconfig` (`noEmit` removido).

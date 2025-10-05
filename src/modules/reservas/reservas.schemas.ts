@@ -120,11 +120,26 @@ export const reservaExample = {
     updatedAt: '2025-10-03T18:02:11.000Z'
 };
 
+export const reservaRow = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id', 'eventId', 'reservaId', 'estado'],
+    properties: {
+        id: {type: 'string'},
+        eventId: {type: 'string'},
+        reservaId: {type: 'string'},
+        estado: {type: 'string'},
+        createdAt: {type: 'string'},
+        updatedAt: {type: 'string'}
+    }
+} as const;
+
 export const createReservaResponse = {
     type: 'object',
-    properties: {data: {type: 'object', additionalProperties: true}},
     required: ['data'],
-    examples: [{data: reservaExample}]
+    additionalProperties: false,
+    properties: {data: reservaRow},
+    examples: [{data: reservaExample /* define si no existe */}]
 } as const;
 
 export const listResponseV1WithExample = {

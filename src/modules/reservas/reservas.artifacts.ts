@@ -26,7 +26,7 @@ export const reservasValidator = {
                 createdAt: {bsonType: ["date", "string"]},
                 updatedAt: {bsonType: ["date", "string"]}
             },
-            additionalProperties: true
+            additionalProperties: false
         }
     },
     validationLevel: "moderate" as const
