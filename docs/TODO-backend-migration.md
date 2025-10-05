@@ -1,69 +1,134 @@
-# TODOs backend Fastify + Mongo (Migración desde localrepo)
+# TODO — Backend Migration
 
-## Modelo de datos y validación
-- [ ] **Validators de Mongo (JSON Schema) por colección**: `event_configs`, `precios`, `gastos`, `reservas`.
-  - _Hecho cuando_: existe `ensureMongoArtifacts()` que aplica `collMod`/`createCollection` con `validator` y `validationLevel: "strict"`; se ejecuta opcionalmente al boot (`MONGO_BOOT=1`).
-- [ ] **Regla de negocio Bizum en servidor** (ya añadida a `event-configs PUT`, pero falta) **validación a nivel de DB** si procede.
-  - _Hecho cuando_: la regla está en capa de rutas/servicio y, si es viable, se refuerza con `$jsonSchema` (o se documenta por qué no).
-- [ ] **Estandarizar tipos de fecha**: guardar `Date` en Mongo, responder ISO string en todas las rutas.
-  - _Hecho cuando_: todos los repos usan helpers (`ensureDate` al escribir, `toISO` al leer).
+> Última actualización: 2025-10-06 (Europe/Madrid)
 
-## Índices y rendimiento
-- [ ] **Índices base**:
-  - `precios(eventId)`, `gastos(eventId)`, `reservas(eventId)`.
-  - Índices compuestos según filtros habituales (cuando confirmemos filtros reales de UI).
-  - _Hecho cuando_: `ensureMongoArtifacts()` crea índices idempotentes y los documenta.
-- [ ] **Plan de paginación futura (V2)**: keyset/`_id` para tablas muy grandes.
-  - _Hecho cuando_: hay propuesta documentada y ticket abierto (no implementar aún).
+Este checklist refleja el estado real del repo tras la última subida. Se marcan con ✅ los puntos ya implementados. Se añaden además tareas de cierre propuestas (sin tests, como se pidió).
 
-## CRUD y repos (ahora solo hay list)
-- [ ] **Precios**: `POST /`, `PUT /:id`, `DELETE /:id` (con validaciones).
-- [ ] **Gastos**: `POST /`, `PUT /:id`, `DELETE /:id` (coherencias `tipoPrecio`, `precioBase/Neto`, `isPack/unidadesPack`).
-- [ ] **Reservas**: `POST /`, `PUT /:id`, `DELETE /:id` (coherencias y totales).
-- [ ] **Event-configs**: validar shape de `selectores` y presets en el PUT (ya hay regla Bizum; falta el resto).
-  - _Hecho cuando_: todos devuelven el mismo shape que el front actual espera (nombres/formatos exactos), con errores 400 bien formateados.
+---
 
-## Contratos y documentación
-- [ ] **OpenAPI/Swagger completo**: esquemas de request/response por ruta, ejemplos y errores.
-  - _Hecho cuando_: `GET /docs` muestra contratos con `200/400/404/204`, parámetros (`page/pageSize`, `eventId`, etc.), y ejemplos.
+## 1) Infraestructura Mongo
 
-## Logging y observabilidad
-- [ ] **Logger a fichero rotado** (p. ej., pino + pino-transport con rotación diaria).
-  - _Hecho cuando_: logs `info/error/debug` se escriben en archivo (`logs/app-YYYY-MM-DD.log`) y en consola, con redacción de campos sensibles.
-- [ ] **Correlación de peticiones**: `requestId` en cada log y propagado a repos.
-- [ ] **Métricas básicas** (opcional): contador de requests por ruta + latencia (Prometheus si lo quieres luego).
+* ✅ **Boot de artefactos Mongo** vía `ensureMongoArtifacts()` (`src/infra/mongo/artifacts.ts`) con gating `MONGO_BOOT === '1'` (invocado desde `src/app.ts`).
+* ✅ **Índices base por colección**: `eventId` y claves mínimas (arrays `*Indexes`).
+* ⬜ **Documentar índices idempotentes** por colección en `docs/` (qué índices se crean y por qué).
 
-## Errores y respuestas
-- [ ] **Normalizar errores**: helper para `badRequest`, `notFound`, `conflict`, etc., con `code` y `message` consistentes.
-  - _Hecho cuando_: no se lanzan `NotImplementedError` en producción; errores tienen `statusCode`, `code` interno y `message` claro.
-- [ ] **Validación de query**: `page`, `pageSize`, `filters`, `sort`—tipar y validar (rango, formato).
+### Acción propuesta
 
-## Seguridad (aunque “sin auth” por ahora)
-- [ ] **CORS**: confirmar orígenes permitidos y métodos (ya está plugin; falta revisar config).
-- [ ] **Rate limit “bajo”** por IP para evitar abuso (opcional).
-- [ ] **Sanitización/escape** de strings que van a logs.
+* ⬜ Añadir doc corta en `docs/db-indexes.md` con la lista de índices efectivos y racional.
 
-## Infra y arranque
-- [ ] **Boot idempotente de artefactos Mongo**: `ensureMongoArtifacts()` (validators + índices) bajo flag env.
-- [ ] **Variables de entorno**: `MONGO_URI`, `MONGO_DB`, `LOG_LEVEL`, `MONGO_BOOT`, etc., con `config/env` tipado.
-- [ ] **Healthchecks**: ya hay `/health` y `/health/db`; mantenerlos verdes tras añadir validadores.
+---
 
-## Calidad y DX
-- [ ] **ESLint + reglas anti-import `.js`** (ya lo dejaste limpio; falta dejar reglas en repo).
-  - _Hecho cuando_: existe `.eslintrc` + husky/lint-staged que bloquean commits con `.js` en imports TS.
-- [ ] **TSConfig**: `moduleResolution: "Bundler"` para evitar TS2835 en IDE.
-- [ ] **Tests mínimos**:
-  - Unit: helpers (`dates.ts`), repos (con DB in-memory o test DB).
-  - E2E: smoke tests de rutas (`GET /health`, `GET /api/precios`, `PUT /api/event-configs/:id` con Bizum OK/no-OK).
-- [ ] **PrintRoutes en boot** solo en `NODE_ENV !== 'production'`.
+## 2) Validadores / Esquemas de colección
 
-## Migración desde localrepo (funcional)
-- [ ] **Paridad de columnas/filtrado/orden**: verificar que listados devuelven las mismas columnas que la UI espera (según `schemas.columns.ts`/presets).
-- [ ] **Selectores embebidos en `event-configs`**: alinear claves (`comercial`, `metodoPago`, `puntoRecogida`, etc.) y sus campos (`notas`, `requiereReceptor`, etc.).
-- [ ] **Eliminar “localRepo”** (cuando validemos una primera página con datos desde Mongo).
-  - _Hecho cuando_: una vista (p. ej., “Precios”) consume backend y pasa QA visual/funcional.
+* ✅ **Validators con `validationLevel: "strict"`** en:
 
-## Tareas rápidas (próximas 48 h)
-1. **`ensureMongoArtifacts()`** con validators + índices de `eventId`.
-2. **CRUD `precios`** completo (POST/PUT/DELETE) replicando shape del front.
-3. **Swagger** completo para `precios` y `event-configs` (incluye ejemplos y errores).
+    * `precios` — `src/modules/precios/precios.artifacts.ts`
+    * `gastos` — `src/modules/gastos/gastos.artifacts.ts`
+    * `reservas` — `src/modules/reservas/reservas.artifacts.ts`
+    * `event-configs` — `src/modules/event-configs/eventConfigs.artifacts.ts`
+* ⬜ **Tipos numéricos alineados con inserciones**: ahora mismo los schemas usan `bsonType: "decimal"` y los repos insertan `number` (JS). Hay que alinear.
+
+### Acciones propuestas (elige una estrategia y aplícala en todas las colecciones afectadas)
+
+
+* ⬜ ** Mantener `decimal` y convertir en repos con `Decimal128.fromString(...)` + serialización inversa.
+
+> **Criterio de aceptación**: inserts/updates de importes no fallan con `MONGO_BOOT=1` y las consultas devuelven los importes correctamente tipados en las respuestas API.
+
+---
+
+## 3) Reglas de negocio
+
+* ⬜ **Consistencia en `reservas` respecto a métodos de pago**: si un `metodoPago` requiere `receptor`, impedir `receptorId = null` en altas/ediciones.
+
+### Acción propuesta
+
+* ⬜ Añadir check en servicios `createReserva`/`updateReserva` cargando `event-configs` del `eventId` y validando la correspondencia.
+
+> **Criterio de aceptación**: no se pueden crear/editar reservas incoherentes con la configuración del evento.
+
+---
+
+## 4) Endpoints y filtrado/ordenación
+
+* ⬜ **Listados con filtros/orden**:
+
+    * `listPrecios`: soportar `q` (búsqueda), orden configurable y filtros básicos.
+    * `listGastos` y `listReservas`: hoy sólo filtran por `eventId`+paginación; falta parseo de `filters` y `sort`.
+* ⬜ **Índices compuestos** para filtros frecuentes (p.ej. `eventId+metodoPagoId`, `eventId+fecha`, `eventId+pagado`).
+
+### Acciones propuestas
+
+* ⬜ Implementar parseo de `filters`/`sort` en handlers/repos.
+* ⬜ Añadir 1–2 índices compuestos por colección según los filtros más usados.
+
+> **Criterio de aceptación**: los listados devuelven resultados paginados aplicando correctamente los filtros y el orden; explain de consultas muestra uso de índices.
+
+---
+
+## 5) Swagger / OpenAPI
+
+* ✅ **Swagger activable por `SWAGGER_ENABLE`** (`src/plugins/swagger.ts`) con componentes comunes (IdResponse, Paginated, etc.).
+* ⬜ **Errores y ejemplos completos**:
+
+    * Incluir respuesta `400` con un `errorSchema` en todas las rutas que validan `body/params`.
+    * Añadir **examples** de request/response en POST/PUT de `gastos` y `reservas`.
+
+### Acción propuesta
+
+* ⬜ Completar los esquemas y examples en `gastos`/`reservas` y asegurar 400/404/409 donde aplique.
+
+> **Criterio de aceptación**: la UI de Swagger muestra ejemplos coherentes y estados de error en todas las rutas.
+
+---
+
+## 6) Fechas y serialización
+
+* ✅ Helpers `ensureDate`/`toISO` en `src/utils/dates.ts` usados en repos de `precios`, `gastos`, `reservas`.
+
+> **Criterio de aceptación**: todas las fechas en responses están en ISO y los inserts normalizan a `Date`.
+
+---
+
+## 7) Selectores / esquema embebido y paridad con Front
+
+* ⬜ **Schema de `selectores` más estricto en rutas**: actualmente se permite `additionalProperties`; alinear con lo definido en validators de colección.
+* ⬜ **Nombres de claves** (`comercial`, `metodoPago`, `receptor`, `tipoConsumo`, `puntoRecogida`) verificados 1:1 con la UI.
+
+### Acción propuesta
+
+* ⬜ Ajustar `event-configs.schemas.ts` para cerrar el schema y reflectar exactamente los campos usados por el front.
+
+> **Criterio de aceptación**: payloads inválidos de selectores se rechazan en capa de rutas y coinciden con lo que renderiza el front.
+
+---
+
+## 8) Utilidades de desarrollo
+
+* ✅ **PrintRoutes presente** y limitado a no-prod (comentado actualmente).
+
+### Acción propuesta
+
+> **Criterio de aceptación**: en dev se listan rutas al boot; en prod no hay salida adicional.
+
+---
+
+## 9) Tareas de cierre 
+
+* ⬜ **Arreglar tipado numérico** (`decimal` vs `double` o conversión a `Decimal128`).
+* ⬜ **Implementar filtros/orden en listados** y añadir **índices compuestos** básicos.
+* ⬜ **Completar Swagger con errores y ejemplos** en `gastos` y `reservas`.
+* ⬜ **Documentar índices** en `docs/db-indexes.md`.
+
+---
+
+## Anexos (referencias de código)
+
+* `src/infra/mongo/artifacts.ts`
+* `src/app.ts`
+* `src/modules/precios/*`
+* `src/modules/gastos/*`
+* `src/modules/reservas/*`
+* `src/modules/event-configs/*`
+* `src/plugins/swagger.ts`
+* `src/utils/dates.ts`
