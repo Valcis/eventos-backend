@@ -1,13 +1,14 @@
 import {MongoClient, Db} from "mongodb";
 import {getEnv} from "../../config/env";
 
+const {MONGODB_URI, MONGODB_DB} = getEnv()
+
 let client: MongoClient | null = null;
 let database: Db | null = null;
 
 function getUrl(): string {
-    return process.env.MONGO_URL ?? 'mongodb://localhost:27017';
+    return MONGODB_URI ?? 'mongodb://localhost:27017';
 }
-
 
 export async function getClient(): Promise<MongoClient> {
     if (client) return client;
@@ -18,10 +19,8 @@ export async function getClient(): Promise<MongoClient> {
 
 export async function getDb(): Promise<Db> {
     if (database) return database;
-
-    const env = getEnv();
-    const uri = env.MONGODB_URI;
-    const dbName = env.MONGODB_DB;
+    const uri = MONGODB_URI;
+    const dbName = MONGODB_DB;
 
     client = new MongoClient(uri, {
         maxPoolSize: 10,
