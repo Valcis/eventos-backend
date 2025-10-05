@@ -7,7 +7,8 @@ export const listQueryV1 = {
         page: {type: 'string'},
         pageSize: {type: 'string'},
         filters: {type: 'string'},
-        sort: {type: 'string'}
+        sort: {type: 'string'},
+        expand: {type: 'string', description: 'none | selectores | fmt | selectores,fmt'}
     },
     required: ['eventId']
 } as const;

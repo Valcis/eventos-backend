@@ -1,4 +1,4 @@
-import { errorSchema } from '../../core/http/schemas';
+import {errorSchema} from '../../core/http/schemas';
 
 //
 // Types para tipar el body y la respuesta
@@ -40,7 +40,7 @@ export type EventConfigResponse = {
 //
 export const eventIdParams = {
     type: 'object',
-    properties: { eventId: { type: 'string' } },
+    properties: {eventId: {type: 'string'}},
     required: ['eventId']
 } as const;
 
@@ -51,14 +51,14 @@ export const upsertEventConfigBody = {
             type: 'object',
             additionalProperties: true,
             properties: {
-                comercial: { type: 'array', items: { type: 'object', additionalProperties: true } },
-                metodoPago: { type: 'array', items: { type: 'object', additionalProperties: true } },
-                receptor: { type: 'array', items: { type: 'object', additionalProperties: true } },
-                tipoConsumo: { type: 'array', items: { type: 'object', additionalProperties: true } },
-                puntoRecogida: { type: 'array', items: { type: 'object', additionalProperties: true } }
+                comercial: {type: 'array', items: {type: 'object', additionalProperties: true}},
+                metodoPago: {type: 'array', items: {type: 'object', additionalProperties: true}},
+                receptor: {type: 'array', items: {type: 'object', additionalProperties: true}},
+                tipoConsumo: {type: 'array', items: {type: 'object', additionalProperties: true}},
+                puntoRecogida: {type: 'array', items: {type: 'object', additionalProperties: true}}
             }
         },
-        presets: { type: 'object', additionalProperties: true }
+        presets: {type: 'object', additionalProperties: true}
     },
     additionalProperties: true
 } as const;
@@ -66,7 +66,7 @@ export const upsertEventConfigBody = {
 export const getEventConfigResponse = {
     type: 'object',
     properties: {
-        data: { type: 'object', additionalProperties: true }
+        data: {type: 'object', additionalProperties: true}
     },
     required: ['data']
 } as const;
@@ -79,28 +79,43 @@ export const eventConfigExample: EventConfigResponse = {
         eventId: 'evento123',
         selectores: {
             comercial: [
-                { id: 'c1', nombre: 'Laura', isActive: true },
-                { id: 'c2', nombre: 'Miguel', isActive: true }
+                {id: 'c1', nombre: 'Laura', isActive: true},
+                {id: 'c2', nombre: 'Miguel', isActive: true}
             ],
             metodoPago: [
-                { id: 'mp1', nombre: 'efectivo', isActive: true },
-                { id: 'mp2', nombre: 'tarjeta', isActive: true },
-                { id: 'mp3', nombre: 'bizum', isActive: true, requiereReceptor: true } // ← regla
+                {id: 'mp1', nombre: 'efectivo', isActive: true},
+                {id: 'mp2', nombre: 'tarjeta', isActive: true},
+                {id: 'mp3', nombre: 'bizum', isActive: true, requiereReceptor: true} // ← regla
             ],
             receptor: [
-                { id: 'r1', nombre: 'Caja Principal', isActive: true },
-                { id: 'r2', nombre: 'Puesto 2', isActive: true }
+                {id: 'r1', nombre: 'Caja Principal', isActive: true},
+                {id: 'r2', nombre: 'Puesto 2', isActive: true}
             ],
             tipoConsumo: [
-                { id: 'tc1', nombre: 'para_llevar', isActive: true },
-                { id: 'tc2', nombre: 'en_local', isActive: true }
+                {id: 'tc1', nombre: 'para_llevar', isActive: true},
+                {id: 'tc2', nombre: 'en_local', isActive: true}
             ],
             puntoRecogida: [
-                { id: 'p1', nombre: 'Mostrador A', isActive: true },
-                { id: 'p2', nombre: 'Mostrador B', isActive: true }
+                {id: 'p1', nombre: 'Mostrador A', isActive: true},
+                {id: 'p2', nombre: 'Mostrador B', isActive: true}
             ]
         },
         presets: {
+            precios: {
+                order: ['concepto', 'importe', 'isActive', 'createdAt', 'updatedAt', 'id'],
+                hidden: ['moneda', 'createdAt', 'updatedAt', 'id'],
+                widths: {concepto: 240, importe: 120}
+            },
+            gastos: {
+                order: ['producto', 'cantidad', 'tipoPrecio', 'precioBase', 'precioNeto', 'comprobado', 'isActive', 'createdAt', 'updatedAt', 'id'],
+                hidden: ['tipoIVA', 'isPack', 'unidadesPack', 'precioUnidad', 'pagadorId', 'tiendaId', 'notas', 'locked', 'isActive', 'createdAt', 'updatedAt', 'id'],
+                widths: {producto: 240, precioNeto: 120}
+            },
+            reservas: {
+                order: ['cliente', 'tipoConsumoId', 'metodoPagoId', 'totalPedido', 'pagado', 'createdAt', 'updatedAt', 'id'],
+                hidden: ['picarones', 'receptorId', 'comercialId', 'puntoRecogidaId', 'comprobado', 'locked', 'isActive', 'createdAt', 'updatedAt', 'id'],
+                widths: {cliente: 220, totalPedido: 120}
+            },
             columnasVisibles: ['cliente', 'totalPedido', 'pagado'],
             moneda: 'EUR'
         }

@@ -17,6 +17,10 @@ import {
     type GastoRow
 } from './gastos.repo';
 import {ok, noContent} from '../../core/http/reply';
+import {buildSelectorMaps} from '../event-configs/selectors.utils';
+import {getEventConfig} from '../event-configs/eventConfigs.repo';
+import {formatCurrencyEUR} from '../../utils/currency';
+
 
 type ListReply = { data: GastoRow[]; meta: { total: number; page: number; pageSize: number } };
 type CreateReply = { data: GastoRow };
@@ -37,7 +41,35 @@ const gastosRoutes: FastifyPluginAsync = async (app) => {
         const p = parsePage(page);
         const ps = parsePageSize(pageSize);
         const {rows, total} = await listGastos({eventId, page: p, pageSize: ps, filters, sort});
-        return ok(reply, rows, {total, page: p, pageSize: ps});
+
+        const expand = (req.query as { expand?: string }).expand ?? 'selectores,fmt';
+        const wantSel = expand.includes('selectores');
+        const wantFmt = expand.includes('fmt');
+
+        let data = rows;
+
+        if (wantSel || wantFmt) {
+            let maps: ReturnType<typeof buildSelectorMaps> | null = null;
+            if (wantSel) {
+                const cfg = await getEventConfig(eventId);
+                maps = buildSelectorMaps(cfg?.selectores as unknown as Record<string, never>);
+            }
+            data = rows.map(r => ({
+                ...r,
+                ...(wantSel && maps ? {
+                    // Ajusta estos dos mapeos cuando confirmemos a qué lista pertenecen exactamente
+                    pagadorNombre: r.pagadorId ? (maps.comercial[r.pagadorId] ?? maps.receptor[r.pagadorId] ?? undefined) : undefined,
+                    tiendaNombre: r.tiendaId ? (maps.puntoRecogida[r.tiendaId] ?? undefined) : undefined
+                } : {}),
+                ...(wantFmt ? {
+                    precioBaseFmt: formatCurrencyEUR(r.precioBase),
+                    precioNetoFmt: formatCurrencyEUR(r.precioNeto),
+                    precioUnidadFmt: typeof r.precioUnidad === 'number' ? formatCurrencyEUR(r.precioUnidad) : undefined
+                } : {})
+            }));
+        }
+
+        return ok(reply, data, {total, page: p, pageSize: ps});
     });
 
     app.post<{ Body: CreateGastoBody; Reply: CreateReply }>('/', {

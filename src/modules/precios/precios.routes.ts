@@ -1,19 +1,18 @@
 import type {FastifyPluginAsync} from 'fastify';
 import {parsePage, parsePageSize} from '../../utils/pagination';
 import {
-    listQueryV1,
-    createPrecioBody, updatePrecioBody,
-    type CreatePrecioBody, type UpdatePrecioBody, listResponseV1WithExample, badRequestError, createPrecioResponse
+    listQueryV1, createPrecioBody, updatePrecioBody, listResponseV1WithExample, badRequestError,
+    createPrecioResponse, type CreatePrecioBody, type UpdatePrecioBody,
 } from './precios.schemas';
-import {
-    listPrecios, createPrecio, updatePrecio, deletePrecio,
-    type PrecioRow
-} from './precios.repo';
+import {listPrecios, createPrecio, updatePrecio, deletePrecio, type PrecioRow} from './precios.repo';
 import {ok, noContent} from '../../core/http/reply';
+import {formatCurrencyEUR} from '../../utils/currency';
+
 
 type ListReply = { data: PrecioRow[]; meta: { total: number; page: number; pageSize: number } };
 type CreateReply = { data: PrecioRow };
 type IdParams = { id: string };
+
 
 const preciosRoutes: FastifyPluginAsync = async (app) => {
     // LIST
@@ -30,8 +29,17 @@ const preciosRoutes: FastifyPluginAsync = async (app) => {
         };
         const p = parsePage(page);
         const ps = parsePageSize(pageSize);
+
         const {rows, total} = await listPrecios({eventId, page: p, pageSize: ps, q});
-        return ok(reply, rows, {total, page: p, pageSize: ps});
+
+        const expand = (req.query as { expand?: string }).expand ?? 'selectores,fmt';
+        const wantFmt = expand.includes('fmt');
+
+        // agrega ...Fmt si se solicita
+        const data = wantFmt
+            ? rows.map(r => ({...r, importeFmt: formatCurrencyEUR(r.importe)}))
+            : rows;
+        return ok(reply, data, {total, page: p, pageSize: ps});
     });
 
     // CREATE

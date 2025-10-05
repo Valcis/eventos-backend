@@ -15,7 +15,8 @@
     "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
     "lint:watch": "eslint \"src/**/*.{ts,tsx}\" --cache --watch --max-warnings=0",
     "check:mongo": "tsx src/tools/check-mongo.ts",
-    "check:imports": "tsx scripts/check-import-extensions.ts"
+    "check:imports": "tsx src/scripts/check-import-extensions.ts",
+    "seed": "tsx src/scripts/seed.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.0",

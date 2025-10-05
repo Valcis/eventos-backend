@@ -1,13 +1,14 @@
-import { errorSchema } from '../../core/http/schemas';
+import {errorSchema} from '../../core/http/schemas';
 
 export const listQueryV1 = {
     type: 'object',
     properties: {
-        eventId: { type: 'string' },
-        page: { type: 'string' },
-        pageSize: { type: 'string' },
-        filters: { type: 'string' },
-        sort: { type: 'string' }
+        eventId: {type: 'string'},
+        page: {type: 'string'},
+        pageSize: {type: 'string'},
+        filters: {type: 'string'},
+        sort: {type: 'string'},
+        expand: {type: 'string', description: 'none | selectores | fmt | selectores,fmt'}
     },
     required: ['eventId']
 } as const;
@@ -15,13 +16,13 @@ export const listQueryV1 = {
 export const listResponseV1 = {
     type: 'object',
     properties: {
-        data: { type: 'array', items: { type: 'object', additionalProperties: true } },
+        data: {type: 'array', items: {type: 'object', additionalProperties: true}},
         meta: {
             type: 'object',
             properties: {
-                total: { type: 'number' },
-                page: { type: 'number' },
-                pageSize: { type: 'number' }
+                total: {type: 'number'},
+                page: {type: 'number'},
+                pageSize: {type: 'number'}
             },
             required: ['total', 'page', 'pageSize']
         }
@@ -32,29 +33,29 @@ export const listResponseV1 = {
 export const createGastoBody = {
     type: 'object',
     required: [
-        'eventId','producto','cantidad','tipoPrecio','precioBase','precioNeto',
-        'comprobado','locked','isActive'
+        'eventId', 'producto', 'cantidad', 'tipoPrecio', 'precioBase', 'precioNeto',
+        'comprobado', 'locked', 'isActive'
     ],
     properties: {
-        eventId: { type: 'string' },
-        producto: { type: 'string' },
-        unidadId: { type: 'string' },
-        cantidad: { type: 'number', minimum: 0 },
-        tipoPrecio: { type: 'string', enum: ['con IVA', 'sin IVA'] },
-        tipoIVA: { type: 'number', minimum: 0 },
-        precioBase: { type: 'number', minimum: 0 },
-        precioNeto: { type: 'number', minimum: 0 },
-        isPack: { type: 'boolean' },
-        unidadesPack: { type: ['integer', 'null'], minimum: 1 },
-        precioUnidad: { type: ['number', 'null'], minimum: 0 },
-        pagadorId: { type: ['string', 'null'] },
-        tiendaId: { type: ['string', 'null'] },
-        notas: { type: ['string', 'null'] },
-        comprobado: { type: 'boolean' },
-        locked: { type: 'boolean' },
-        isActive: { type: 'boolean' },
-        createdAt: { type: 'string' },
-        updatedAt: { type: 'string' }
+        eventId: {type: 'string'},
+        producto: {type: 'string'},
+        unidadId: {type: 'string'},
+        cantidad: {type: 'number', minimum: 0},
+        tipoPrecio: {type: 'string', enum: ['con IVA', 'sin IVA']},
+        tipoIVA: {type: 'number', minimum: 0},
+        precioBase: {type: 'number', minimum: 0},
+        precioNeto: {type: 'number', minimum: 0},
+        isPack: {type: 'boolean'},
+        unidadesPack: {type: ['integer', 'null'], minimum: 1},
+        precioUnidad: {type: ['number', 'null'], minimum: 0},
+        pagadorId: {type: ['string', 'null']},
+        tiendaId: {type: ['string', 'null']},
+        notas: {type: ['string', 'null']},
+        comprobado: {type: 'boolean'},
+        locked: {type: 'boolean'},
+        isActive: {type: 'boolean'},
+        createdAt: {type: 'string'},
+        updatedAt: {type: 'string'}
     },
     additionalProperties: true
 } as const;
@@ -62,23 +63,23 @@ export const createGastoBody = {
 export const updateGastoBody = {
     type: 'object',
     properties: {
-        producto: { type: 'string' },
-        unidadId: { type: 'string' },
-        cantidad: { type: 'number', minimum: 0 },
-        tipoPrecio: { type: 'string', enum: ['con IVA', 'sin IVA'] },
-        tipoIVA: { type: 'number', minimum: 0 },
-        precioBase: { type: 'number', minimum: 0 },
-        precioNeto: { type: 'number', minimum: 0 },
-        isPack: { type: 'boolean' },
-        unidadesPack: { type: ['integer', 'null'], minimum: 1 },
-        precioUnidad: { type: ['number', 'null'], minimum: 0 },
-        pagadorId: { type: ['string', 'null'] },
-        tiendaId: { type: ['string', 'null'] },
-        notas: { type: ['string', 'null'] },
-        comprobado: { type: 'boolean' },
-        locked: { type: 'boolean' },
-        isActive: { type: 'boolean' },
-        updatedAt: { type: 'string' }
+        producto: {type: 'string'},
+        unidadId: {type: 'string'},
+        cantidad: {type: 'number', minimum: 0},
+        tipoPrecio: {type: 'string', enum: ['con IVA', 'sin IVA']},
+        tipoIVA: {type: 'number', minimum: 0},
+        precioBase: {type: 'number', minimum: 0},
+        precioNeto: {type: 'number', minimum: 0},
+        isPack: {type: 'boolean'},
+        unidadesPack: {type: ['integer', 'null'], minimum: 1},
+        precioUnidad: {type: ['number', 'null'], minimum: 0},
+        pagadorId: {type: ['string', 'null']},
+        tiendaId: {type: ['string', 'null']},
+        notas: {type: ['string', 'null']},
+        comprobado: {type: 'boolean'},
+        locked: {type: 'boolean'},
+        isActive: {type: 'boolean'},
+        updatedAt: {type: 'string'}
     },
     additionalProperties: true
 } as const;
@@ -129,17 +130,17 @@ export const gastoExample = {
 
 export const createGastoResponse = {
     type: 'object',
-    properties: { data: { type: 'object', additionalProperties: true } },
+    properties: {data: {type: 'object', additionalProperties: true}},
     required: ['data'],
-    examples: [{ data: gastoExample }]
+    examples: [{data: gastoExample}]
 } as const;
 
 export const listResponseV1WithExample = {
     ...listResponseV1,
-    examples: [{ data: [gastoExample], meta: { total: 1, page: 0, pageSize: 20 } }]
+    examples: [{data: [gastoExample], meta: {total: 1, page: 0, pageSize: 20}}]
 } as const;
 
 export const badRequestError = {
     ...errorSchema,
-    examples: [{ ok: false, code: 'EVENT_ID_REQUIRED', message: 'eventId es obligatorio' }]
+    examples: [{ok: false, code: 'EVENT_ID_REQUIRED', message: 'eventId es obligatorio'}]
 } as const;

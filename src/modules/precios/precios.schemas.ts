@@ -3,10 +3,11 @@ import {errorSchema} from "../../core/http/schemas";
 export const listQueryV1 = {
     type: 'object',
     properties: {
-        eventId: { type: 'string' },
-        page: { type: 'string' },
-        pageSize: { type: 'string' },
-        q: { type: 'string' }
+        eventId: {type: 'string'},
+        page: {type: 'string'},
+        pageSize: {type: 'string'},
+        q: {type: 'string'},
+        expand: {type: 'string', description: 'none | selectores | fmt | selectores,fmt'}
     },
     required: ['eventId']
 } as const;
@@ -14,31 +15,31 @@ export const listQueryV1 = {
 export const listResponseV1 = {
     type: 'object',
     properties: {
-        data: { type: 'array', items: { type: 'object', additionalProperties: true } },
+        data: {type: 'array', items: {type: 'object', additionalProperties: true}},
         meta: {
             type: 'object',
             properties: {
-                total: { type: 'number' },
-                page: { type: 'number' },
-                pageSize: { type: 'number' }
+                total: {type: 'number'},
+                page: {type: 'number'},
+                pageSize: {type: 'number'}
             },
-            required: ['total','page','pageSize']
+            required: ['total', 'page', 'pageSize']
         }
     },
-    required: ['data','meta']
+    required: ['data', 'meta']
 } as const;
 
 export const createPrecioBody = {
     type: 'object',
-    required: ['eventId','concepto','importe','moneda','isActive'],
+    required: ['eventId', 'concepto', 'importe', 'moneda', 'isActive'],
     properties: {
-        eventId: { type: 'string' },
-        concepto: { type: 'string' },
-        importe: { type: 'number', minimum: 0 },
-        moneda: { type: 'string' },
-        isActive: { type: 'boolean' },
-        createdAt: { type: 'string' }, // ISO opcional
-        updatedAt: { type: 'string' }  // ISO opcional
+        eventId: {type: 'string'},
+        concepto: {type: 'string'},
+        importe: {type: 'number', minimum: 0},
+        moneda: {type: 'string'},
+        isActive: {type: 'boolean'},
+        createdAt: {type: 'string'}, // ISO opcional
+        updatedAt: {type: 'string'}  // ISO opcional
     },
     additionalProperties: true
 } as const;
@@ -46,11 +47,11 @@ export const createPrecioBody = {
 export const updatePrecioBody = {
     type: 'object',
     properties: {
-        concepto: { type: 'string' },
-        importe: { type: 'number', minimum: 0 },
-        moneda: { type: 'string' },
-        isActive: { type: 'boolean' },
-        updatedAt: { type: 'string' }
+        concepto: {type: 'string'},
+        importe: {type: 'number', minimum: 0},
+        moneda: {type: 'string'},
+        isActive: {type: 'boolean'},
+        updatedAt: {type: 'string'}
     },
     additionalProperties: true
 } as const;
@@ -86,21 +87,21 @@ export const precioExample = {
 
 export const createPrecioResponse = {
     type: 'object',
-    properties: { data: { type: 'object', additionalProperties: true } },
+    properties: {data: {type: 'object', additionalProperties: true}},
     required: ['data'],
-    examples: [{ data: precioExample }]
+    examples: [{data: precioExample}]
 } as const;
 
 export const listResponseV1WithExample = {
     ...listResponseV1,
     examples: [{
         data: [precioExample],
-        meta: { total: 1, page: 0, pageSize: 20 }
+        meta: {total: 1, page: 0, pageSize: 20}
     }]
 } as const;
 
 export const badRequestError = {
     ...errorSchema,
-    examples: [{ ok: false, code: 'EVENT_ID_REQUIRED', message: 'eventId es obligatorio' }]
+    examples: [{ok: false, code: 'EVENT_ID_REQUIRED', message: 'eventId es obligatorio'}]
 } as const;
 
