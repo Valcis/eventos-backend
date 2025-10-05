@@ -7,17 +7,25 @@ import eventConfigsRoutes from './modules/event-configs/eventConfigs.routes';
 import preciosRoutes from './modules/precios/precios.routes';
 import gastosRoutes from './modules/gastos/gastos.routes';
 import reservasRoutes from './modules/reservas/reservas.routes';
+import {getEnv} from "./config/env";
+import {ensureMongoArtifacts} from "./infra/mongo/artifacts";
 
 export async function buildApp() {
     const app = Fastify({
         logger: buildLoggerOptions(),
         disableRequestLogging: true
-
-        /*(Opcional) Boot de artefactos cuando lo habilitemos por env:
-         if (getEnv().MONGO_BOOT === '1') {
-           await ensureMongoArtifacts();
-         }*/
     });
+
+    //(Opcional) Boot de artefactos cuando lo habilitemos por env:
+    if (getEnv().MONGO_BOOT === '1') {
+        try {
+            await ensureMongoArtifacts();
+            app.log.info('Mongo artifacts ensured ✔');
+        } catch (err) {
+            app.log.error({err}, 'Mongo artifacts failed');
+            throw err; // si quieres abortar el boot si falla
+        }
+    }
 
     await app.register(corsPlugin);
     await app.register(swaggerPlugin);

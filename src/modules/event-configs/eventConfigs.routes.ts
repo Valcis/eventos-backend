@@ -1,56 +1,86 @@
-import type { FastifyPluginAsync } from 'fastify';
-import { getEventConfig, upsertEventConfig } from './eventConfigs.repo';
-import { getEventConfigResponseSchema, upsertEventConfigParams, upsertEventConfigBody } from './eventConfigs.schemas';
+import type {FastifyPluginAsync} from 'fastify';
+import {
+    eventIdParams,
+    upsertEventConfigBody,
+    getEventConfigResponseWithExample,
+    badRequestBizumRule,
+    type UpsertEventConfigBody,
+    type EventConfigResponse,
+    type SelectorItem
+} from './eventConfigs.schemas';
+import {getEventConfig, upsertEventConfig} from './eventConfigs.repo';
 
-type Json = Record<string, unknown>;
-
-function isObject(x: unknown): x is Record<string, unknown> { return typeof x === 'object' && x !== null && !Array.isArray(x); }
-function isArray(x: unknown): x is unknown[] { return Array.isArray(x); }
-
-function validateMetodoPagoBizum(patch: Json): void {
-  const selectores = isObject((patch as any).selectores) ? (patch as any).selectores as Record<string, unknown> : null;
-  const metodoPago = selectores && isArray((selectores as any).metodoPago) ? (selectores as any).metodoPago as unknown[] : null;
-  if (!metodoPago) return;
-  for (const raw of metodoPago) {
-    if (!isObject(raw)) continue;
-    const nombre = String((raw as any).nombre ?? '').trim().toLowerCase();
-    const requiere = (raw as any).requiereReceptor;
-    if (nombre === 'bizum' && requiere !== true) {
-      const err = new Error('Para "bizum", el campo requiereReceptor debe ser true.');
-      (err as any).statusCode = 400;
-      (err as any).code = 'VALIDATION_BIZUM_REQUIERE_RECEPTOR';
-      throw err;
-    }
-  }
+//
+// Pequeños type-guards locales (sin any)
+//
+function isPlainObject(x: unknown): x is Record<string, unknown> {
+    return typeof x === 'object' && x !== null && !Array.isArray(x);
 }
 
-const eventConfigsRoutes: FastifyPluginAsync = async (app) => {
-  app.get('/:eventId', {
-    schema: {
-      summary: 'Get event config',
-      params: upsertEventConfigParams,
-      response: { 200: getEventConfigResponseSchema }
-    }
-  }, async (req, reply) => {
-    const { eventId } = req.params as { eventId: string };
-    const data = await getEventConfig(eventId);
-    return reply.code(200).send({ data });
-  });
+function isSelectorItem(x: unknown): x is SelectorItem {
+    return isPlainObject(x) && typeof (x.nombre ?? '') === 'string';
+}
 
-  app.put('/:eventId', {
-    schema: {
-      summary: 'Upsert event config',
-      params: upsertEventConfigParams,
-      body: upsertEventConfigBody,
-      response: { 204: { type: 'null' } }
+function isSelectorArray(x: unknown): x is SelectorItem[] {
+    return Array.isArray(x) && x.every(isSelectorItem);
+}
+
+//
+// Regla de negocio:
+// si existe un item en selectores.metodoPago con nombre "bizum" (case-insensitive),
+// entonces requiereReceptor debe ser true.
+//
+function validateMetodoPagoBizum(body: UpsertEventConfigBody): void {
+    const sel = body.selectores;
+    if (!sel) return;
+    const mp = sel.metodoPago;
+    if (!mp || !isSelectorArray(mp)) return;
+
+    for (const item of mp) {
+        const nombre = (item.nombre ?? '').trim().toLowerCase();
+        if (nombre === 'bizum' && item.requiereReceptor !== true) {
+            const err = new Error('Para "bizum", el campo requiereReceptor debe ser true.');
+            (err as unknown as { statusCode: number; code: string }).statusCode = 400;
+            (err as unknown as { statusCode: number; code: string }).code = 'VALIDATION_BIZUM_REQUIERE_RECEPTOR';
+            throw err;
+        }
     }
-  }, async (req, reply) => {
-    const { eventId } = req.params as { eventId: string };
-    const patch = req.body as Json;
-    validateMetodoPagoBizum(patch);
-    await upsertEventConfig(eventId, patch);
-    return reply.code(204).send();
-  });
+}
+
+type GetParams = { eventId: string };
+type PutParams = { eventId: string };
+type GetReply = EventConfigResponse;
+
+const eventConfigsRoutes: FastifyPluginAsync = async (app) => {
+    // GET /:eventId
+    app.get<{ Params: GetParams; Reply: GetReply }>('/:eventId', {
+        schema: {
+            summary: 'Get event config',
+            tags: ['event-configs'],
+            params: eventIdParams,
+            response: {200: getEventConfigResponseWithExample}
+        }
+    }, async (req, reply) => {
+        const data = await getEventConfig(req.params.eventId);
+        const payload: EventConfigResponse = {data: {eventId: String(data.eventId), ...data}};
+        return reply.code(200).send(payload);
+    });
+
+    // PUT /:eventId
+    app.put<{ Params: PutParams; Body: UpsertEventConfigBody }>('/:eventId', {
+        schema: {
+            summary: 'Upsert event config',
+            tags: ['event-configs'],
+            params: eventIdParams,
+            body: upsertEventConfigBody,
+            response: {204: {type: 'null'}, 400: badRequestBizumRule}
+        }
+    }, async (req, reply) => {
+        const patch = req.body;
+        validateMetodoPagoBizum(patch);
+        await upsertEventConfig(req.params.eventId, patch as Record<string, unknown>);
+        return reply.code(204).send();
+    });
 };
 
 export default eventConfigsRoutes;

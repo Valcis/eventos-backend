@@ -21,7 +21,8 @@ const EnvZ = z.object({
         .default("true")
         .transform((v) => ["1", "true", "yes", "on"].includes(v.toLowerCase())),
     MONGODB_URI: z.string().min(1, "MONGODB_URI is required"),
-    MONGODB_DB: z.string().min(1, "MONGODB_DB is required")
+    MONGODB_DB: z.string().min(1, "MONGODB_DB is required"),
+    MONGO_BOOT: z.string().default("0")
 });
 
 export type Env = z.infer<typeof EnvZ>;
