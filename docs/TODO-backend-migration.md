@@ -14,7 +14,7 @@ Este checklist refleja el estado real del repo tras la última subida. Se marcan
 
 ### Acción propuesta
 
-* ⬜ Añadir doc corta en `docs/db-indexes.md` con la lista de índices efectivos y racional.
+* ⬜ Añadir doc corta en `docs/db.indexes.md` con la lista de índices efectivos y racional.
 
 ---
 
@@ -105,13 +105,7 @@ Este checklist refleja el estado real del repo tras la última subida. Se marcan
 
 ## 8) Utilidades de desarrollo
 
-* ✅ **PrintRoutes presente** y limitado a no-prod (comentado actualmente).
 
-### Acción propuesta
-
-> **Criterio de aceptación**: en dev se listan rutas al boot; en prod no hay salida adicional.
-
----
 
 ## 9) Tareas de cierre 
 

@@ -37,5 +37,5 @@ export const errorSchema = {
         message: {type: 'string'}
     },
     required: ['ok', 'message'],
-    additionalProperties: true
+    additionalProperties: false
 } as const;

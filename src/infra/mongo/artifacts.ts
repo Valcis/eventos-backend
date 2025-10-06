@@ -97,7 +97,7 @@ export async function ensureMongoArtifacts(db: Db | undefined | null): Promise<v
                 spec.name,
                 spec.validator ? {
                     validator: spec.validator,
-                    validationLevel: "moderate",
+                    validationLevel: "strict",
                     validationAction: "error"
                 } : undefined
             );
@@ -105,7 +105,7 @@ export async function ensureMongoArtifacts(db: Db | undefined | null): Promise<v
             await db.command({
                 collMod: spec.name,
                 validator: spec.validator,
-                validationLevel: "moderate",
+                validationLevel: "strict",
                 validationAction: "error",
             });
         }

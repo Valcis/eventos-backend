@@ -80,7 +80,7 @@ const errorEnvelope = {
     type: "object",
     properties: {ok: {const: false}, code: {type: "string"}, message: {type: "string"}},
     required: ["ok", "code", "message"],
-    additionalProperties: true,
+    additionalProperties: false,
 } as const;
 
 type GetPreciosQuery = { page?: string; pageSize?: string; sort?: string; productoId?: string };
