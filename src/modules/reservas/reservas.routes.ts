@@ -1,154 +1,225 @@
-import type {FastifyPluginAsync} from 'fastify';
-import {parsePage, parsePageSize} from '../../utils/pagination';
-import {
-    listQueryV1,
-    listResponseV1WithExample,
-    createReservaBody,
-    updateReservaBody,
-    badRequestError,
-    type CreateReservaBody,
-    type UpdateReservaBody
-} from './reservas.schemas';
-import {
-    listReservas,
-    createReserva,
-    updateReserva,
-    deleteReserva,
-    type ReservaRow
-} from './reservas.repo';
-import {ok, noContent, created} from '../../core/http/reply';
-import {buildSelectorMaps} from '../event-configs/selectors.utils';
-import {getEventConfig} from '../event-configs/eventConfigs.repo';
-import {formatCurrencyEUR} from '../../utils/currency';
+import {FastifyInstance} from "fastify";
+import {ReservasRepo} from "./reservas.repo";
+import {parsePage, parsePageSize} from "../../utils/pagination";
+import {parseSort, toMongoSort} from "../../core/filters/sort";
+import {requireDb} from "../../infra/mongo/db-access";
+import {ReservaEstado} from "./reservas.types";
 
+type ReservaSortField = "createdAt";
+const RESERVA_SORT_WHITELIST: readonly ReservaSortField[] = ["createdAt"] as const;
 
-type ListReply = { data: ReservaRow[]; meta: { total: number; page: number; pageSize: number } };
-type CreateReply = { data: ReservaRow };
-type IdParams = { id: string };
+/** JSON Schemas */
+const reservasQueryJsonSchema = {
+    type: "object",
+    properties: {
+        page: {type: "string"},
+        pageSize: {type: "string"},
+        sort: {type: "string", description: "createdAt:asc | createdAt:desc"},
+        estado: {type: "string", enum: ["pendiente", "confirmada", "cancelada"]},
+    },
+    additionalProperties: false,
+} as const;
 
-const reservasRoutes: FastifyPluginAsync = async (app) => {
-    app.get<{ Reply: ListReply }>('/', {
-        schema: {
-            summary: 'List reservas (V1 paginación)',
-            tags: ['reservas'],
-            querystring: listQueryV1,
-            response: {200: listResponseV1WithExample, 400: badRequestError}
-        }
-    }, async (req, reply) => {
-        const {eventId, page, pageSize, filters, sort} = req.query as unknown as {
-            eventId: string; page?: string; pageSize?: string; filters?: string; sort?: string;
-        };
-        const p = parsePage(page);
-        const ps = parsePageSize(pageSize);
-        const {rows, total} = await listReservas({eventId, page: p, pageSize: ps, filters, sort});
+const reservaDataJsonSchema = {
+    type: "object",
+    properties: {
+        id: {type: "string"},
+        eventId: {type: "string"},
+        estado: {type: "string", enum: ["pendiente", "confirmada", "cancelada"]},
+        createdAt: {type: "string", format: "date-time"},
+        updatedAt: {type: "string", format: "date-time"},
+    },
+    required: ["id", "eventId", "estado", "createdAt"],
+    additionalProperties: false,
+} as const;
 
-        const expand = (req.query as { expand?: string }).expand ?? 'selectores,fmt';
-        const wantSel = expand.includes('selectores');
-        const wantFmt = expand.includes('fmt');
+const listEnvelope = {
+    type: "object",
+    properties: {
+        ok: {const: true},
+        data: {type: "array", items: reservaDataJsonSchema},
+        meta: {
+            type: "object",
+            properties: {
+                page: {type: "integer", minimum: 0},
+                pageSize: {type: "integer", minimum: 1},
+                totalItems: {type: "integer", minimum: 0},
+                totalPages: {type: "integer", minimum: 0},
+            },
+            required: ["page", "pageSize", "totalItems", "totalPages"],
+            additionalProperties: false,
+        },
+    },
+    required: ["ok", "data", "meta"],
+    additionalProperties: false,
+} as const;
 
-        let data = rows;
+const itemEnvelope = {
+    type: "object",
+    properties: {ok: {const: true}, data: reservaDataJsonSchema},
+    required: ["ok", "data"],
+    additionalProperties: false,
+} as const;
 
-        if (wantSel || wantFmt) {
-            let maps: ReturnType<typeof buildSelectorMaps> | null = null;
-            if (wantSel) {
-                const cfg = await getEventConfig(eventId);
-                maps = buildSelectorMaps(cfg?.selectores as unknown as Record<string, never>);
+const boolEnvelope = {
+    type: "object",
+    properties: {
+        ok: {const: true},
+        data: {
+            type: "object",
+            properties: {deleted: {type: "boolean"}},
+            required: ["deleted"],
+            additionalProperties: false
+        },
+    },
+    required: ["ok", "data"],
+    additionalProperties: false,
+} as const;
+
+const errorEnvelope = {
+    type: "object",
+    properties: {ok: {const: false}, code: {type: "string"}, message: {type: "string"}},
+    required: ["ok", "code", "message"],
+    additionalProperties: true,
+} as const;
+
+type GetReservasQuery = { page?: string; pageSize?: string; sort?: string; estado?: ReservaEstado };
+type GetReservasParams = { eventId: string };
+type PostReservasBody = { eventId: string; estado?: ReservaEstado };
+type PutReservasBody = { estado?: ReservaEstado };
+
+export default async function reservasRoutes(app: FastifyInstance): Promise<void> {
+    const db = requireDb(app);
+    const repo = new ReservasRepo(db);
+
+    // GET
+    app.get<{ Querystring: GetReservasQuery; Params: GetReservasParams }>(
+        "/events/:eventId/reservas",
+        {
+            schema: {
+                summary: "Listar reservas por evento",
+                querystring: reservasQueryJsonSchema,
+                response: {200: listEnvelope, 400: errorEnvelope},
+                tags: ["reservas"]
             }
-            data = rows.map(r => ({
-                ...r,
-                ...(wantSel && maps ? {
-                    metodoPagoNombre: r.metodoPagoId ? maps.metodoPago[r.metodoPagoId] : undefined,
-                    receptorNombre: r.receptorId ? maps.receptor[r.receptorId] : undefined,
-                    tipoConsumoNombre: r.tipoConsumoId ? maps.tipoConsumo[r.tipoConsumoId] : undefined,
-                    comercialNombre: r.comercialId ? maps.comercial[r.comercialId] : undefined,
-                    puntoRecogidaNombre: r.puntoRecogidaId ? maps.puntoRecogida[r.puntoRecogidaId] : undefined
-                } : {}),
-                ...(wantFmt ? {
-                    totalPedidoFmt: formatCurrencyEUR(r.totalPedido)
-                } : {})
-            }));
+        },
+        async (req, reply) => {
+            const page = parsePage(req.query.page);
+            const pageSize = parsePageSize(req.query.pageSize);
+            const sortParsed = parseSort<ReservaSortField>(req.query.sort, RESERVA_SORT_WHITELIST, {
+                field: "createdAt",
+                direction: -1
+            });
+            const sort = toMongoSort(sortParsed);
+
+            const {items, totalItems} = await repo.list({
+                eventId: req.params.eventId,
+                estado: req.query.estado,
+                sort,
+                page,
+                pageSize
+            });
+            return reply.send({
+                ok: true as const,
+                data: items,
+                meta: {page, pageSize, totalItems, totalPages: Math.ceil(totalItems / pageSize)}
+            });
         }
+    );
 
-
-        return ok(reply, data, {total, page: p, pageSize: ps});
-    });
-
-    app.post<{ Body: CreateReservaBody; Reply: CreateReply }>('/', {
-        schema: {
-            summary: 'Create reserva',
-            tags: ['reservas'],
-            body: createReservaBody,
-            response: {
-                201: {
-                    type: 'object',
-                    properties: {data: {type: 'object', additionalProperties: true}},
-                    required: ['data']
-                }, 400: badRequestError
+    // POST
+    app.post<{ Body: PostReservasBody }>(
+        "/reservas",
+        {
+            schema: {
+                summary: "Crear reserva",
+                body: {
+                    type: "object",
+                    required: ["eventId"],
+                    properties: {
+                        eventId: {type: "string"},
+                        estado: {type: "string", enum: ["pendiente", "confirmada", "cancelada"]}
+                    },
+                    additionalProperties: false,
+                },
+                response: {200: itemEnvelope, 400: errorEnvelope},
+                tags: ["reservas"],
+            },
+        },
+        async (req, reply) => {
+            try {
+                const created = await repo.insertOne({eventId: req.body.eventId, estado: req.body.estado});
+                return reply.send({ok: true as const, data: created});
+            } catch (error) {
+                app.log.error({err: error, route: "POST /reservas", requestId: (req as unknown as { id: string }).id});
+                return reply.status(400).send({
+                    ok: false as const,
+                    code: "CREATE_FAILED",
+                    message: "No se pudo crear la reserva"
+                });
             }
         }
-    }, async (req, reply) => {
-        const b = req.body;
-        const input = {
-            eventId: b.eventId,
-            cliente: b.cliente,
-            ...(b.parrilladas !== undefined ? {parrilladas: b.parrilladas} : {}),
-            ...(b.picarones !== undefined ? {picarones: b.picarones} : {}),
-            ...(b.metodoPagoId ? {metodoPagoId: b.metodoPagoId} : {}),
-            ...(b.receptorId ? {receptorId: b.receptorId} : {}),
-            ...(b.tipoConsumoId ? {tipoConsumoId: b.tipoConsumoId} : {}),
-            ...(b.comercialId ? {comercialId: b.comercialId} : {}),
-            totalPedido: b.totalPedido,
-            pagado: b.pagado,
-            comprobado: b.comprobado,
-            locked: b.locked,
-            ...(b.puntoRecogidaId !== undefined ? {puntoRecogidaId: b.puntoRecogidaId} : {}),
-            isActive: b.isActive,
-            ...(b.createdAt ? {createdAt: new Date(b.createdAt)} : {}),
-            ...(b.updatedAt ? {updatedAt: new Date(b.updatedAt)} : {})
-        };
-        const row = await createReserva(input);
-        return created(reply, row);
-    });
+    );
 
-    app.put<{ Params: IdParams; Body: UpdateReservaBody }>('/:id', {
-        schema: {
-            summary: 'Update reserva',
-            tags: ['reservas'],
-            body: updateReservaBody,
-            response: {204: {type: 'null'}, 400: badRequestError}
+    // PUT
+    app.put<{ Params: { id: string }; Body: PutReservasBody }>(
+        "/reservas/:id",
+        {
+            schema: {
+                summary: "Actualizar reserva por id",
+                params: {
+                    type: "object",
+                    properties: {id: {type: "string"}},
+                    required: ["id"],
+                    additionalProperties: false
+                },
+                body: {
+                    type: "object",
+                    properties: {estado: {type: "string", enum: ["pendiente", "confirmada", "cancelada"]}},
+                    minProperties: 1,
+                    additionalProperties: false,
+                },
+                response: {200: itemEnvelope, 404: errorEnvelope},
+                tags: ["reservas"],
+            },
+        },
+        async (req, reply) => {
+            const updated = await repo.updateById(req.params.id, req.body);
+            if (!updated) {
+                return reply.status(404).send({
+                    ok: false as const,
+                    code: "NOT_FOUND",
+                    message: "Reserva no encontrada"
+                });
+            }
+            return reply.send({ok: true as const, data: updated});
         }
-    }, async (req, reply) => {
-        const b = req.body;
-        const patch = {
-            ...('cliente' in b ? {cliente: b.cliente} : {}),
-            ...('parrilladas' in b ? {parrilladas: b.parrilladas} : {}),
-            ...('picarones' in b ? {picarones: b.picarones} : {}),
-            ...('metodoPagoId' in b ? {metodoPagoId: b.metodoPagoId} : {}),
-            ...('receptorId' in b ? {receptorId: b.receptorId} : {}),
-            ...('tipoConsumoId' in b ? {tipoConsumoId: b.tipoConsumoId} : {}),
-            ...('comercialId' in b ? {comercialId: b.comercialId} : {}),
-            ...('totalPedido' in b ? {totalPedido: b.totalPedido} : {}),
-            ...('pagado' in b ? {pagado: b.pagado} : {}),
-            ...('comprobado' in b ? {comprobado: b.comprobado} : {}),
-            ...('locked' in b ? {locked: b.locked} : {}),
-            ...('puntoRecogidaId' in b ? {puntoRecogidaId: b.puntoRecogidaId} : {}),
-            ...('isActive' in b ? {isActive: b.isActive} : {}),
-            ...(b.updatedAt ? {updatedAt: new Date(b.updatedAt)} : {})
-        };
-        await updateReserva(req.params.id, patch);
-        return reply.code(204).send();
-    });
+    );
 
-    app.delete<{ Params: IdParams }>('/:id', {
-        schema: {
-            summary: 'Delete reserva',
-            tags: ['reservas'],
-            response: {204: {type: 'null'}}
+    // DELETE
+    app.delete<{ Params: { id: string } }>(
+        "/reservas/:id",
+        {
+            schema: {
+                summary: "Eliminar reserva por id",
+                params: {
+                    type: "object",
+                    properties: {id: {type: "string"}},
+                    required: ["id"],
+                    additionalProperties: false
+                },
+                response: {200: boolEnvelope, 404: errorEnvelope},
+                tags: ["reservas"]
+            }
+        },
+        async (req, reply) => {
+            const deleted = await repo.deleteById(req.params.id);
+            if (!deleted) return reply.status(404).send({
+                ok: false as const,
+                code: "NOT_FOUND",
+                message: "Reserva no encontrada"
+            });
+            return reply.send({ok: true as const, data: {deleted: true}});
         }
-    }, async (req, reply) => {
-        await deleteReserva(req.params.id);
-        return noContent(reply);
-    });
-};
-
-export default reservasRoutes;
+    );
+}

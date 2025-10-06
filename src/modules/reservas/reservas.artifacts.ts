@@ -1,32 +1,37 @@
-export const reservasValidator = {
-    validator: {
+import {CollectionOptions, CreateIndexesOptions, Db} from "mongodb";
+
+export async function ensureReservasArtifacts(db: Db): Promise<void> {
+    const name = "reservas";
+
+    const validator: NonNullable<CollectionOptions["validator"]> = {
         $jsonSchema: {
             bsonType: "object",
-            required: ["eventId", "cliente", "totalPedido", "pagado", "comprobado", "locked", "isActive"],
+            required: ["eventId", "estado", "createdAt"],
             properties: {
-                eventId: {bsonType: ["string", "objectId"]},
-                cliente: {bsonType: "string"},
-                parrilladas: {bsonType: "int", minimum: 0},
-                picarones: {bsonType: "int", minimum: 0},
-                metodoPagoId: {bsonType: "string"},
-                receptorId: {bsonType: "string"},
-                tipoConsumoId: {bsonType: "string"},
-                comercialId: {bsonType: "string"},
-                totalPedido: {bsonType: "decimal", minimum: 0},
-                pagado: {bsonType: "bool"},
-                comprobado: {bsonType: "bool"},
-                locked: {bsonType: "bool"},
-                puntoRecogidaId: {bsonType: ["string", "null"]},
-                isActive: {bsonType: "bool"},
-                createdAt: {bsonType: ["date", "string"]},
-                updatedAt: {bsonType: ["date", "string"]}
+                eventId: {bsonType: "string"},
+                estado: {enum: ["pendiente", "confirmada", "cancelada"]},
+                createdAt: {bsonType: "date"},
+                updatedAt: {bsonType: "date"},
             },
-            additionalProperties: false
-        }
-    },
-    validationLevel: "strict" as const
-};
+        },
+    };
 
-export const reservasIndexes = [
-    {keys: {eventId: 1}, options: {name: "ix_reservas_eventId"}}
-] as const;
+    const exists = await db.listCollections({name}).hasNext();
+    if (!exists) {
+        await db.createCollection(name, {validator, validationLevel: "moderate", validationAction: "error"});
+    } else {
+        await db.command({collMod: name, validator, validationLevel: "moderate", validationAction: "error"});
+    }
+
+    const indexes: Array<{ key: Record<string, 1 | -1>; name: string; unique?: boolean }> = [
+        {name: "IX_reservas_eventId_createdAt", key: {eventId: 1, createdAt: -1}},
+        {name: "IX_reservas_eventId_estado_createdAt", key: {eventId: 1, estado: 1 as 1, createdAt: -1}},
+    ];
+
+    const options: CreateIndexesOptions = {};
+    await db.collection(name).createIndexes(indexes.map(ix => ({
+        key: ix.key,
+        name: ix.name,
+        unique: ix.unique === true
+    })), options);
+}
