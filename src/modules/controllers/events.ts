@@ -1,10 +1,10 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { getDb } from '../infra/mongo/client';
-import { makeCrud } from '../repositories/crud';
+import { getDb } from '../../infra/mongo/client';
+import { makeCrud } from '../../infra/mongo/crud';
 
 export function makeController(
 	repo = makeCrud<any>({
-		collection: 'partners',
+		collection: 'events',
 		toDb: (d) => d,
 		fromDb: (d) => ({ id: String(d._id), ...d }),
 		softDelete: true,
@@ -48,7 +48,7 @@ export function makeController(
 		},
 		remove: async (request: FastifyRequest, reply: FastifyReply) => {
 			const db = await getDb();
-			await repo.softDelete(db, (request as any).params.id);
+			await repo.removeHard(db, (request as any).params.id);
 			reply.code(204).send();
 		},
 	};

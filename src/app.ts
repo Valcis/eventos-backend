@@ -2,26 +2,26 @@ import Fastify from 'fastify';
 import { MongoClient } from 'mongodb';
 import { buildLoggerOptions } from './core/logging/logger';
 import corsPlugin from './plugins/cors';
-import swaggerPlugin from './plugins/swagger';
-import { healthRoutes } from './routes/health.routes';
-import eventsRoutes from './routes/events';
-import reservationsRoutes from './routes/reservations';
-import productsRoutes from './routes/products';
-import promotionsRoutes from './routes/promotions';
-import expensesRoutes from './routes/expenses';
-import salespeopleRoutes from './routes/salespeople';
-import paymentMethodsRoutes from './routes/payment-methods';
-import cashiersRoutes from './routes/cashiers';
-import storesRoutes from './routes/stores';
-import unitsRoutes from './routes/units';
-import consumptionTypesRoutes from './routes/consumption-types';
-import payersRoutes from './routes/payers';
-import pickupPointsRoutes from './routes/pickup-points';
-import partnersRoutes from './routes/partners';
+import { healthRoutes } from './system/health/health.routes';
+import eventsRoutes from './modules/routes/events';
+import reservationsRoutes from './modules/routes/reservations';
+import productsRoutes from './modules/routes/products';
+import promotionsRoutes from './modules/routes/promotions';
+import expensesRoutes from './modules/routes/expenses';
+import salespeopleRoutes from './modules/routes/salespeople';
+import paymentMethodsRoutes from './modules/routes/payment-methods';
+import cashiersRoutes from './modules/routes/cashiers';
+import storesRoutes from './modules/routes/stores';
+import unitsRoutes from './modules/routes/units';
+import consumptionTypesRoutes from './modules/routes/consumption-types';
+import payersRoutes from './modules/routes/payers';
+import pickupPointsRoutes from './modules/routes/pickup-points';
+import partnersRoutes from './modules/routes/partners';
 import { getEnv } from './config/env';
 import { ensureMongoArtifacts } from './infra/mongo/artifacts';
 import requestId from './core/logging/requestId';
-import bearerAuth from './middlewares/bearer';
+import bearerAuth from './plugins/bearer';
+import swaggerModule from './system/swagger/swagger.routes';
 
 const env = getEnv();
 
@@ -49,12 +49,12 @@ export async function buildApp() {
 
 	await app.register(requestId);
 	await app.register(corsPlugin);
-	await app.register(swaggerPlugin);
-	await app.register(bearerAuth, { exemptPaths: ['/health', '/docs'] });
 
+	await app.register(swaggerModule, { prefix: '/swagger' });
 	await app.register(healthRoutes, { prefix: '/health' });
-	const base = env.BASE_PATH.endsWith('/') ? env.BASE_PATH.slice(0, -1) : env.BASE_PATH;
+	await app.register(bearerAuth, { exemptPaths: ['/health', '/swagger'] });
 
+	const base = env.BASE_PATH.endsWith('/') ? env.BASE_PATH.slice(0, -1) : env.BASE_PATH;
 	await app.register(eventsRoutes, { prefix: base + '/events' });
 	await app.register(reservationsRoutes, { prefix: base + '/reservations' });
 	await app.register(productsRoutes, { prefix: base + '/products' });

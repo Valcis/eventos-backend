@@ -1,6 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { HookHandlerDoneFunction } from 'fastify/types/hooks';
-import type { PaginationQuery, Page } from '../types/pagination';
+import type { PaginationQuery, Page } from '../shared/types/pagination';
 
 declare module 'fastify' {
 	interface FastifyRequest {

@@ -1,6 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { Db, Document, WithId } from 'mongodb';
-import { makeCrud } from '../repositories/crud';
+import { makeCrud } from '../../infra/mongo/crud';
 
 export function makeController<T extends Document>(
 	collection: string,

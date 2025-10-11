@@ -1,10 +1,10 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { getDb } from '../infra/mongo/client';
-import { makeCrud } from '../repositories/crud';
+import { getDb } from '../../infra/mongo/client';
+import { makeCrud } from '../../infra/mongo/crud';
 
 export function makeController(
 	repo = makeCrud<any>({
-		collection: 'reservations',
+		collection: 'payers',
 		toDb: (d) => d,
 		fromDb: (d) => ({ id: String(d._id), ...d }),
 		softDelete: true,
