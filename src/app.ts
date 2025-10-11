@@ -21,7 +21,7 @@ import partnersRoutes from './routes/partners';
 import { getEnv } from './config/env';
 import { ensureMongoArtifacts } from './infra/mongo/artifacts';
 import requestId from './core/logging/requestId';
-import bearer from './plugins/bearer';
+import bearerAuth from './middlewares/bearer';
 
 const env = getEnv();
 
@@ -50,7 +50,7 @@ export async function buildApp() {
   await app.register(requestId);
   await app.register(corsPlugin);
   await app.register(swaggerPlugin);
-  await app.register(bearer);
+  await app.register(bearerAuth, {exemptPaths: ['/health']});
 
   await app.register(healthRoutes, { prefix: '/health' });
   const base = env.BASE_PATH.endsWith('/') ? env.BASE_PATH.slice(0,-1) : env.BASE_PATH;
