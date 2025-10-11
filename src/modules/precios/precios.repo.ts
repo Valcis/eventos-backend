@@ -1,92 +1,90 @@
-import { getDb } from '../../infra/mongo/client';
-import { ObjectId } from 'mongodb';
-import { toISO, ensureDate } from '../../utils/dates';
+import {Db, ObjectId, Filter, FindOptions} from "mongodb";
+import {toDecimal128, fromDecimal128, MoneyString} from "../../utils/currency";
+import {PrecioDb, PrecioDTO} from "./precios.types";
 
-export type PrecioDoc = {
-    _id?: ObjectId;
-    eventId: string;
-    concepto: string;
-    importe: number;
-    moneda: string;
-    isActive: boolean;
-    createdAt?: Date;
-    updatedAt?: Date;
-} & Record<string, unknown>;
+export class PreciosRepo {
+    private readonly db: Db;
 
-export type PrecioRow = Omit<PrecioDoc, '_id' | 'createdAt' | 'updatedAt'> & {
-    id: string;
-    createdAt?: string;
-    updatedAt?: string;
-};
+    constructor(db: Db) {
+        this.db = db;
+    }
 
-export type CreatePrecioInput = {
-    eventId: string;
-    concepto: string;
-    importe: number;
-    moneda: string;
-    isActive: boolean;
-    createdAt?: Date; // si se omite, lo rellenamos a now
-    updatedAt?: Date; // si se omite, lo rellenamos a now
-};
+    private toDTO(doc: PrecioDb): PrecioDTO {
+        return {
+            id: (doc._id as ObjectId).toHexString(),
+            eventId: doc.eventId,
+            productoId: doc.productoId,
+            precio: fromDecimal128(doc.precio),
+            createdAt: doc.createdAt.toISOString(),
+            updatedAt: doc.updatedAt ? doc.updatedAt.toISOString() : undefined,
+        };
+    }
 
-export type UpdatePrecioPatch = Partial<Pick<PrecioDoc,
-    'concepto' | 'importe' | 'moneda' | 'isActive' | 'updatedAt'
->>;
+    async insertOne(params: { eventId: string; productoId: string; precio: MoneyString }): Promise<PrecioDTO> {
+        if (!params.productoId || params.productoId.trim() === "") {
+            throw new Error("productoId requerido");
+        }
+        const now = new Date();
+        const doc: PrecioDb = {
+            eventId: params.eventId,
+            productoId: params.productoId,
+            precio: toDecimal128(params.precio),
+            createdAt: now,
+            updatedAt: now,
+        };
+        const result = await this.db.collection<PrecioDb>("precios").insertOne(doc);
+        const inserted = {...doc, _id: result.insertedId};
+        return this.toDTO(inserted);
+    }
 
-function serializeRow(doc: PrecioDoc): PrecioRow {
-    return {
-        id: doc._id ? String(doc._id) : '',
-        eventId: String(doc.eventId),
-        concepto: String(doc.concepto),
-        importe: Number(doc.importe),
-        moneda: String(doc.moneda),
-        isActive: Boolean(doc.isActive),
-        ...(doc.createdAt ? { createdAt: toISO(doc.createdAt) ?? undefined } : {}),
-        ...(doc.updatedAt ? { updatedAt: toISO(doc.updatedAt) ?? undefined } : {})
-    };
-}
+    async list(params: {
+        eventId: string;
+        productoId?: string;
+        sort: Record<string, 1 | -1>;
+        page: number;
+        pageSize: number;
+    }): Promise<{ items: PrecioDTO[]; totalItems: number }> {
+        const filter: Filter<PrecioDb> = {eventId: params.eventId};
+        if (params.productoId) filter.productoId = params.productoId;
 
-export async function listPrecios(opts: {
-    eventId: string; page: number; pageSize: number; q?: string;
-}): Promise<{ rows: PrecioRow[]; total: number }> {
-    const db = await getDb();
-    const col = db.collection<PrecioDoc>('precios');
-    const filter: Record<string, unknown> = { eventId: opts.eventId };
-    const total = await col.countDocuments(filter);
-    const docs = await col.find(filter).skip(opts.page * opts.pageSize).limit(opts.pageSize).toArray();
-    return { rows: docs.map(serializeRow), total };
-}
+        const options: FindOptions<PrecioDb> = {
+            sort: params.sort,
+            skip: params.page * params.pageSize,
+            limit: params.pageSize,
+        };
 
-export async function createPrecio(doc: CreatePrecioInput): Promise<PrecioRow> {
-    const now = new Date();
-    const toInsert: PrecioDoc = {
-        ...doc,
-        eventId: String(doc.eventId),
-        createdAt: ensureDate(doc.createdAt) ?? now,
-        updatedAt: ensureDate(doc.updatedAt) ?? now
-    };
-    const db = await getDb();
-    const col = db.collection<PrecioDoc>('precios');
-    const res = await col.insertOne(toInsert);
-    return serializeRow({ ...toInsert, _id: res.insertedId });
-}
+        const collection = this.db.collection<PrecioDb>("precios");
+        const [docs, totalItems] = await Promise.all([
+            collection.find(filter, options).toArray(),
+            collection.countDocuments(filter),
+        ]);
 
-export async function updatePrecio(id: string, patch: UpdatePrecioPatch): Promise<void> {
-    const db = await getDb();
-    const col = db.collection<PrecioDoc>('precios');
-    const objectId = new ObjectId(id);
-    const toSet: UpdatePrecioPatch = {
-        ...('concepto' in patch ? { concepto: patch.concepto } : {}),
-        ...('importe' in patch ? { importe: patch.importe } : {}),
-        ...('moneda' in patch ? { moneda: patch.moneda } : {}),
-        ...('isActive' in patch ? { isActive: patch.isActive } : {}),
-        ...(patch.updatedAt ? { updatedAt: ensureDate(patch.updatedAt) ?? new Date() } : { updatedAt: new Date() })
-    };
-    await col.updateOne({ _id: objectId }, { $set: toSet });
-}
+        return {items: docs.map(d => this.toDTO(d)), totalItems};
+    }
 
-export async function deletePrecio(id: string): Promise<void> {
-    const db = await getDb();
-    const col = db.collection<PrecioDoc>('precios');
-    await col.deleteOne({ _id: new ObjectId(id) });
+    async updateById(
+        id: string,
+        patch: { productoId?: string; precio?: MoneyString }
+    ): Promise<PrecioDTO | null> {
+        const _id = new ObjectId(id);
+        const $set: Partial<PrecioDb> = {updatedAt: new Date()};
+        if (typeof patch.precio === "string") $set.precio = toDecimal128(patch.precio);
+        if (typeof patch.productoId === "string") {
+            const trimmed = patch.productoId.trim();
+            if (!trimmed) throw new Error("productoId no puede ser vacío");
+            $set.productoId = trimmed;
+        }
+
+        const res = await this.db
+            .collection<PrecioDb>("precios")
+            .findOneAndUpdate({_id}, {$set}, {returnDocument: "after"});
+
+        return res.value ? this.toDTO(res.value) : null;
+    }
+
+    async deleteById(id: string): Promise<boolean> {
+        const oid = new ObjectId(id);
+        const res = await this.db.collection<PrecioDb>("precios").deleteOne({_id: oid});
+        return res.deletedCount === 1;
+    }
 }

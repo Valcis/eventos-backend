@@ -1,0 +1,3 @@
+import { z } from 'zod'; import { Id, DateTime, Money, SoftDelete, Quantity } from './shared';
+export const Expense = SoftDelete.and(z.object({ id: Id.optional(), eventId: Id, ingredient: z.string().min(1), unitId: Id.optional(), quantity: Quantity.optional(), basePrice: Money, vatPct: z.union([z.literal(0), z.literal(4), z.literal(10), z.literal(21)]), vatAmount: Money, netPrice: Money, isPackage: z.boolean(), unitsPerPack: z.number().int().positive().optional(), unitPrice: Money.optional(), payerId: Id, storeId: Id.optional(), isVerified: z.boolean(), notes: z.string().optional(), createdAt: DateTime.optional(), updatedAt: DateTime.optional() }));
+export type ExpenseT = z.infer<typeof Expense>;

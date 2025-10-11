@@ -1,16 +1,10 @@
-import {FastifyPluginCallback} from "fastify";
-import {randomUUID} from "node:crypto";
+import fp from 'fastify-plugin';
+import type { FastifyInstance } from 'fastify';
 
-const requestIdPlugin: FastifyPluginCallback = (app, _opts, done) => {
-    app.addHook("onRequest", (req, _reply, next) => {
-        const incoming = req.headers["x-request-id"];
-        const rid = typeof incoming === "string" && incoming.length > 0 ? incoming : randomUUID();
-        // Anclar en request y logger hijo
-        (req as any).requestId = rid;
-        req.log = req.log.child({requestId: rid});
-        next();
-    });
-    done();
-};
-
-export default requestIdPlugin;
+export default fp(async function requestId(app: FastifyInstance) {
+  app.addHook('onRequest', async (req, reply) => {
+    const rid = req.headers['x-request-id'] ?? Math.random().toString(36).slice(2);
+    (req as any).requestId = rid;
+    reply.header('x-request-id', String(rid));
+  });
+});

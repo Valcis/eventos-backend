@@ -1,40 +1,45 @@
-// NOTE: Stubs aligned to FastifyPluginAsync pattern (no fastify-plugin wrapper).
-// Routes: GET list (V1 pagination), POST create, PUT update, DELETE remove.
-// Validators/Indexes: module-local stubs exported in artifacts.ts (to be wired in infra/mongo/artifacts.ts).
-// Keep request/response schemas loose while we migrate from localrepo; tighten later.
+import {CollectionOptions, CreateIndexesOptions, Db} from "mongodb";
 
-export const gastosValidator = {
-    validator: {
+export async function ensureGastosArtifacts(db: Db): Promise<void> {
+    const name = "gastos";
+
+    const validator: NonNullable<CollectionOptions["validator"]> = {
         $jsonSchema: {
             bsonType: "object",
-            required: ["eventId", "producto", "cantidad", "tipoPrecio", "precioBase", "precioNeto", "isActive", "comprobado", "locked"],
+            required: ["eventId", "importe", "createdAt"],
             properties: {
-                eventId: {bsonType: ["string", "objectId"]},
-                producto: {bsonType: "string"},
-                unidadId: {bsonType: "string"},
-                cantidad: {bsonType: "decimal", minimum: 0},
-                tipoPrecio: {enum: ["con IVA", "sin IVA"]},
-                tipoIVA: {bsonType: "decimal", minimum: 0},
-                precioBase: {bsonType: "decimal", minimum: 0},
-                precioNeto: {bsonType: "decimal", minimum: 0},
-                isPack: {bsonType: "bool"},
-                unidadesPack: {bsonType: ["int", "null"], minimum: 1},
-                precioUnidad: {bsonType: ["number", "null"], minimum: 0},
-                pagadorId: {bsonType: ["string", "null"]},
-                tiendaId: {bsonType: ["string", "null"]},
-                notas: {bsonType: ["string", "null"]},
+                eventId: {bsonType: "string"},
+                importe: {bsonType: "decimal"},
+                descripcion: {bsonType: ["string", "null"]},
+                proveedor: {bsonType: ["string", "null"]},
                 comprobado: {bsonType: "bool"},
-                locked: {bsonType: "bool"},
-                isActive: {bsonType: "bool"},
-                createdAt: {bsonType: ["date", "string"]},
-                updatedAt: {bsonType: ["date", "string"]}
+                createdAt: {bsonType: "date"},
+                updatedAt: {bsonType: "date"},
             },
-            additionalProperties: false
-        }
-    },
-    validationLevel: "strict" as const
-};
+        },
+    };
 
-export const gastosIndexes = [
-    {keys: {eventId: 1}, options: {name: "ix_gastos_eventId"}}
-] as const;
+    const exists = await db.listCollections({name}).hasNext();
+    if (!exists) {
+        await db.createCollection(name, {
+            validator,
+            validationLevel: "strict",
+            validationAction: "error",
+        });
+    } else {
+        await db.command({collMod: name, validator, validationLevel: "strict", validationAction: "error"});
+    }
+
+    const indexes: Array<{ key: Record<string, 1 | -1 | "text">; name: string; unique?: boolean }> = [
+        {name: "IX_gastos_eventId_createdAt", key: {eventId: 1, createdAt: -1}},
+        {name: "IX_gastos_eventId_comprobado_createdAt", key: {eventId: 1, comprobado: 1, createdAt: -1}},
+        {name: "IX_gastos_texto", key: {descripcion: "text", proveedor: "text"}},
+    ];
+
+    const options: CreateIndexesOptions = {};
+    await db.collection(name).createIndexes(indexes.map(ix => ({
+        key: ix.key,
+        name: ix.name,
+        unique: ix.unique === true
+    })), options);
+}

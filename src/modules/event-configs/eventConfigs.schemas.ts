@@ -49,7 +49,7 @@ export const upsertEventConfigBody = {
     properties: {
         selectores: {
             type: 'object',
-            additionalProperties: true,
+            additionalProperties: false,
             properties: {
                 comercial: {type: 'array', items: {type: 'object', additionalProperties: true}},
                 metodoPago: {type: 'array', items: {type: 'object', additionalProperties: true}},

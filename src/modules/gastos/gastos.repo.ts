@@ -1,125 +1,99 @@
-import {getDb} from '../../infra/mongo/client';
-import {ObjectId} from 'mongodb';
-import {toISO, ensureDate} from '../../utils/dates';
+import { Db, ObjectId, Filter, FindOptions } from "mongodb";
+import { toDecimal128, fromDecimal128, MoneyString } from "../../utils/currency";
+import { GastoDb, GastoDTO } from "./gastos.types";
 
-export type GastoDoc = {
-    _id?: ObjectId;
-    eventId: string;
-    producto: string;
-    unidadId?: string;
-    cantidad: number;
-    tipoPrecio: 'con IVA' | 'sin IVA';
-    tipoIVA?: number;
-    precioBase: number;
-    precioNeto: number;
-    isPack?: boolean;
-    unidadesPack?: number | null;
-    precioUnidad?: number | null;
-    pagadorId?: string | null;
-    tiendaId?: string | null;
-    notas?: string | null;
-    comprobado: boolean;
-    locked: boolean;
-    isActive: boolean;
-    createdAt?: Date;
-    updatedAt?: Date;
-} & Record<string, unknown>;
+export class GastosRepo {
+    private readonly db: Db;
+    constructor(db: Db) {
+        this.db = db;
+    }
 
-export type GastoRow = Omit<GastoDoc, '_id' | 'createdAt' | 'updatedAt'> & {
-    id: string;
-    createdAt?: string;
-    updatedAt?: string;
-};
+    private toDTO(doc: GastoDb): GastoDTO {
+        return {
+            id: (doc._id as ObjectId).toHexString(),
+            eventId: doc.eventId,
+            importe: fromDecimal128(doc.importe),
+            descripcion: doc.descripcion ?? null,
+            proveedor: doc.proveedor ?? null,
+            comprobado: doc.comprobado,
+            createdAt: doc.createdAt.toISOString(),
+            updatedAt: doc.updatedAt ? doc.updatedAt.toISOString() : undefined,
+        };
+    }
 
-export type CreateGastoInput = Omit<GastoDoc, '_id' | 'createdAt' | 'updatedAt'> & {
-    createdAt?: Date;
-    updatedAt?: Date;
-};
+    async insertOne(params: {
+        eventId: string;
+        importe: MoneyString;
+        descripcion?: string | null;
+        proveedor?: string | null;
+        comprobado?: boolean;
+    }): Promise<GastoDTO> {
+        const now = new Date();
+        const doc: GastoDb = {
+            eventId: params.eventId,
+            importe: toDecimal128(params.importe),
+            descripcion: params.descripcion ?? null,
+            proveedor: params.proveedor ?? null,
+            comprobado: params.comprobado ?? false,
+            createdAt: now,
+            updatedAt: now,
+        };
+        const result = await this.db.collection<GastoDb>("gastos").insertOne(doc);
+        const inserted = { ...doc, _id: result.insertedId };
+        return this.toDTO(inserted);
+    }
 
-export type UpdateGastoPatch = Partial<Pick<GastoDoc,
-    'producto' | 'unidadId' | 'cantidad' | 'tipoPrecio' | 'tipoIVA' |
-    'precioBase' | 'precioNeto' | 'isPack' | 'unidadesPack' | 'precioUnidad' |
-    'pagadorId' | 'tiendaId' | 'notas' | 'comprobado' | 'locked' | 'isActive' | 'updatedAt'
->>;
+    async list(params: {
+        eventId: string;
+        filterComprobado?: boolean;
+        q?: string;
+        sort: Record<string, 1 | -1>;
+        page: number;
+        pageSize: number;
+    }): Promise<{ items: GastoDTO[]; totalItems: number }> {
+        const filter: Filter<GastoDb> = { eventId: params.eventId };
+        if (typeof params.filterComprobado === "boolean") filter.comprobado = params.filterComprobado;
+        if (params.q?.trim()) filter.$text = { $search: params.q.trim() };
 
-function serializeRow(doc: GastoDoc): GastoRow {
-    return {
-        id: doc._id ? String(doc._id) : '',
-        eventId: doc.eventId,
-        producto: doc.producto,
-        ...(doc.unidadId ? {unidadId: doc.unidadId} : {}),
-        cantidad: doc.cantidad,
-        tipoPrecio: doc.tipoPrecio,
-        ...(typeof doc.tipoIVA === 'number' ? {tipoIVA: doc.tipoIVA} : {}),
-        precioBase: doc.precioBase,
-        precioNeto: doc.precioNeto,
-        ...(typeof doc.isPack === 'boolean' ? {isPack: doc.isPack} : {}),
-        ...(doc.unidadesPack !== undefined ? {unidadesPack: doc.unidadesPack} : {}),
-        ...(doc.precioUnidad !== undefined ? {precioUnidad: doc.precioUnidad} : {}),
-        ...(doc.pagadorId !== undefined ? {pagadorId: doc.pagadorId} : {}),
-        ...(doc.tiendaId !== undefined ? {tiendaId: doc.tiendaId} : {}),
-        ...(doc.notas !== undefined ? {notas: doc.notas} : {}),
-        comprobado: doc.comprobado,
-        locked: doc.locked,
-        isActive: doc.isActive,
-        ...(doc.createdAt ? {createdAt: toISO(doc.createdAt) ?? undefined} : {}),
-        ...(doc.updatedAt ? {updatedAt: toISO(doc.updatedAt) ?? undefined} : {})
-    };
-}
+        const options: FindOptions<GastoDb> = {
+            sort: params.sort,
+            skip: params.page * params.pageSize,
+            limit: params.pageSize,
+        };
+        const collection = this.db.collection<GastoDb>("gastos");
+        const [docs, totalItems] = await Promise.all([
+            collection.find(filter, options).toArray(),
+            collection.countDocuments(filter),
+        ]);
+        return { items: docs.map(d => this.toDTO(d)), totalItems };
+    }
 
-export async function listGastos(opts: {
-    eventId: string; page: number; pageSize: number; filters?: string; sort?: string;
-}): Promise<{ rows: GastoRow[]; total: number }> {
-    const db = await getDb();
-    const col = db.collection<GastoDoc>('gastos');
-    const filter: Record<string, unknown> = {eventId: opts.eventId};
-    const total = await col.countDocuments(filter);
-    const docs = await col.find(filter).skip(opts.page * opts.pageSize).limit(opts.pageSize).toArray();
-    return {rows: docs.map(serializeRow), total};
-}
+    async updateById(
+        id: string,
+        patch: {
+            importe?: MoneyString;
+            descripcion?: string | null;
+            proveedor?: string | null;
+            comprobado?: boolean;
+        }
+    ): Promise<GastoDTO | null> {
+        const _id = new ObjectId(id);
+        const $set: Partial<GastoDb> = { updatedAt: new Date() };
+        if (typeof patch.importe === "string") $set.importe = toDecimal128(patch.importe);
+        if (patch.descripcion !== undefined) $set.descripcion = patch.descripcion;
+        if (patch.proveedor !== undefined) $set.proveedor = patch.proveedor;
+        if (typeof patch.comprobado === "boolean") $set.comprobado = patch.comprobado;
 
-export async function createGasto(doc: CreateGastoInput): Promise<GastoRow> {
-    const now = new Date();
-    const toInsert: GastoDoc = {
-        ...doc,
-        eventId: String(doc.eventId),
-        createdAt: ensureDate(doc.createdAt) ?? now,
-        updatedAt: ensureDate(doc.updatedAt) ?? now
-    };
-    const db = await getDb();
-    const col = db.collection<GastoDoc>('gastos');
-    const res = await col.insertOne(toInsert);
-    return serializeRow({...toInsert, _id: res.insertedId});
-}
+        const res = await this.db
+            .collection<GastoDb>("gastos")
+            .findOneAndUpdate({ _id }, { $set }, { returnDocument: "after" });
 
-export async function updateGasto(id: string, patch: UpdateGastoPatch): Promise<void> {
-    const db = await getDb();
-    const col = db.collection<GastoDoc>('gastos');
-    const objectId = new ObjectId(id);
-    const toSet: UpdateGastoPatch = {
-        ...('producto' in patch ? {producto: patch.producto} : {}),
-        ...('unidadId' in patch ? {unidadId: patch.unidadId} : {}),
-        ...('cantidad' in patch ? {cantidad: patch.cantidad} : {}),
-        ...('tipoPrecio' in patch ? {tipoPrecio: patch.tipoPrecio} : {}),
-        ...('tipoIVA' in patch ? {tipoIVA: patch.tipoIVA} : {}),
-        ...('precioBase' in patch ? {precioBase: patch.precioBase} : {}),
-        ...('precioNeto' in patch ? {precioNeto: patch.precioNeto} : {}),
-        ...('isPack' in patch ? {isPack: patch.isPack} : {}),
-        ...('unidadesPack' in patch ? {unidadesPack: patch.unidadesPack} : {}),
-        ...('precioUnidad' in patch ? {precioUnidad: patch.precioUnidad} : {}),
-        ...('pagadorId' in patch ? {pagadorId: patch.pagadorId} : {}),
-        ...('tiendaId' in patch ? {tiendaId: patch.tiendaId} : {}),
-        ...('notas' in patch ? {notas: patch.notas} : {}),
-        ...('comprobado' in patch ? {comprobado: patch.comprobado} : {}),
-        ...('locked' in patch ? {locked: patch.locked} : {}),
-        ...('isActive' in patch ? {isActive: patch.isActive} : {}),
-        ...(patch.updatedAt ? {updatedAt: ensureDate(patch.updatedAt) ?? new Date()} : {updatedAt: new Date()})
-    };
-    await col.updateOne({_id: objectId}, {$set: toSet});
-}
+        return res.value ? this.toDTO(res.value) : null;
+    }
 
-export async function deleteGasto(id: string): Promise<void> {
-    const db = await getDb();
-    const col = db.collection<GastoDoc>('gastos');
-    await col.deleteOne({_id: new ObjectId(id)});
+    async deleteById(id: string): Promise<boolean> {
+        const oid = new ObjectId(id);
+        const res = await this.db.collection<GastoDb>("gastos").deleteOne({ _id: oid });
+        return res.deletedCount === 1;
+    }
 }
