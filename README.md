@@ -1,4 +1,3 @@
-
 # EVENTOS – Backend Fastify + Mongo
 
 Este repositorio implementa un backend en **TypeScript estricto** con **Fastify** y **MongoDB**.
@@ -81,6 +80,7 @@ pnpm start
 ## Contribución
 
 Sigue **docs/contrib.md**. Resumen:
+
 - Sin `any`, tipado estricto, boolean props con prefijo `is*`.
 - Evitar `.js` en imports TS.
 - Documenta cambios y actualiza Swagger y `docs/` cuando modifiques contratos.

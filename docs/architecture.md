@@ -1,7 +1,7 @@
-
 # Arquitectura
 
 ## Vista general
+
 - **Fastify** como HTTP server.
 - **Plugins**: CORS, Swagger, **requestId** (nuevo), logging.
 - **Capa de datos**: MongoDB con conexión centralizada y función `ensureMongoArtifacts()` que crea **validadores** `$jsonSchema` e **índices** al inicio si `MONGO_BOOT=true`.
@@ -9,18 +9,21 @@
 - **Utilidades**: paginación V1 (offset/pageSize), helper de respuestas `{ data, meta? }`.
 
 ## Flujo de petición
+
 1. Llega la request → asignación/propagación de **requestId**.
 2. Validación por schema (Fastify + Zod si aplica).
 3. Lógica en controller/repo.
 4. Respuesta con envelope uniforme `{ data, meta? }`.
 
 ## Decisiones de diseño
+
 - **TypeScript estricto**, sin `any`.
 - **Envelope** para respuestas, homogeneidad y extensibilidad con `meta`.
 - **Validadores Mongo** para integridad de datos.
 - **Swagger** como fuente de verdad de contratos (junto a `docs/api.md`).
 
 ## Directorios (propuesto)
+
 ```
 src/
   app.ts

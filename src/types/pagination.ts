@@ -1,10 +1,10 @@
 // Tipado común para paginación
 export interface PaginationQuery {
-    limit?: string | number;
-    after?: string;
+	limit?: string | number;
+	after?: string;
 }
 
 export interface Page {
-    limit: number;
-    after?: string | undefined;
+	limit: number;
+	after?: string | undefined;
 }

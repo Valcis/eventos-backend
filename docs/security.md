@@ -1,4 +1,3 @@
-
 # Seguridad
 
 - **CORS** configurable vía `CORS_ORIGINS`.
