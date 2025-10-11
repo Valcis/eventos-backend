@@ -55,3 +55,17 @@ export function moneyToMinor(amount: MoneyString, fractionDigits: number = 2): n
     const value = parseInt(ints, 10) * 10 ** fractionDigits + parseInt(decs || "0", 10);
     return isNegative ? -value : value;
 }
+
+export function moneyStringToDecimal128(value: string): Decimal128 {
+    if (!/^-?(0|[1-9]\d{0,4})\.\d{2}$/.test(value)) {
+        throw new Error(`Money inválido: ${value}`);
+    }
+    return Decimal128.fromString(value);
+}
+
+export function decimal128ToMoneyString(value: Decimal128): string {
+    const s = value.toString();
+    if (!s.includes('.')) return s + '.00';
+    const [i, d='00'] = s.split('.');
+    return i + '.' + (d + '00').slice(0,2);
+}

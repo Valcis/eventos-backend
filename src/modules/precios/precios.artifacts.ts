@@ -19,9 +19,9 @@ export async function ensurePreciosArtifacts(db: Db): Promise<void> {
 
     const exists = await db.listCollections({name}).hasNext();
     if (!exists) {
-        await db.createCollection(name, {validator, validationLevel: "moderate", validationAction: "error"});
+        await db.createCollection(name, {validator, validationLevel: "strict", validationAction: "error"});
     } else {
-        await db.command({collMod: name, validator, validationLevel: "moderate", validationAction: "error"});
+        await db.command({collMod: name, validator, validationLevel: "strict", validationAction: "error"});
     }
 
     const indexes: Array<{ key: Record<string, 1 | -1>; name: string; unique?: boolean }> = [

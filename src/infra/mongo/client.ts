@@ -1,41 +1,24 @@
-import {MongoClient, Db} from "mongodb";
-import {getEnv} from "../../config/env";
+import { MongoClient, Db } from 'mongodb';
+import { getEnv } from '../../config/env';
 
-const {MONGODB_URI, MONGODB_DB} = getEnv()
-
+let db: Db | null = null;
 let client: MongoClient | null = null;
-let database: Db | null = null;
 
-function getUrl(): string {
-    return MONGODB_URI ?? 'mongodb://localhost:27017';
+export async function connectMongo(): Promise<Db> {
+  if (db) return db;
+  const env = getEnv();
+  client = new MongoClient(env.MONGO_URL);
+  await client.connect();
+  db = client.db(env.MONGODB_DB);
+  return db;
 }
 
-export async function getClient(): Promise<MongoClient> {
-    if (client) return client;
-    client = new MongoClient(getUrl());
-    await client.connect();
-    return client;
+export function getDb(): Db {
+  if (!db) throw new Error('Mongo not connected');
+  return db;
 }
 
-export async function getDb(): Promise<Db> {
-    if (database) return database;
-    const uri = MONGODB_URI;
-    const dbName = MONGODB_DB;
-
-    client = new MongoClient(uri, {
-        maxPoolSize: 10,
-        serverSelectionTimeoutMS: 8000
-    });
-
-    await client.connect();
-    database = client.db(dbName);
-    return database;
-}
-
-export async function closeClient(): Promise<void> {
-    if (client) {
-        await client.close();
-        client = null;
-        database = null;
-    }
+export async function closeMongo(): Promise<void> {
+  if (client) await client.close();
+  client = null; db = null;
 }

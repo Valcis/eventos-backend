@@ -1,0 +1,293 @@
+@startuml
+
+title Data Model (Translated and Updated)
+
+skinparam shadowing true
+skinparam classAttributeIconSize 0
+'skinparam wrapWidth 320
+'skinparam linetype ortho
+left to right direction
+hide empty methods
+
+!define COLLECTION <<collection>>
+!define DB <<db>>
+
+' ================= ENTIDADES =================
+
+class Events DB {
+  id: string
+  createdAt: Date
+  updatedAt: Date
+  name: string
+  date: Date
+  capacity?: Integer
+  capitalAmount?: Decimal (7,2)
+}
+
+class Reservations COLLECTION {
+  id: string
+  eventId: string
+  createdAt: Date
+  updatedAt: Date
+  notes?: string
+  isActive?: boolean
+  reserver: string
+  order: object //{[productId: string]: qty: Integer}
+  totalAmount: Decimal (7,2)
+  salespersonId: string
+  consumptionTypeId: string
+  pickupPointId?: string
+  hasPromoApplied: boolean
+  linkedReservations: array [ReservationIds..]
+  deposit: Decimal (7,2)
+  isDelivered: boolean
+  isPaid: boolean
+  paymentMethodId: string
+  cashierId?: string
+}
+
+class Products COLLECTION {
+  id: string
+  eventId: string
+  createdAt: Date
+  updatedAt: Date
+  notes?: string
+  isActive?: boolean
+  name: string
+  description?: string
+  price: Decimal (7,2)
+  vatPct: enum{0%,4%,10%,21%}
+  vatAmount: Decimal (7,2)
+  netPrice: Decimal (7,2)
+  isPackage: boolean
+  unitsPerPack?: Integer
+  unitPrice?: Decimal (7,2)
+  promotions: string [Promotions..]
+  nominalPrice?: Decimal (7,2)
+  supplement?: string [ConsumptionTypeId]
+
+}
+
+class Promotions COLLECTION {
+  id: string
+  eventId: string
+  createdAt: Date
+  updatedAt: Date
+  notes?: string
+  isActive?: boolean
+  applicables: string [ProductId..] '
+  name: string
+  description?: string
+  rule: enum Rules
+  conditions: object  ' JSON/filtros
+  startDate: Date
+  endDate: Date
+  priority: Integer
+  isCumulative: boolean
+
+}
+
+class Expenses COLLECTION {
+  id: string
+  eventId: string
+  createdAt: Date
+  updatedAt: Date
+  notes?: string
+  isActive?: boolean
+  ingredient: string
+  unitId?: string
+  quantity?: Decimal (5,2)
+  basePrice: Decimal (7,2)
+  vatPct: enum{0%,4%,10%,21%}
+  vatAmount: Decimal (7,2)
+  netPrice: Decimal (7,2)
+  isPackage: boolean
+  unitsPerPack?: Integer
+  unitPrice?: Decimal (7,2)
+  payerId: string
+  storeId?: string
+  isVerified: boolean
+}
+
+class Salespeople COLLECTION {
+  id: string
+  eventId: string
+  createdAt: Date
+  updatedAt: Date
+  notes?: string
+  isActive?: boolean
+  name: string
+  phone: string
+}
+
+class PaymentMethods COLLECTION {
+   id: string
+   eventId: string
+   createdAt: Date
+   updatedAt: Date
+   notes?: string
+   isActive?: boolean
+   name: string
+}
+
+class Cashiers COLLECTION {
+  id: string
+  eventId: string
+  createdAt: Date
+  updatedAt: Date
+  notes?: string
+  isActive?: boolean
+  name: string
+  phone: string
+}
+
+class Stores COLLECTION {
+  id: string
+  eventId: string
+  createdAt: Date
+  updatedAt: Date
+  notes?: string
+  isActive?: boolean
+  name: string
+  seller?: string
+  phone?: string
+  address?: string
+  email?: string
+  openingHours?:string
+}
+
+class Units COLLECTION {
+  id: string
+  eventId: string
+  createdAt: Date
+  updatedAt: Date
+  notes?: string
+  isActive?: boolean
+  name: string
+  abbreviation: string
+}
+
+class ConsumptionTypes COLLECTION {
+  id: string
+  eventId: string
+  createdAt: Date
+  updatedAt: Date
+  notes?: string
+  isActive?: boolean
+  name: string
+}
+
+class Payers COLLECTION {
+  id: string
+  eventId: string
+  createdAt: Date
+  updatedAt: Date
+  notes?: string
+  isActive?: boolean
+  name: string
+  phone?: string
+}
+
+class PickupPoints COLLECTION {
+  id: string
+  eventId: string
+  createdAt: Date
+  updatedAt: Date
+  notes?: string
+  isActive?: boolean
+  name: string
+  dealerName?: string
+  phone?: string
+  address?: string
+  email?: string
+  openingHours?:string
+}
+
+class Partners COLLECTION {
+  id: string
+  eventId: string
+  createdAt: Date
+  updatedAt: Date
+  notes?: string
+  isActive?: boolean
+  name: string
+  stake: Decimal (5,2)
+  phone?: string
+  email?: string
+}
+
+Enum Rules {
+  XForY
+  DiscountPerUnit
+  BulkPrice
+  PercentageDiscount
+  ComboDiscount
+  FixedPriceBundle
+  BuyXGetYFree
+  MaxUnitsDiscounted
+  FirstXUnitsFree
+  TimeLimitedDiscount
+}
+
+
+' ================= RELACIONES =================
+
+'Event → resto (1 a muchos)
+Events "1" --> "0..*" Reservations : eventId
+Events "1" --> "0..*" Products : eventId
+Events "1" --> "0..*" Promotions : eventId
+Events "1" --> "0..*" Expenses : eventId
+Events "1" --> "0..*" Salespeople : eventId
+Events "1" --> "0..*" PaymentMethods : eventId
+Events "1" --> "0..*" Cashiers : eventId
+Events "1" --> "0..*" Stores : eventId
+Events "1" --> "0..*" Units : eventId
+Events "1" --> "0..*" ConsumptionTypes : eventId
+Events "1" --> "0..*" Payers : eventId
+Events "1" --> "0..*" PickupPoints : eventId
+Events "1" --> "0..*" Partners : eventId
+
+
+' Reservas → metadatos opcionales
+Reservations --> "1" Salespeople : salespersonId
+Reservations --> "1" ConsumptionTypes : consumptionTypeId
+Reservations --> "0..1" PickupPoints : pickupPointId
+Reservations --> "1" PaymentMethods : paymentMethodId
+Reservations --> "1" Cashiers : cashierId
+Reservations ..> Products : keys(order) (productId)
+
+
+' Gastos → metadatos opcionales
+Expenses --> "0..1" Units : unitId
+Expenses --> "1" Payers : payerId
+Expenses --> "0..1" Stores : storeId
+
+
+note bottom of Reservations
+order es un mapa productId→qty.
+Validar: productos existen, mismo eventId,
+qty > 0 y reglas de negocio antes de confirmar.
+end note
+
+note bottom of Promotions
++ rule: es un enum
++ conditions: objeto dinámico y lo
+generará el back
+end note
+
+note as N1
+Recomendaciones de unicidad por (eventId, name):
+Products, PaymentMethods, Salespeople, Cashiers,
+Stores, Units(abbreviation),Payers, Partners
+ConsumptionTypes, PickupPoints.
+end note
+
+@enduml
+
+
+contexto :
+acepto mapa "order" sin FKs
+reservas  tiene una "orden" donde hay una  lisa de productos con sus cantidades
+un producto puede tener ninguna, una o mas promociones
+una promocion puede afectar a un producto al menos o mas
+hasPromoAplied lo controla el back

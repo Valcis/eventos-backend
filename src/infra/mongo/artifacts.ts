@@ -1,119 +1,34 @@
-import {Db} from "mongodb";
+import type { Db } from 'mongodb';
 
-type IndexDirection = 1 | -1 | "text" | "hashed";
+export async function ensureMongoArtifacts(db: Db): Promise<void> {
+  // Collations for case-insensitive unique indexes
+  const ci = { locale: 'en', strength: 2 } as const;
 
-interface IndexSpec {
-    name: string;
-    key: Record<string, IndexDirection>;
-    unique?: boolean;
-}
+  await db.collection('events').createIndex({ date: 1 }, { name: 'idx_events_date' });
+  await db.collection('events').createIndex({ name: 1 }, { name: 'uniq_events_name', unique: true, collation: ci });
 
-interface CollectionSpec {
-    name: string;
-    validator?: Record<string, unknown>;
-    indexes: IndexSpec[];
-}
+  await db.collection('reservations').createIndex({ eventId: 1, createdAt: -1 }, { name: 'idx_reservations_eventId_createdAt' });
+  await db.collection('reservations').createIndex({ eventId: 1, isPaid: 1, createdAt: -1 }, { name: 'idx_reservations_eventId_isPaid_createdAt' });
+  await db.collection('reservations').createIndex({ eventId: 1, isDelivered: 1, createdAt: -1 }, { name: 'idx_reservations_eventId_isDelivered_createdAt' });
+  await db.collection('reservations').createIndex({ salespersonId: 1, createdAt: -1 }, { name: 'idx_reservations_salespersonId_createdAt' });
+  await db.collection('reservations').createIndex({ paymentMethodId: 1, createdAt: -1 }, { name: 'idx_reservations_paymentMethodId_createdAt' });
+  await db.collection('reservations').createIndex({ cashierId: 1, createdAt: -1 }, { name: 'idx_reservations_cashierId_createdAt' });
+  await db.collection('reservations').createIndex({ eventId: 1, reserver: 1 }, { name: 'uniq_reservations_eventId_reserver', unique: true, collation: ci } as any);
 
-const gastosSpec: CollectionSpec = {
-    name: "gastos",
-    validator: {
-        $jsonSchema: {
-            bsonType: "object", required: ["eventId", "importe", "createdAt"], properties: {
-                eventId: {bsonType: "string"},
-                importe: {bsonType: "decimal"},
-                descripcion: {bsonType: ["string", "null"]},
-                proveedor: {bsonType: ["string", "null"]},
-                comprobado: {bsonType: "bool"},
-                createdAt: {bsonType: "date"},
-                updatedAt: {bsonType: "date"},
-            }
-        }
-    },
-    indexes: [
-        {name: "IX_gastos_eventId_createdAt", key: {eventId: 1, createdAt: -1}},
-        {name: "IX_gastos_eventId_comprobado_createdAt", key: {eventId: 1, comprobado: 1, createdAt: -1}},
-        {name: "IX_gastos_texto", key: {descripcion: "text", proveedor: "text"}},
-    ],
-};
+  await db.collection('products').createIndex({ eventId: 1 }, { name: 'idx_products_eventId' });
+  await db.collection('products').createIndex({ eventId: 1, name: 1, supplement: 1 }, { name: 'uniq_products_eventId_name_supplement', unique: true, collation: ci } as any);
 
-const reservasSpec: CollectionSpec = {
-    name: "reservas",
-    validator: {
-        $jsonSchema: {
-            bsonType: "object", required: ["eventId", "estado", "createdAt"], properties: {
-                eventId: {bsonType: "string"}, estado: {enum: ["pendiente", "confirmada", "cancelada"]},
-                createdAt: {bsonType: "date"}, updatedAt: {bsonType: "date"},
-            }
-        }
-    },
-    indexes: [
-        {name: "IX_reservas_eventId_createdAt", key: {eventId: 1, createdAt: -1}},
-        {name: "IX_reservas_eventId_estado_createdAt", key: {eventId: 1, estado: 1, createdAt: -1}},
-    ],
-};
+  await db.collection('promotions').createIndex({ eventId: 1, startDate: 1, endDate: 1 }, { name: 'idx_promotions_eventId_start_end' });
+  await db.collection('promotions').createIndex({ eventId: 1, priority: -1 }, { name: 'idx_promotions_eventId_priority_desc' });
 
-const preciosSpec: CollectionSpec = {
-    name: "precios",
-    validator: {
-        $jsonSchema: {
-            bsonType: "object", required: ["eventId", "productoId", "precio", "createdAt"], properties: {
-                eventId: {bsonType: "string"}, productoId: {bsonType: "string"}, precio: {bsonType: "decimal"},
-                createdAt: {bsonType: "date"}, updatedAt: {bsonType: "date"},
-            }
-        }
-    },
-    indexes: [
-        {name: "UX_precios_eventId_productoId", key: {eventId: 1, productoId: 1}, unique: true},
-        {name: "IX_precios_eventId_createdAt", key: {eventId: 1, createdAt: -1}},
-    ],
-};
+  await db.collection('expenses').createIndex({ eventId: 1, createdAt: -1 }, { name: 'idx_expenses_eventId_createdAt' });
+  await db.collection('expenses').createIndex({ eventId: 1, isVerified: 1 }, { name: 'idx_expenses_eventId_isVerified' });
+  await db.collection('expenses').createIndex({ payerId: 1, createdAt: -1 }, { name: 'idx_expenses_payerId_createdAt' });
+  await db.collection('expenses').createIndex({ storeId: 1, createdAt: -1 }, { name: 'idx_expenses_storeId_createdAt' });
 
-const eventConfigsSpec: CollectionSpec = {
-    name: "eventConfigs",
-    validator: {
-        $jsonSchema: {
-            bsonType: "object", required: ["eventId", "clave"], properties: {
-                eventId: {bsonType: "string"},
-                clave: {bsonType: "string"},
-                valor: {},
-                createdAt: {bsonType: "date"},
-                updatedAt: {bsonType: "date"},
-            }
-        }
-    },
-    indexes: [{name: "UX_eventConfigs_eventId_clave", key: {eventId: 1, clave: 1}, unique: true}],
-};
-
-const SPECS: CollectionSpec[] = [gastosSpec, reservasSpec, preciosSpec, eventConfigsSpec];
-
-export async function ensureMongoArtifacts(db: Db | undefined | null): Promise<void> {
-    if (!db) throw new Error("ensureMongoArtifacts: Db indefinido. Pásame un Db válido.");
-
-    for (const spec of SPECS) {
-        const exists = await db.listCollections({name: spec.name}).hasNext();
-
-        if (!exists) {
-            await db.createCollection(
-                spec.name,
-                spec.validator ? {
-                    validator: spec.validator,
-                    validationLevel: "strict",
-                    validationAction: "error"
-                } : undefined
-            );
-        } else if (spec.validator) {
-            await db.command({
-                collMod: spec.name,
-                validator: spec.validator,
-                validationLevel: "strict",
-                validationAction: "error",
-            });
-        }
-
-        if (spec.indexes.length > 0) {
-            await db.collection(spec.name).createIndexes(
-                spec.indexes.map(ix => ({name: ix.name, key: ix.key, unique: ix.unique === true}))
-            );
-        }
-    }
+  const catalogs = ['units','salespeople','paymentmethods','cashiers','stores','consumptiontypes','payers','pickuppoints','partners'];
+  for (const col of catalogs) {
+    await db.collection(col).createIndex({ eventId: 1 }, { name: `idx_${col}_eventId` });
+    await db.collection(col).createIndex({ eventId: 1, name: 1 }, { name: `uniq_${col}_eventId_name`, unique: true, collation: ci } as any);
+  }
 }

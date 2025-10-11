@@ -1,87 +1,28 @@
-import fp from "fastify-plugin";
-import swagger from "@fastify/swagger";
-import swaggerUi from "@fastify/swagger-ui";
-import type {FastifyInstance} from "fastify";
-import {getEnv} from "../config/env";
+import fp from 'fastify-plugin';
+import type { FastifyInstance } from 'fastify';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
+import YAML from 'yaml';
+import fastifySwagger from '@fastify/swagger';
+import fastifySwaggerUI from '@fastify/swagger-ui';
 
-export default fp(async (app: FastifyInstance) => {
-    // Activa/desactiva Swagger según ENV (booleano)
-    if (!getEnv().SWAGGER_ENABLE) return;
+export default fp(async function swaggerPlugin(app: FastifyInstance) {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const yamlPath = path.resolve(__dirname, '../../openapi/openapi.yaml');
+  const spec = YAML.parse(fs.readFileSync(yamlPath, 'utf-8'));
 
-    await app.register(swagger, {
-        openapi: {
-            info: {title: "EVENTOS API", version: "1.1.0"},
-            components: {
-                schemas: {
-                    IdResponse: {
-                        type: "object",
-                        properties: {
-                            data: {
-                                type: "object",
-                                properties: {id: {type: "string"}},
-                                required: ["id"],
-                                additionalProperties: false
-                            }
-                        },
-                        required: ["data"], additionalProperties: false
-                    },
-                    ErrorSchema: {
-                        type: "object",
-                        properties: {
-                            error: {
-                                type: "object",
-                                properties: {code: {type: "string"}, message: {type: "string"}},
-                                required: ["code", "message"], additionalProperties: false
-                            }
-                        },
-                        required: ["error"], additionalProperties: false
-                    },
-                    Precio: {
-                        type: "object",
-                        required: ["eventId", "concepto", "importe"],
-                        properties: {
-                            id: {type: "string"},
-                            eventId: {type: "string"},
-                            concepto: {type: "string"},
-                            importe: {type: "number"},
-                            moneda: {type: "string"}
-                        },
-                        additionalProperties: false
-                    },
-                    Gasto: {
-                        type: "object",
-                        additionalProperties: false,
-                        required: ["id", "eventId", "concepto", "importe", "categoria"],
-                        properties: {
-                            id: {type: "string"},
-                            eventId: {type: "string"},
-                            concepto: {type: "string"},
-                            importe: {type: "number"},
-                            categoria: {type: "string"},
-                            createdAt: {type: "string"},
-                            updatedAt: {type: "string"}
-                        }
-                    },
-                    Reserva: {
-                        type: "object",
-                        additionalProperties: false,
-                        required: ["id", "eventId", "reservaId", "estado"],
-                        properties: {
-                            id: {type: "string"},
-                            eventId: {type: "string"},
-                            reservaId: {type: "string"},
-                            estado: {type: "string"},
-                            createdAt: {type: "string"},
-                            updatedAt: {type: "string"}
-                        }
-                    }
-                }
-            }
-        }
-    });
+  await app.register(fastifySwagger, {
+    mode: 'static',
+    specification: { path: yamlPath, baseDir: path.dirname(yamlPath) },
+  });
 
-    await app.register(swaggerUi, {
-        routePrefix: "/docs",
-        uiConfig: {docExpansion: "list", deepLinking: false}
-    });
+  await app.register(fastifySwaggerUI, {
+    routePrefix: '/docs',
+    staticCSP: true,
+    uiConfig: { docExpansion: 'list', deepLinking: true },
+  });
+
+  app.log.info({ path: '/docs' }, 'Swagger UI mounted');
 });

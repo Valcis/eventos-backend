@@ -23,11 +23,11 @@ export async function ensureGastosArtifacts(db: Db): Promise<void> {
     if (!exists) {
         await db.createCollection(name, {
             validator,
-            validationLevel: "moderate",
+            validationLevel: "strict",
             validationAction: "error",
         });
     } else {
-        await db.command({collMod: name, validator, validationLevel: "moderate", validationAction: "error"});
+        await db.command({collMod: name, validator, validationLevel: "strict", validationAction: "error"});
     }
 
     const indexes: Array<{ key: Record<string, 1 | -1 | "text">; name: string; unique?: boolean }> = [
