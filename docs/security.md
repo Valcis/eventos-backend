@@ -18,18 +18,21 @@ AUTH_ENABLED=false  # Deshabilitado (desarrollo)
 Cuando `AUTH_ENABLED=true`:
 
 ✅ **Rutas que requieren token**:
+
 - `/api/events`
 - `/api/products`
 - `/api/reservations`
 - Todas las rutas de la API
 
 ❌ **Rutas excluidas** (sin token):
+
 - `/health` - Health check
 - `/swagger` - Documentación
 
 ### Cómo Funciona
 
 1. Cliente envía header `Authorization`:
+
 ```http
 Authorization: Bearer YOUR_TOKEN_HERE
 ```
@@ -37,10 +40,11 @@ Authorization: Bearer YOUR_TOKEN_HERE
 2. Plugin valida que el header exista y tenga formato correcto
 
 3. Si falta o es inválido → `401 Unauthorized`:
+
 ```json
 {
-  "code": "FORBIDDEN",
-  "message": "Falta token Bearer"
+	"code": "FORBIDDEN",
+	"message": "Falta token Bearer"
 }
 ```
 
@@ -59,18 +63,21 @@ Authorization: Bearer YOUR_TOKEN_HERE
 **Para implementar validación JWT**:
 
 1. Instalar dependencia:
+
 ```bash
 npm install jsonwebtoken
 npm install -D @types/jsonwebtoken
 ```
 
 2. Añadir variables de entorno:
+
 ```bash
 JWT_SECRET=your-secret-key
 JWT_ALGORITHM=HS256
 ```
 
 3. Implementar verificación:
+
 ```typescript
 import jwt from 'jsonwebtoken';
 
@@ -88,8 +95,8 @@ Configurado en `src/plugins/cors.ts` usando `@fastify/cors`.
 
 ```typescript
 await app.register(cors, {
-  origin: true, // Acepta cualquier origen
-  credentials: true
+	origin: true, // Acepta cualquier origen
+	credentials: true,
 });
 ```
 
@@ -97,8 +104,8 @@ await app.register(cors, {
 
 ```typescript
 await app.register(cors, {
-  origin: ['https://app.tudominio.com', 'https://admin.tudominio.com'],
-  credentials: true
+	origin: ['https://app.tudominio.com', 'https://admin.tudominio.com'],
+	credentials: true,
 });
 ```
 
@@ -115,6 +122,7 @@ CORS_ORIGINS=https://app.example.com,https://admin.example.com
 ### Variables Sensibles
 
 **Nunca** incluir en el código:
+
 - Passwords de bases de datos
 - Tokens de API
 - Claves JWT
@@ -123,6 +131,7 @@ CORS_ORIGINS=https://app.example.com,https://admin.example.com
 ### Uso de .env
 
 ✅ **Correcto**:
+
 ```bash
 # .env (en .gitignore)
 MONGO_URL=mongodb://user:password@localhost:27017
@@ -130,6 +139,7 @@ JWT_SECRET=supersecret123
 ```
 
 ❌ **Incorrecto**:
+
 ```typescript
 // ¡NO hacer esto!
 const JWT_SECRET = 'supersecret123';
@@ -140,22 +150,24 @@ const JWT_SECRET = 'supersecret123';
 En producción, usar variables de entorno del sistema:
 
 **Docker**:
+
 ```yaml
 # docker-compose.yml
 environment:
-  - MONGO_URL=${MONGO_URL}
-  - JWT_SECRET=${JWT_SECRET}
+    - MONGO_URL=${MONGO_URL}
+    - JWT_SECRET=${JWT_SECRET}
 ```
 
 **Kubernetes**:
+
 ```yaml
 # deployment.yaml
 env:
-  - name: JWT_SECRET
-    valueFrom:
-      secretKeyRef:
-        name: app-secrets
-        key: jwt-secret
+    - name: JWT_SECRET
+      valueFrom:
+          secretKeyRef:
+              name: app-secrets
+              key: jwt-secret
 ```
 
 ---
@@ -165,6 +177,7 @@ env:
 ### Información Sensible
 
 El sistema de logging **debe evitar**:
+
 - ❌ Tokens completos
 - ❌ Passwords
 - ❌ Headers `Authorization` completos
@@ -177,18 +190,13 @@ El sistema de logging **debe evitar**:
 ```typescript
 // En src/core/logging/logger.ts
 export function buildLoggerOptions() {
-  return {
-    level: process.env.LOG_LEVEL ?? 'info',
-    redact: {
-      paths: [
-        'req.headers.authorization',
-        'req.headers.cookie',
-        '*.password',
-        '*.token'
-      ],
-      censor: '[REDACTED]'
-    }
-  };
+	return {
+		level: process.env.LOG_LEVEL ?? 'info',
+		redact: {
+			paths: ['req.headers.authorization', 'req.headers.cookie', '*.password', '*.token'],
+			censor: '[REDACTED]',
+		},
+	};
 }
 ```
 
@@ -198,12 +206,15 @@ El hook `onResponse` registra todas las requests:
 
 ```typescript
 app.addHook('onResponse', async (req, reply) => {
-  req.log.info({
-    statusCode: reply.statusCode,
-    method: req.method,
-    url: req.url,
-    responseTime: reply.elapsedTime,
-  }, 'request completed');
+	req.log.info(
+		{
+			statusCode: reply.statusCode,
+			method: req.method,
+			url: req.url,
+			responseTime: reply.elapsedTime,
+		},
+		'request completed',
+	);
 });
 ```
 
@@ -223,10 +234,10 @@ app.addHook('onResponse', async (req, reply) => {
 import rateLimit from '@fastify/rate-limit';
 
 await app.register(rateLimit, {
-  max: 100,              // 100 requests
-  timeWindow: '1 minute',
-  skipOnError: true,
-  allowList: [/^127\.0\.0\.1$/] // Excluir localhost
+	max: 100, // 100 requests
+	timeWindow: '1 minute',
+	skipOnError: true,
+	allowList: [/^127\.0\.0\.1$/], // Excluir localhost
 });
 ```
 
@@ -240,12 +251,12 @@ await app.register(rateLimit, {
 import helmet from '@fastify/helmet';
 
 await app.register(helmet, {
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-    }
-  }
+	contentSecurityPolicy: {
+		directives: {
+			defaultSrc: ["'self'"],
+			styleSrc: ["'self'", "'unsafe-inline'"],
+		},
+	},
 });
 ```
 
@@ -259,9 +270,9 @@ await app.register(helmet, {
 import { z } from 'zod';
 
 const CreateProductSchema = z.object({
-  eventId: z.string().min(1),
-  name: z.string().min(1).max(100),
-  price: z.string().regex(/^\d+\.\d{2}$/),
+	eventId: z.string().min(1),
+	name: z.string().min(1).max(100),
+	price: z.string().regex(/^\d+\.\d{2}$/),
 });
 
 // En route handler
@@ -287,12 +298,14 @@ const query = { eventId: req.query.eventId };
 ## Checklist de Seguridad
 
 ### Desarrollo
+
 - [ ] Variables sensibles en `.env` (no en código)
 - [ ] `.env` en `.gitignore`
 - [ ] Validación de inputs con Zod
 - [ ] No loguear secretos
 
 ### Staging/Producción
+
 - [ ] `AUTH_ENABLED=true`
 - [ ] Validación JWT implementada
 - [ ] CORS restringido a dominios específicos

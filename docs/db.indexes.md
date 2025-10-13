@@ -5,8 +5,8 @@
 ## Convenciones
 
 - **Nombres de índices**:
-  - `idx_*` - Índice normal (no único)
-  - `uniq_*` - Índice único
+    - `idx_*` - Índice normal (no único)
+    - `uniq_*` - Índice único
 - **Collation**: Case-insensitive (`{ locale: 'en', strength: 2 }`) en índices únicos de texto
 - **Idempotencia**: `createIndexes()` no falla si el índice ya existe
 - **Implementación**: `src/infra/mongo/artifacts.ts:14-101`
@@ -16,24 +16,32 @@
 ## Colección: `events`
 
 ### `uniq_events_name` (ÚNICO)
+
 ```javascript
-{ name: 1 }
+{
+	name: 1;
+}
 ```
+
 - **Collation**: Case-insensitive
 - **Propósito**: Garantizar nombres únicos de eventos
 - **Consultas optimizadas**:
-  - Búsqueda por nombre exacto
-  - Validación de duplicados en creación
-  - `find({ name: "Fiesta 2025" })`
+    - Búsqueda por nombre exacto
+    - Validación de duplicados en creación
+    - `find({ name: "Fiesta 2025" })`
 
 ### `idx_events_date`
+
 ```javascript
-{ date: 1 }
+{
+	date: 1;
+}
 ```
+
 - **Propósito**: Listado cronológico de eventos
 - **Consultas optimizadas**:
-  - `find({ date: { $gte: startDate, $lte: endDate } })`
-  - Ordenar eventos por fecha
+    - `find({ date: { $gte: startDate, $lte: endDate } })`
+    - Ordenar eventos por fecha
 
 **Código**: `src/infra/mongo/artifacts.ts:16-19`
 
@@ -42,67 +50,81 @@
 ## Colección: `reservations`
 
 ### `uniq_reservations_eventId_reserver` (ÚNICO)
+
 ```javascript
 { eventId: 1, reserver: 1 }
 ```
+
 - **Collation**: Case-insensitive
 - **Propósito**: Un reservador único por evento
 - **Consultas optimizadas**:
-  - Validación de duplicados al crear reserva
-  - `find({ eventId, reserver: "Juan Pérez" })`
+    - Validación de duplicados al crear reserva
+    - `find({ eventId, reserver: "Juan Pérez" })`
 
 ### `idx_reservations_eventId_createdAt`
+
 ```javascript
 { eventId: 1, createdAt: -1 }
 ```
+
 - **Propósito**: Listado de reservas por evento, más recientes primero
 - **Consultas optimizadas**:
-  - `find({ eventId }).sort({ createdAt: -1 })`
-  - Paginación cursor-based
+    - `find({ eventId }).sort({ createdAt: -1 })`
+    - Paginación cursor-based
 
 ### `idx_reservations_eventId_isPaid_createdAt`
+
 ```javascript
 { eventId: 1, isPaid: 1, createdAt: -1 }
 ```
+
 - **Propósito**: Filtrar reservas pagadas/pendientes dentro de un evento
 - **Consultas optimizadas**:
-  - `find({ eventId, isPaid: false })`
-  - Dashboard de cobros pendientes
+    - `find({ eventId, isPaid: false })`
+    - Dashboard de cobros pendientes
 
 ### `idx_reservations_eventId_isDelivered_createdAt`
+
 ```javascript
 { eventId: 1, isDelivered: 1, createdAt: -1 }
 ```
+
 - **Propósito**: Filtrar reservas entregadas/pendientes
 - **Consultas optimizadas**:
-  - `find({ eventId, isDelivered: false })`
-  - Control de entregas
+    - `find({ eventId, isDelivered: false })`
+    - Control de entregas
 
 ### `idx_reservations_salespersonId_createdAt`
+
 ```javascript
 { salespersonId: 1, createdAt: -1 }
 ```
+
 - **Propósito**: Reservas por vendedor
 - **Consultas optimizadas**:
-  - Reportes de ventas por vendedor
-  - Comisiones
+    - Reportes de ventas por vendedor
+    - Comisiones
 
 ### `idx_reservations_paymentMethodId_createdAt`
+
 ```javascript
 { paymentMethodId: 1, createdAt: -1 }
 ```
+
 - **Propósito**: Reservas por método de pago
 - **Consultas optimizadas**:
-  - Reportes de ingresos por método (efectivo, tarjeta, etc.)
+    - Reportes de ingresos por método (efectivo, tarjeta, etc.)
 
 ### `idx_reservations_cashierId_createdAt`
+
 ```javascript
 { cashierId: 1, createdAt: -1 }
 ```
+
 - **Propósito**: Reservas procesadas por cajero
 - **Consultas optimizadas**:
-  - Auditoría de caja
-  - Arqueos
+    - Auditoría de caja
+    - Arqueos
 
 **Código**: `src/infra/mongo/artifacts.ts:22-47`
 
@@ -111,32 +133,38 @@
 ## Colección: `products`
 
 ### `uniq_products_eventId_name` (ÚNICO)
+
 ```javascript
 { eventId: 1, name: 1 }
 ```
+
 - **Collation**: Case-insensitive
 - **Propósito**: Producto único por evento
 - **Consultas optimizadas**:
-  - Validación de duplicados
-  - `find({ eventId, name: "Cerveza" })`
+    - Validación de duplicados
+    - `find({ eventId, name: "Cerveza" })`
 
 ### `idx_products_eventId_categoryId_name`
+
 ```javascript
 { eventId: 1, categoryId: 1, name: 1 }
 ```
+
 - **Propósito**: Productos por categoría (si se implementa)
 - **Consultas optimizadas**:
-  - Agrupación por categoría
-  - Menús organizados
+    - Agrupación por categoría
+    - Menús organizados
 
 ### `idx_products_eventId_isActive`
+
 ```javascript
 { eventId: 1, isActive: 1 }
 ```
+
 - **Propósito**: Filtrar productos activos
 - **Consultas optimizadas**:
-  - `find({ eventId, isActive: true })`
-  - Listado de productos disponibles
+    - `find({ eventId, isActive: true })`
+    - Listado de productos disponibles
 
 **Código**: `src/infra/mongo/artifacts.ts:50-62`
 
@@ -145,22 +173,26 @@
 ## Colección: `promotions`
 
 ### `idx_promotions_eventId_start_end`
+
 ```javascript
 { eventId: 1, startDate: 1, endDate: 1 }
 ```
+
 - **Propósito**: Promociones vigentes en un rango de fechas
 - **Consultas optimizadas**:
-  - `find({ eventId, startDate: { $lte: now }, endDate: { $gte: now } })`
-  - Aplicación automática de promos
+    - `find({ eventId, startDate: { $lte: now }, endDate: { $gte: now } })`
+    - Aplicación automática de promos
 
 ### `idx_promotions_eventId_priority_desc`
+
 ```javascript
 { eventId: 1, priority: -1 }
 ```
+
 - **Propósito**: Promociones ordenadas por prioridad (mayor primero)
 - **Consultas optimizadas**:
-  - Aplicar promociones en orden de prioridad
-  - Resolución de conflictos
+    - Aplicar promociones en orden de prioridad
+    - Resolución de conflictos
 
 **Código**: `src/infra/mongo/artifacts.ts:65-68`
 
@@ -169,40 +201,48 @@
 ## Colección: `expenses`
 
 ### `idx_expenses_eventId_createdAt`
+
 ```javascript
 { eventId: 1, createdAt: -1 }
 ```
+
 - **Propósito**: Gastos por evento, más recientes primero
 - **Consultas optimizadas**:
-  - Listado de gastos
-  - Paginación cursor-based
+    - Listado de gastos
+    - Paginación cursor-based
 
 ### `idx_expenses_eventId_isVerified`
+
 ```javascript
 { eventId: 1, isVerified: 1 }
 ```
+
 - **Propósito**: Filtrar gastos verificados/pendientes
 - **Consultas optimizadas**:
-  - `find({ eventId, isVerified: false })`
-  - Control presupuestario
+    - `find({ eventId, isVerified: false })`
+    - Control presupuestario
 
 ### `idx_expenses_payerId_createdAt`
+
 ```javascript
 { payerId: 1, createdAt: -1 }
 ```
+
 - **Propósito**: Gastos por pagador
 - **Consultas optimizadas**:
-  - Reportes de gastos por socio
-  - Liquidaciones
+    - Reportes de gastos por socio
+    - Liquidaciones
 
 ### `idx_expenses_storeId_createdAt`
+
 ```javascript
 { storeId: 1, createdAt: -1 }
 ```
+
 - **Propósito**: Gastos por proveedor
 - **Consultas optimizadas**:
-  - Análisis de proveedores
-  - Historial de compras
+    - Análisis de proveedores
+    - Historial de compras
 
 **Código**: `src/infra/mongo/artifacts.ts:71-76`
 
@@ -213,23 +253,30 @@
 Todas las colecciones de catálogo tienen los mismos 2 índices:
 
 ### `idx_{collection}_eventId`
+
 ```javascript
-{ eventId: 1 }
+{
+	eventId: 1;
+}
 ```
+
 - **Propósito**: Filtrar catálogo por evento
 - **Consultas optimizadas**: `find({ eventId })`
 
 ### `uniq_{collection}_eventId_name` (ÚNICO)
+
 ```javascript
 { eventId: 1, name: 1 }
 ```
+
 - **Collation**: Case-insensitive
 - **Propósito**: Nombre único dentro del evento
 - **Consultas optimizadas**:
-  - Validación de duplicados
-  - Búsqueda por nombre
+    - Validación de duplicados
+    - Búsqueda por nombre
 
 **Aplica a**:
+
 - `units` - Unidades de medida
 - `salespeople` - Vendedores
 - `paymentmethods` - Métodos de pago
@@ -250,15 +297,17 @@ Los índices están diseñados para **paginación cursor-based** usando `_id`:
 
 ```javascript
 // Primera página
-db.collection.find(query).sort({ _id: 1 }).limit(50)
+db.collection.find(query).sort({ _id: 1 }).limit(50);
 
 // Siguiente página (after = último _id de la página anterior)
-db.collection.find({ ...query, _id: { $gt: ObjectId(after) } })
-  .sort({ _id: 1 })
-  .limit(50)
+db.collection
+	.find({ ...query, _id: { $gt: ObjectId(after) } })
+	.sort({ _id: 1 })
+	.limit(50);
 ```
 
 **Ventajas**:
+
 - ✅ Escalable (no usa `skip`)
 - ✅ Consistente (no salta resultados si hay inserciones)
 - ✅ Eficiente (siempre usa índice `_id` nativo)
@@ -279,6 +328,7 @@ MONGO_BOOT=1 npm run dev
 ```
 
 **Qué hace**:
+
 1. Ejecuta `ensureMongoArtifacts(db)` en `src/app.ts:40-48`
 2. Crea todos los índices con `createIndexes()` (idempotente)
 3. No falla si los índices ya existen
@@ -291,6 +341,7 @@ npm run db:ensure
 ```
 
 O directamente:
+
 ```bash
 tsx src/scripts/db-ensure.ts
 ```
@@ -308,22 +359,30 @@ db.products.getIndexes()
 ```
 
 **Output esperado**:
+
 ```javascript
 [
-  { v: 2, key: { _id: 1 }, name: '_id_' },
-  { v: 2, key: { eventId: 1, name: 1 }, name: 'uniq_products_eventId_name', unique: true, collation: { locale: 'en', strength: 2 } },
-  { v: 2, key: { eventId: 1, isActive: 1 }, name: 'idx_products_eventId_isActive' },
-  // ...
-]
+	{ v: 2, key: { _id: 1 }, name: '_id_' },
+	{
+		v: 2,
+		key: { eventId: 1, name: 1 },
+		name: 'uniq_products_eventId_name',
+		unique: true,
+		collation: { locale: 'en', strength: 2 },
+	},
+	{ v: 2, key: { eventId: 1, isActive: 1 }, name: 'idx_products_eventId_isActive' },
+	// ...
+];
 ```
 
 ### Analizar uso de índices
 
 ```javascript
-db.products.find({ eventId: "abc123" }).explain("executionStats")
+db.products.find({ eventId: 'abc123' }).explain('executionStats');
 ```
 
 **Verificar** en el resultado:
+
 ```javascript
 {
   "executionStats": {
@@ -343,10 +402,11 @@ db.products.find({ eventId: "abc123" }).explain("executionStats")
 ### Estadísticas de índices
 
 ```javascript
-db.products.aggregate([{ $indexStats: {} }])
+db.products.aggregate([{ $indexStats: {} }]);
 ```
 
 Muestra:
+
 - Número de accesos por índice
 - Índices no utilizados (candidatos para borrar)
 
@@ -357,7 +417,7 @@ Muestra:
 ### Reconstruir índices (si están fragmentados)
 
 ```javascript
-db.products.reIndex()
+db.products.reIndex();
 ```
 
 ⚠️ **Cuidado**: Bloquea la colección durante la operación.
@@ -365,16 +425,17 @@ db.products.reIndex()
 ### Borrar índice no usado
 
 ```javascript
-db.products.dropIndex("idx_products_categoryId")
+db.products.dropIndex('idx_products_categoryId');
 ```
 
 ### Tamaño de índices
 
 ```javascript
-db.products.stats().indexSizes
+db.products.stats().indexSizes;
 ```
 
 **Output**:
+
 ```javascript
 {
   "_id_": 245760,
@@ -414,18 +475,20 @@ db.products.stats().indexSizes
 ### Query lenta
 
 1. Ejecutar con `explain()`:
+
 ```javascript
-db.products.find({ eventId: "123" }).explain("executionStats")
+db.products.find({ eventId: '123' }).explain('executionStats');
 ```
 
 2. Verificar:
-   - `executionTimeMillis` (debe ser <100ms)
-   - `totalDocsExamined` vs `nReturned` (deben ser similares)
-   - `stage: "IXSCAN"` (debe usar índice)
+    - `executionTimeMillis` (debe ser <100ms)
+    - `totalDocsExamined` vs `nReturned` (deben ser similares)
+    - `stage: "IXSCAN"` (debe usar índice)
 
 3. Si no usa índice, crear uno:
+
 ```javascript
-db.products.createIndex({ eventId: 1 })
+db.products.createIndex({ eventId: 1 });
 ```
 
 ### Error: índice no se puede crear
@@ -433,12 +496,13 @@ db.products.createIndex({ eventId: 1 })
 **Causa común**: Documentos duplicados violan constraint único
 
 **Solución**: Limpiar duplicados antes de crear índice:
+
 ```javascript
 // Encontrar duplicados
 db.products.aggregate([
-  { $group: { _id: { eventId: "$eventId", name: "$name" }, count: { $sum: 1 } } },
-  { $match: { count: { $gt: 1 } } }
-])
+	{ $group: { _id: { eventId: '$eventId', name: '$name' }, count: { $sum: 1 } } },
+	{ $match: { count: { $gt: 1 } } },
+]);
 
 // Borrar duplicados manualmente
 ```
@@ -446,13 +510,12 @@ db.products.aggregate([
 ### Índice grande consume mucha RAM
 
 **Solución**:
+
 - Revisar si el índice es necesario
 - Considerar índices parciales (solo documentos activos):
+
 ```javascript
-db.products.createIndex(
-  { eventId: 1, name: 1 },
-  { partialFilterExpression: { isActive: true } }
-)
+db.products.createIndex({ eventId: 1, name: 1 }, { partialFilterExpression: { isActive: true } });
 ```
 
 ---

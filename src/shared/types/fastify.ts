@@ -1,4 +1,4 @@
-import type {FastifyRequest} from "fastify";
+import type { FastifyRequest } from 'fastify';
 
 export type IdParams = { id: string };
 export type PageQuery = { limit?: number; after?: string | null };

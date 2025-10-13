@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Id, DateTime, Money, SoftDelete } from './shared';
+import { Id, DateTime, Money, SoftDelete } from '../catalogs/zod.schemas';
 export const Reservation = SoftDelete.and(
 	z.object({
 		id: Id.optional(),

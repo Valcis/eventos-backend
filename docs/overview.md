@@ -16,10 +16,12 @@
 Según el `data_model.puml`, el proyecto tiene **14 colecciones**:
 
 ### Core:
+
 - **Events** - Evento principal (nombre, fecha, capacidad, capital)
 - **Reservations** - Reservas con orden de productos, totales, estado pago/entrega
 
 ### Catálogos (todos tienen `eventId`):
+
 - **Products** - Productos con stock, promociones y suplementos por tipo de consumo
 - **Promotions** - Promociones con reglas (descuentos, 2x1, etc.)
 - **Expenses** - Gastos/ingredientes del evento
@@ -67,14 +69,19 @@ El corazón del proyecto es `makeCrud()`, una **factory que genera repositorios 
 
 ```typescript
 makeCrud<TDomain, TCreate, TUpdate>({
-  collection: 'products',
-  toDb: (data) => { /* convierte input a MongoDB doc */ },
-  fromDb: (doc) => { /* convierte MongoDB doc a objeto dominio */ },
-  softDelete: true,  // soft delete por defecto (isActive=false)
-})
+	collection: 'products',
+	toDb: (data) => {
+		/* convierte input a MongoDB doc */
+	},
+	fromDb: (doc) => {
+		/* convierte MongoDB doc a objeto dominio */
+	},
+	softDelete: true, // soft delete por defecto (isActive=false)
+});
 ```
 
 **Operaciones**:
+
 - `create()` - inserta con `createdAt`, `updatedAt`, `isActive: true`
 - `getById()` - busca por `_id` (ObjectId)
 - `list()` - paginación por **cursor** (`after=_id`, `limit`, `total`)
@@ -93,13 +100,14 @@ makeCrud<TDomain, TCreate, TUpdate>({
 
 ```typescript
 makeController<T>(
-  'products',                              // nombre colección
-  (d) => d,                                // mapIn: input → MongoDB
-  (doc) => ({ id: String(doc._id), ...doc }) // mapOut: MongoDB → respuesta
-)
+	'products', // nombre colección
+	(d) => d, // mapIn: input → MongoDB
+	(doc) => ({ id: String(doc._id), ...doc }), // mapOut: MongoDB → respuesta
+);
 ```
 
 **Endpoints generados**:
+
 - `GET /` → `list()` (con query params `?limit=10&after=cursor`)
 - `GET /:id` → `get()`
 - `POST /` → `create()`
@@ -125,10 +133,10 @@ Cada módulo (ej. `products/routes.ts`) hace:
 
 ```typescript
 export default async function productsRoutes(app: FastifyInstance) {
-  const ctrl = makeController('products', mapIn, mapOut);
-  app.get('/', ctrl.list);
-  app.post('/', ctrl.create);
-  // ... etc
+	const ctrl = makeController('products', mapIn, mapOut);
+	app.get('/', ctrl.list);
+	app.post('/', ctrl.create);
+	// ... etc
 }
 ```
 
@@ -141,19 +149,20 @@ export default async function productsRoutes(app: FastifyInstance) {
 El swagger **se carga desde un archivo YAML estático** (`openapi/openapi.yaml`):
 
 1. **Plugin Swagger** (`plugins/swagger.ts`):
-   - Lee `openapi/openapi.yaml` con la biblioteca `yaml`
-   - Registra `@fastify/swagger` con el documento parseado
-   - Registra `@fastify/swagger-ui` en `/swagger`
+    - Lee `openapi/openapi.yaml` con la biblioteca `yaml`
+    - Registra `@fastify/swagger` con el documento parseado
+    - Registra `@fastify/swagger-ui` en `/swagger`
 
 2. **Ruta `/swagger`** registrada en `app.ts`:
-   ```typescript
-   await app.register(swaggerModule, { prefix: '/swagger' });
-   ```
+
+    ```typescript
+    await app.register(swaggerModule, { prefix: '/swagger' });
+    ```
 
 3. **El OpenAPI define**:
-   - Schemas de datos (Event, Reservation, Product, etc.)
-   - Endpoints con request/response
-   - Autenticación Bearer JWT
+    - Schemas de datos (Event, Reservation, Product, etc.)
+    - Endpoints con request/response
+    - Autenticación Bearer JWT
 
 📍 Ver: `src/plugins/swagger.ts:31-59` y `openapi/openapi.yaml`
 

@@ -37,29 +37,29 @@ npm run dev
 
 ### Desarrollo
 
-| Comando | Descripción |
-|---------|-------------|
-| `npm install` | Instalar dependencias |
-| `npm run dev` | Modo desarrollo con hot-reload (tsx watch) |
-| `npm run check` | Verificar tipos y linting |
-| `npm run lint` | Ejecutar ESLint |
-| `npm run lint:fix` | Fix automático de linting |
-| `npm run format` | Formatear código con Prettier |
+| Comando            | Descripción                                |
+| ------------------ | ------------------------------------------ |
+| `npm install`      | Instalar dependencias                      |
+| `npm run dev`      | Modo desarrollo con hot-reload (tsx watch) |
+| `npm run check`    | Verificar tipos y linting                  |
+| `npm run lint`     | Ejecutar ESLint                            |
+| `npm run lint:fix` | Fix automático de linting                  |
+| `npm run format`   | Formatear código con Prettier              |
 
 ### Producción
 
-| Comando | Descripción |
-|---------|-------------|
+| Comando         | Descripción                   |
+| --------------- | ----------------------------- |
 | `npm run build` | Compilar TypeScript → `dist/` |
-| `npm start` | Ejecutar build de producción |
+| `npm start`     | Ejecutar build de producción  |
 
 ### Scripts Útiles
 
-| Comando | Descripción |
-|---------|-------------|
-| `npm run seed` | Poblar BD con datos de ejemplo |
-| `npm run check:mongo` | Verificar conexión a MongoDB |
-| `npm run check:imports` | Validar imports ESM |
+| Comando                 | Descripción                    |
+| ----------------------- | ------------------------------ |
+| `npm run seed`          | Poblar BD con datos de ejemplo |
+| `npm run check:mongo`   | Verificar conexión a MongoDB   |
+| `npm run check:imports` | Validar imports ESM            |
 
 ---
 
@@ -72,10 +72,11 @@ curl http://localhost:3000/health
 ```
 
 **Respuesta esperada (200 OK)**:
+
 ```json
 {
-  "status": "ok",
-  "timestamp": "2025-01-15T10:30:00.000Z"
+	"status": "ok",
+	"timestamp": "2025-01-15T10:30:00.000Z"
 }
 ```
 
@@ -100,11 +101,13 @@ MONGODB_DB=eventos_dev
 ### Crear Índices
 
 **Primera vez / Después de cambios en índices**:
+
 ```bash
 MONGO_BOOT=1 npm run dev
 ```
 
 **Con script (recomendado para producción)**:
+
 ```bash
 npm run db:ensure
 ```
@@ -200,12 +203,14 @@ LOG_LEVEL=debug npm run dev   # debug | info | warn | error
 ### API no arranca
 
 **1. Verificar variables de entorno**:
+
 ```bash
 echo $MONGO_URL
 echo $MONGODB_DB
 ```
 
 **2. Verificar conexión a MongoDB**:
+
 ```bash
 npm run check:mongo
 # O manualmente:
@@ -213,6 +218,7 @@ mongosh "$MONGO_URL" --eval "db.adminCommand('ping')"
 ```
 
 **3. Ver errores**:
+
 ```bash
 npm run dev 2>&1 | grep -i error
 ```
@@ -222,6 +228,7 @@ npm run dev 2>&1 | grep -i error
 **Causa**: Auth habilitado pero falta token
 
 **Solución**:
+
 ```bash
 # Opción 1: Deshabilitar auth
 AUTH_ENABLED=false npm run dev
@@ -233,10 +240,12 @@ curl -H "Authorization: Bearer TOKEN" http://localhost:3000/api/products
 ### Errores 404 (Not Found)
 
 **Verificar ruta correcta**:
+
 - ✅ `http://localhost:3000/api/products` (correcto)
 - ❌ `http://localhost:3000/products` (sin /api)
 
 **Verificar BASE_PATH**:
+
 ```bash
 echo $BASE_PATH  # Debe ser /api
 ```
@@ -244,17 +253,20 @@ echo $BASE_PATH  # Debe ser /api
 ### Query lenta
 
 **1. Analizar con explain**:
+
 ```javascript
 // En mongo shell
-db.products.find({ eventId: "123" }).explain("executionStats")
+db.products.find({ eventId: '123' }).explain('executionStats');
 ```
 
 **2. Verificar índices**:
+
 ```javascript
-db.products.getIndexes()
+db.products.getIndexes();
 ```
 
 **3. Crear índices si faltan**:
+
 ```bash
 MONGO_BOOT=1 npm run dev
 ```

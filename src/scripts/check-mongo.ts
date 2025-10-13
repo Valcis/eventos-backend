@@ -1,9 +1,10 @@
 import { MongoClient } from 'mongodb';
 import { getEnv } from '../config/env';
 
-const uri = getEnv().MONGODB_URI;
+const env = getEnv();
+const uri = env.MONGO_URL;
 if (!uri) {
-	console.error('❌ Falta MONGODB_URI en el entorno.');
+	console.error('❌ Falta MONGO_URL en el entorno.');
 	process.exit(2);
 }
 

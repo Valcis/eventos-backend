@@ -47,16 +47,18 @@ GET /health
 ```
 
 **Response (200 OK)**:
+
 ```json
 {
-  "status": "ok",
-  "timestamp": "2025-01-15T10:30:00.000Z"
+	"status": "ok",
+	"timestamp": "2025-01-15T10:30:00.000Z"
 }
 ```
 
 **Implementación**: `src/system/health/health.routes.ts`
 
 **Características**:
+
 - No requiere autenticación
 - Responde instantáneamente
 - Útil para load balancers y monitoring
@@ -67,22 +69,22 @@ Añadir verificación de dependencias:
 
 ```typescript
 app.get('/health/ready', async (req, reply) => {
-  try {
-    // Verificar MongoDB
-    await req.server.db.admin().ping();
+	try {
+		// Verificar MongoDB
+		await req.server.db.admin().ping();
 
-    return {
-      status: 'ready',
-      checks: {
-        mongodb: 'ok'
-      }
-    };
-  } catch (err) {
-    reply.code(503).send({
-      status: 'not ready',
-      error: err.message
-    });
-  }
+		return {
+			status: 'ready',
+			checks: {
+				mongodb: 'ok',
+			},
+		};
+	} catch (err) {
+		reply.code(503).send({
+			status: 'not ready',
+			error: err.message,
+		});
+	}
 });
 ```
 
@@ -99,11 +101,13 @@ MONGO_BOOT=1 npm run dev
 ```
 
 **Qué hace**:
+
 - Ejecuta `ensureMongoArtifacts()` en `src/infra/mongo/artifacts.ts`
 - Crea todos los índices de forma idempotente
 - No falla si los índices ya existen
 
 **Cuándo usar**:
+
 - ✅ Primer despliegue en un ambiente
 - ✅ Desarrollo local (primera vez)
 - ✅ Después de añadir nuevos índices al código
@@ -139,6 +143,7 @@ npm run db:ensure
 **Estrategia actual**: Ninguna formal
 
 **Recomendación**:
+
 - Usar herramienta como `migrate-mongo`
 - Scripts versionados en `migrations/`
 - Ejecutar antes del despliegue
@@ -160,6 +165,7 @@ migrations/
 **Sistema**: Pino (JSON)
 
 **Ver logs en producción**:
+
 ```bash
 # Logs recientes
 tail -f logs/app.log | jq
@@ -184,15 +190,15 @@ import promClient from 'prom-client';
 
 // Métricas custom
 const httpRequestDuration = new promClient.Histogram({
-  name: 'http_request_duration_ms',
-  help: 'Duration of HTTP requests in ms',
-  labelNames: ['method', 'route', 'status_code']
+	name: 'http_request_duration_ms',
+	help: 'Duration of HTTP requests in ms',
+	labelNames: ['method', 'route', 'status_code'],
 });
 
 // Endpoint de métricas
 app.get('/metrics', async (req, reply) => {
-  reply.header('Content-Type', promClient.register.contentType);
-  return promClient.register.metrics();
+	reply.header('Content-Type', promClient.register.contentType);
+	return promClient.register.metrics();
 });
 ```
 
@@ -279,26 +285,26 @@ CMD ["node", "dist/server.js"]
 version: '3.8'
 
 services:
-  api:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - MONGO_URL=mongodb://mongo:27017
-      - MONGODB_DB=eventos_prod
-      - AUTH_ENABLED=true
-    depends_on:
-      - mongo
+    api:
+        build: .
+        ports:
+            - '3000:3000'
+        environment:
+            - MONGO_URL=mongodb://mongo:27017
+            - MONGODB_DB=eventos_prod
+            - AUTH_ENABLED=true
+        depends_on:
+            - mongo
 
-  mongo:
-    image: mongo:7
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
+    mongo:
+        image: mongo:7
+        ports:
+            - '27017:27017'
+        volumes:
+            - mongo_data:/data/db
 
 volumes:
-  mongo_data:
+    mongo_data:
 ```
 
 ### Build y Run
@@ -333,6 +339,7 @@ docker-compose up -d
 ### Dashboards
 
 **Métricas clave**:
+
 - Request rate (req/s)
 - Error rate (%)
 - Latency (p50, p95, p99)
@@ -340,6 +347,7 @@ docker-compose up -d
 - MongoDB operations/s
 
 **Herramientas**:
+
 - Grafana + Prometheus
 - Datadog
 - New Relic
@@ -384,17 +392,20 @@ mongodump --uri="$MONGO_URL" --archive | aws s3 cp - s3://backups/eventos/$(date
 ### API no arranca
 
 1. Verificar variables requeridas:
+
 ```bash
 echo $MONGO_URL
 echo $MONGODB_DB
 ```
 
 2. Probar conexión a MongoDB:
+
 ```bash
 npm run check:mongo
 ```
 
 3. Ver logs de error:
+
 ```bash
 npm run dev 2>&1 | grep ERROR
 ```
@@ -402,16 +413,19 @@ npm run dev 2>&1 | grep ERROR
 ### Requests lentas
 
 1. Verificar índices en MongoDB:
+
 ```javascript
-db.products.getIndexes()
+db.products.getIndexes();
 ```
 
 2. Analizar queries:
+
 ```javascript
-db.products.find({eventId: "123"}).explain("executionStats")
+db.products.find({ eventId: '123' }).explain('executionStats');
 ```
 
 3. Revisar logs de timing:
+
 ```bash
 grep 'responseTime' logs/app.log | jq 'select(.responseTime > 1000)'
 ```
@@ -419,11 +433,13 @@ grep 'responseTime' logs/app.log | jq 'select(.responseTime > 1000)'
 ### Errores 401 inesperados
 
 1. Verificar `AUTH_ENABLED`:
+
 ```bash
 echo $AUTH_ENABLED
 ```
 
 2. Verificar token en request:
+
 ```bash
 curl -v http://localhost:3000/api/products \
   -H "Authorization: Bearer YOUR_TOKEN"
@@ -432,16 +448,19 @@ curl -v http://localhost:3000/api/products \
 ### MongoDB desconectado
 
 1. Verificar servicio:
+
 ```bash
 systemctl status mongod
 ```
 
 2. Verificar conectividad:
+
 ```bash
 mongo --eval "db.adminCommand('ping')"
 ```
 
 3. Revisar logs de MongoDB:
+
 ```bash
 tail -f /var/log/mongodb/mongod.log
 ```

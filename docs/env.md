@@ -2,20 +2,20 @@
 
 ## Variables Requeridas
 
-| Variable     | Tipo   | Descripción                        |
-| ------------ | ------ | ---------------------------------- |
+| Variable     | Tipo   | Descripción                                                            |
+| ------------ | ------ | ---------------------------------------------------------------------- |
 | `MONGO_URL`  | string | **REQUERIDO** - URL conexión MongoDB (ej: `mongodb://localhost:27017`) |
-| `MONGODB_DB` | string | **REQUERIDO** - Nombre de la base de datos |
+| `MONGODB_DB` | string | **REQUERIDO** - Nombre de la base de datos                             |
 
 ## Variables Opcionales
 
-| Variable       | Tipo    | Default       | Descripción                                     |
-| -------------- | ------- | ------------- | ----------------------------------------------- |
-| `PORT`         | number  | `3000`        | Puerto HTTP del servidor                        |
-| `BASE_PATH`    | string  | `/api`        | Prefijo base para las rutas (ej: `/api`)        |
-| `MONGO_BOOT`   | enum    | `0`           | `1` = crear índices en arranque, `0` = no crear |
-| `AUTH_ENABLED` | boolean | `false`       | `true` = requiere Bearer token en todas las rutas (excepto /health y /swagger) |
-| `LOG_LEVEL`    | string  | `info`        | Nivel de log: `debug`, `info`, `warn`, `error` |
+| Variable       | Tipo    | Default | Descripción                                                                    |
+| -------------- | ------- | ------- | ------------------------------------------------------------------------------ |
+| `PORT`         | number  | `3000`  | Puerto HTTP del servidor                                                       |
+| `BASE_PATH`    | string  | `/api`  | Prefijo base para las rutas (ej: `/api`)                                       |
+| `MONGO_BOOT`   | enum    | `0`     | `1` = crear índices en arranque, `0` = no crear                                |
+| `AUTH_ENABLED` | boolean | `false` | `true` = requiere Bearer token en todas las rutas (excepto /health y /swagger) |
+| `LOG_LEVEL`    | string  | `info`  | Nivel de log: `debug`, `info`, `warn`, `error`                                 |
 
 ## Configuración con Zod
 
@@ -25,12 +25,12 @@ Las variables se validan en `src/config/env.ts` usando **Zod**. Si falta alguna 
 
 ```typescript
 const Env = z.object({
-  PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-  BASE_PATH: z.string().default('/api'),
-  MONGO_URL: z.string().min(1), // requerido
-  MONGODB_DB: z.string().min(1), // requerido
-  MONGO_BOOT: z.enum(['0', '1']).default('0'),
-  AUTH_ENABLED: z.coerce.boolean().default(false),
+	PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+	BASE_PATH: z.string().default('/api'),
+	MONGO_URL: z.string().min(1), // requerido
+	MONGODB_DB: z.string().min(1), // requerido
+	MONGO_BOOT: z.enum(['0', '1']).default('0'),
+	AUTH_ENABLED: z.coerce.boolean().default(false),
 });
 ```
 
@@ -69,22 +69,26 @@ console.log(env.AUTH_ENABLED); // false
 ### `MONGO_BOOT`
 
 Cuando está en `1`, ejecuta `ensureMongoArtifacts()` en el arranque, que:
+
 - Crea índices de forma idempotente
 - Crea índices únicos para evitar duplicados
 - No falla si los índices ya existen
 
 **Uso recomendado**:
+
 - `MONGO_BOOT=1` en desarrollo y primer despliegue
 - `MONGO_BOOT=0` en producción (crear índices fuera del arranque)
 
 ### `AUTH_ENABLED`
 
 Cuando está en `true`:
+
 - Todas las rutas requieren header `Authorization: Bearer TOKEN`
 - Rutas excluidas: `/health`, `/swagger`
 - Retorna 401 si falta el token
 
 **Uso recomendado**:
+
 - `AUTH_ENABLED=false` en desarrollo local
 - `AUTH_ENABLED=true` en staging/producción
 
@@ -93,6 +97,7 @@ Cuando está en `true`:
 ### `BASE_PATH`
 
 Define el prefijo de todas las rutas de la API:
+
 - `BASE_PATH=/api` → rutas en `/api/events`, `/api/products`, etc.
 - `BASE_PATH=/v2` → rutas en `/v2/events`, `/v2/products`, etc.
 

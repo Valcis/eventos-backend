@@ -16,9 +16,9 @@
 		"lint:watch": "eslint \"src/**/*.{ts,tsx}\" --cache --watch --max-warnings=0",
 		"check:mongo": "tsx src/scripts/check-mongo.ts",
 		"check:imports": "tsx src/scripts/check-import-extensions.ts",
+		"check:lint": "npm run lint:types && npm run lint",
 		"seed": "tsx src/scripts/seed.ts",
-		"format": "prettier -w .",
-		"check": "npm run lint:types && npm run lint"
+		"format": "prettier -w ."
 	},
 	"dependencies": {
 		"@fastify/cors": "^10.0.0",

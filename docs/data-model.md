@@ -15,6 +15,7 @@ El modelo de datos está diseñado para gestionar **eventos multi-tenant**, dond
 Entidad principal que representa un evento.
 
 **Campos**:
+
 - `_id` (ObjectId) - ID único generado por MongoDB
 - `name` (string) - Nombre del evento **[único, case-insensitive]**
 - `date` (Date) - Fecha del evento
@@ -25,6 +26,7 @@ Entidad principal que representa un evento.
 - `updatedAt` (Date) - Última actualización
 
 **Índices**:
+
 - `uniq_events_name` (único) - Garantiza nombres únicos
 - `idx_events_date` - Búsqueda por fecha
 
@@ -35,6 +37,7 @@ Entidad principal que representa un evento.
 Reservas de productos para un evento.
 
 **Campos principales**:
+
 - `_id`, `eventId`, `reserver` **[único por eventId]**
 - `order` (object) - Mapa de `{ productId: quantity }`
 - `totalAmount` (string) - Importe total calculado
@@ -45,6 +48,7 @@ Reservas de productos para un evento.
 - `notes`, `isActive`, `createdAt`, `updatedAt`
 
 **Índices principales**:
+
 - `uniq_reservations_eventId_reserver` (único)
 - `idx_reservations_eventId_createdAt`
 - Índices adicionales por isPaid, isDelivered, salespersonId, etc.
@@ -56,6 +60,7 @@ Reservas de productos para un evento.
 Productos disponibles en un evento.
 
 **Campos principales**:
+
 - `_id`, `eventId`, `name` **[único por eventId]**
 - `description` (string, opcional) - Descripción del producto
 - `stock` (number) - Cantidad disponible en inventario
@@ -69,6 +74,7 @@ Productos disponibles en un evento.
 **Nota importante**: Los campos de precio (`price`, `vatPct`, `vatAmount`, `netPrice`) y empaquetado (`isPackage`, `unitsPerPack`, `unitPrice`) se gestionan ahora en otra parte del sistema.
 
 **Índices**:
+
 - `uniq_products_eventId_name` (único)
 - `idx_products_eventId_isActive`
 
@@ -79,6 +85,7 @@ Productos disponibles en un evento.
 Promociones aplicables a productos.
 
 **Campos principales**:
+
 - `_id`, `eventId`, `name`
 - `applicables` (array[string]) - IDs de productos
 - `rule` (enum) - Tipo de promoción
@@ -95,6 +102,7 @@ Promociones aplicables a productos.
 Gastos del evento.
 
 **Campos principales**:
+
 - `_id`, `eventId`, `ingredient`
 - `basePrice`, `vatPct`, `vatAmount`, `netPrice`
 - `quantity`, `unitId`
@@ -117,6 +125,7 @@ Todas las colecciones de catálogo tienen estructura similar con **unicidad por 
 - **`partners`** - Socios del evento
 
 **Índices comunes**:
+
 - `idx_{collection}_eventId`
 - `uniq_{collection}_eventId_name` (único, case-insensitive)
 
@@ -125,15 +134,19 @@ Todas las colecciones de catálogo tienen estructura similar con **unicidad por 
 ## Convenciones
 
 ### Formato Money
+
 String con 2 decimales: `"0.00"`, `"15.99"`, `"1234.56"`
 
 ### IVA (VAT)
+
 Porcentajes: `"0"`, `"4"`, `"10"`, `"21"`
 
 ### Soft Delete
+
 Todas las colecciones usan `isActive: boolean`
 
 ### Timestamps
+
 - `createdAt` - Automático en creación
 - `updatedAt` - Automático en cada modificación
 

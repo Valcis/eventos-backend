@@ -28,17 +28,18 @@ Registra endpoints HTTP usando el sistema de plugins de Fastify:
 
 ```typescript
 export default async function productsRoutes(app: FastifyInstance) {
-  const ctrl = makeController('products', mapIn, mapOut);
-  app.get('/', ctrl.list);
-  app.post('/', ctrl.create);
-  app.get('/:id', ctrl.get);
-  app.put('/:id', ctrl.replace);
-  app.patch('/:id', ctrl.patch);
-  app.delete('/:id', ctrl.remove);
+	const ctrl = makeController('products', mapIn, mapOut);
+	app.get('/', ctrl.list);
+	app.post('/', ctrl.create);
+	app.get('/:id', ctrl.get);
+	app.put('/:id', ctrl.replace);
+	app.patch('/:id', ctrl.patch);
+	app.delete('/:id', ctrl.remove);
 }
 ```
 
 **Responsabilidades**:
+
 - Definir rutas y métodos HTTP
 - Aplicar middlewares específicos
 - Conectar con controladores
@@ -58,12 +59,14 @@ makeController<T>(
 ```
 
 **Responsabilidades**:
+
 - Manejo de request/response HTTP
 - Validación de parámetros (id, query params)
 - Códigos de estado HTTP (200, 201, 404, etc.)
 - Transformación de datos (mapIn/mapOut)
 
 **Endpoints generados**:
+
 - \`GET /\` → listado con paginación cursor-based
 - \`GET /:id\` → obtener por ID
 - \`POST /\` → crear nuevo recurso
@@ -78,6 +81,7 @@ makeController<T>(
 Define tipos, validaciones y reglas de negocio usando **Zod**.
 
 **Responsabilidades**:
+
 - Validación de entrada
 - Definición de tipos TypeScript
 - Reglas de negocio (constraints, formatos)
@@ -90,14 +94,19 @@ Factory genérico que crea repositorios CRUD type-safe:
 
 ```typescript
 makeCrud<TDomain, TCreate, TUpdate>({
-  collection: 'products',
-  toDb: (data) => { /* transform to MongoDB doc */ },
-  fromDb: (doc) => { /* transform to domain object */ },
-  softDelete: true
-})
+	collection: 'products',
+	toDb: (data) => {
+		/* transform to MongoDB doc */
+	},
+	fromDb: (doc) => {
+		/* transform to domain object */
+	},
+	softDelete: true,
+});
 ```
 
 **Operaciones**:
+
 - \`create()\` - Inserta con timestamps y isActive
 - \`getById()\` - Busca por ObjectId
 - \`list()\` - Paginación cursor-based
@@ -107,9 +116,10 @@ makeCrud<TDomain, TCreate, TUpdate>({
 - \`removeHard()\` - Borrado físico
 
 **Características**:
+
 - Timestamps automáticos (createdAt, updatedAt)
 - Soft delete por defecto
-- Paginación escalable (cursor sobre _id)
+- Paginación escalable (cursor sobre \_id)
 - Type-safe (generics en TypeScript)
 
 ---
@@ -124,6 +134,7 @@ Tanto controladores como repositorios usan el patrón Factory para generar imple
 - **\`makeCrud()\`**: genera operaciones CRUD estándar
 
 **Ventajas**:
+
 - DRY (Don't Repeat Yourself) al máximo
 - Consistencia en toda la API
 - Fácil de extender y mantener
@@ -136,6 +147,7 @@ Abstrae el acceso a datos detrás de una interfaz limpia que separa la lógica d
 ### Plugin Architecture (Fastify)
 
 Fastify usa un sistema de plugins que permite:
+
 - Composición modular
 - Encapsulación de contexto
 - Hooks y lifecycle management

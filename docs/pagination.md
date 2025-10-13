@@ -12,9 +12,9 @@ El proyecto usa **paginación cursor-based** sobre el campo `_id` de MongoDB. Es
 
 Todos los endpoints `GET /` (listados) aceptan:
 
-| Parámetro | Tipo   | Default | Descripción                                    |
-| --------- | ------ | ------- | ---------------------------------------------- |
-| `limit`   | number | `50`    | Cantidad de items por página (min: 1, max: 200) |
+| Parámetro | Tipo   | Default | Descripción                                            |
+| --------- | ------ | ------- | ------------------------------------------------------ |
+| `limit`   | number | `50`    | Cantidad de items por página (min: 1, max: 200)        |
 | `after`   | string | —       | Cursor: ObjectId del último item de la página anterior |
 
 **Adicionales**: Cualquier campo de la colección se puede usar como filtro (ej: `?eventId=abc&isActive=true`)
@@ -32,12 +32,12 @@ Todos los endpoints `GET /` (listados) aceptan:
 }
 ```
 
-| Campo        | Descripción                                               |
-| ------------ | --------------------------------------------------------- |
-| `items`      | Array de resultados (máximo `limit` elementos)            |
-| `limit`      | Límite usado en esta consulta                             |
+| Campo        | Descripción                                                                                     |
+| ------------ | ----------------------------------------------------------------------------------------------- |
+| `items`      | Array de resultados (máximo `limit` elementos)                                                  |
+| `limit`      | Límite usado en esta consulta                                                                   |
 | `nextCursor` | ObjectId del último item (usar como `after` en siguiente request). `null` si no hay más páginas |
-| `total`      | Cantidad total de items que cumplen el filtro (sin paginación) |
+| `total`      | Cantidad total de items que cumplen el filtro (sin paginación)                                  |
 
 ---
 
@@ -50,6 +50,7 @@ curl "http://localhost:3000/api/products?limit=10"
 ```
 
 **Response**:
+
 ```json
 {
   "items": [
@@ -75,6 +76,7 @@ curl "http://localhost:3000/api/products?limit=10&after=6745abc010..."
 ```
 
 **Response**:
+
 ```json
 {
   "items": [
@@ -167,19 +169,19 @@ async list(db: Db, query: TQuery, options?: {
 
 ```typescript
 list: async (req: FastifyRequest, reply: FastifyReply) => {
-  const db = (req.server as any).db as Db;
-  const q = req.query as any;
+	const db = (req.server as any).db as Db;
+	const q = req.query as any;
 
-  const limit = Math.min(50, Math.max(5, Number(q.limit ?? 15)));
-  const after = typeof q.after === 'string' ? q.after : undefined;
+	const limit = Math.min(50, Math.max(5, Number(q.limit ?? 15)));
+	const after = typeof q.after === 'string' ? q.after : undefined;
 
-  // Remover parámetros de paginación del query
-  delete q.limit;
-  delete q.after;
+	// Remover parámetros de paginación del query
+	delete q.limit;
+	delete q.after;
 
-  const result = await repo.list(db, q, { limit, after });
-  return reply.send(result);
-}
+	const result = await repo.list(db, q, { limit, after });
+	return reply.send(result);
+};
 ```
 
 **Ver**: `src/modules/controller.ts:20-28`
@@ -189,18 +191,22 @@ list: async (req: FastifyRequest, reply: FastifyReply) => {
 ## Ventajas de Cursor-Based
 
 ### ✅ Escalable
+
 - No usa `skip()` que se vuelve lento con millones de registros
 - Siempre usa índice sobre `_id`
 
 ### ✅ Consistente
+
 - Si se insertan/borran items mientras paginas, no se pierden resultados
 - El cursor siempre apunta a una posición específica
 
 ### ✅ Eficiente
+
 - MongoDB puede usar índice `_id` nativo
 - Performance constante independiente de la página
 
 ### ✅ Simple
+
 - Solo necesitas guardar el `nextCursor`
 - No necesitas calcular offsets
 
@@ -209,14 +215,17 @@ list: async (req: FastifyRequest, reply: FastifyReply) => {
 ## Limitaciones
 
 ### ❌ No permite saltar a página arbitraria
+
 - No puedes ir directamente a "página 5"
 - Solo puedes avanzar secuencialmente
 
 ### ❌ No hay navegación "hacia atrás" simple
+
 - Para ir hacia atrás necesitarías `before` (no implementado)
 - Solución: el cliente guarda cursors previos
 
 ### ❌ El orden debe ser estable
+
 - Siempre ordena por `_id` ascendente
 - Si necesitas otro orden, requiere índices adicionales
 
@@ -225,6 +234,7 @@ list: async (req: FastifyRequest, reply: FastifyReply) => {
 ## Mejoras Futuras
 
 ### Opción 1: Bidireccional
+
 Añadir parámetro `before` para navegar hacia atrás:
 
 ```typescript
@@ -232,6 +242,7 @@ Añadir parámetro `before` para navegar hacia atrás:
 ```
 
 ### Opción 2: Ordenamiento Custom
+
 Permitir orden por otros campos con cursor compuesto:
 
 ```typescript
@@ -239,6 +250,7 @@ Permitir orden por otros campos con cursor compuesto:
 ```
 
 ### Opción 3: Hybrid Pagination
+
 Combinar cursor-based (para datos grandes) con offset (para UI con páginas numeradas):
 
 ```typescript
