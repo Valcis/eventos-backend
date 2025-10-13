@@ -1,24 +1,24 @@
 export interface MetaPage {
-    page: number;
-    pageSize: number;
-    totalItems: number;
-    totalPages: number;
+	page: number;
+	pageSize: number;
+	totalItems: number;
+	totalPages: number;
 }
 
 export interface ItemEnvelope<T> {
-    ok: true;
-    data: T;
+	ok: true;
+	data: T;
 }
 
 export interface ListEnvelope<T> {
-    ok: true;
-    data: T[];
-    meta: MetaPage;
+	ok: true;
+	data: T[];
+	meta: MetaPage;
 }
 
 export interface ErrorEnvelope {
-    ok: false;
-    code: string;
-    message: string;
-    details?: Record<string, unknown>;
+	ok: false;
+	code: string;
+	message: string;
+	details?: Record<string, unknown>;
 }

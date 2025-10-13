@@ -1,4 +1,3 @@
-
 # Contribución
 
 - **TypeScript estricto**, sin `any`.
@@ -9,6 +8,7 @@
 - Evitar duplicaciones; nombres descriptivos.
 
 ## PR checklist
+
 - [ ] Lint y typecheck pasan
 - [ ] Swagger actualizado
 - [ ] Docs actualizadas

@@ -1,28 +1,59 @@
 import fp from 'fastify-plugin';
 import type { FastifyInstance } from 'fastify';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import Swagger from '@fastify/swagger';
+import SwaggerUI from '@fastify/swagger-ui';
 import fs from 'fs';
-import YAML from 'yaml';
-import fastifySwagger from '@fastify/swagger';
-import fastifySwaggerUI from '@fastify/swagger-ui';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+import yaml from 'yaml';
 
-export default fp(async function swaggerPlugin(app: FastifyInstance) {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-  const yamlPath = path.resolve(__dirname, '../../openapi/openapi.yaml');
-  const spec = YAML.parse(fs.readFileSync(yamlPath, 'utf-8'));
+export interface SwaggerPluginOptions {
+	routePrefix?: '/' | `/${string}`;
+	yamlPath?: string;
+	openapiOverride?: Record<string, unknown>;
+}
 
-  await app.register(fastifySwagger, {
-    mode: 'static',
-    specification: { path: yamlPath, baseDir: path.dirname(yamlPath) },
-  });
+// __dirname ESM-safe
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-  await app.register(fastifySwaggerUI, {
-    routePrefix: '/docs',
-    staticCSP: true,
-    uiConfig: { docExpansion: 'list', deepLinking: true },
-  });
+function resolveYamlPath(explicit?: string): string | null {
+	if (explicit && fs.existsSync(explicit)) return explicit;
+	const env = process.env.OPENAPI_PATH;
+	if (env && fs.existsSync(env)) return env;
+	const rel = resolve(__dirname, '../../openapi/openapi.yaml'); // src/openapi/openapi.yaml
+	if (fs.existsSync(rel)) return rel;
+	const cwd = resolve(process.cwd(), 'src/openapi/openapi.yaml');
+	if (fs.existsSync(cwd)) return cwd;
+	return null;
+}
 
-  app.log.info({ path: '/docs' }, 'Swagger UI mounted');
-});
+export default fp<SwaggerPluginOptions>(
+	async function docsPlugin(app: FastifyInstance, opts) {
+		const yamlPath = resolveYamlPath(opts?.yamlPath);
+
+		let doc: any;
+		if (yamlPath) {
+			const raw = fs.readFileSync(yamlPath, 'utf-8');
+			const parsed = yaml.parse(raw);
+			doc = opts?.openapiOverride ? { ...parsed, ...opts.openapiOverride } : parsed;
+		} else {
+			app.log.warn('openapi.yaml no encontrado; se servirá un documento mínimo');
+			doc = { openapi: '3.0.3', info: { title: 'API', version: '1.0.0' }, paths: {} };
+		}
+
+		// Registra el documento OpenAPI (estático)
+		await app.register(Swagger, { openapi: doc });
+
+		const relPrefix = opts?.routePrefix ?? '/';
+		await app.register(SwaggerUI, {
+			routePrefix: relPrefix,
+			uiConfig: { docExpansion: 'list' },
+			staticCSP: true,
+			transformStaticCSP: (h) => h,
+		});
+
+		app.log.info({ relPrefix, yamlPath: yamlPath ?? 'MINIMAL' }, 'Swagger UI registrado');
+	},
+	{ name: 'swagger-plugin' },
+);
