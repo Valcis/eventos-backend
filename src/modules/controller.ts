@@ -1,6 +1,8 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { Db, Document, WithId } from 'mongodb';
 import { makeCrud } from '../infra/mongo/crud';
+import type { PaginationQuery } from '../shared/types/pagination';
+import { parsePaginationParams, extractFilters } from '../shared/lib/pagination';
 
 export function makeController<T extends Document>(
 	collection: string,
@@ -16,14 +18,14 @@ export function makeController<T extends Document>(
 		defaultSort: options?.defaultSort ?? { _id: 1 },
 	});
 	return {
-		list: async (req: FastifyRequest, reply: FastifyReply) => {
+		list: async (
+			req: FastifyRequest<{ Querystring: PaginationQuery }>,
+			reply: FastifyReply,
+		) => {
 			const db = (req.server as any).db as Db;
-			const q = req.query as any;
-			const limit = Math.min(50, Math.max(5, Number(q.limit ?? 15)));
-			const after = typeof q.after === 'string' ? q.after : undefined;
-			delete q.limit;
-			delete q.after;
-			const result = await repo.list(db, q, { limit, after });
+			const page = parsePaginationParams(req.query);
+			const filters = extractFilters(req.query as Record<string, any>);
+			const result = await repo.list(db, filters, page);
 			return reply.send(result);
 		},
 		get: async (req: FastifyRequest, reply: FastifyReply) => {
