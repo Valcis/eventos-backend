@@ -1,137 +1,164 @@
-import type { Db, Document, WithId, Filter, UpdateFilter } from 'mongodb';
-import { ObjectId } from 'mongodb';
+import type {Db, Document, Filter, WithId, UpdateFilter} from "mongodb";
+import {ObjectId} from "mongodb";
 
+/** Cursor page envelope */
 export type CursorPage<T> = {
-	items: T[];
-	page: { limit: number; nextCursor?: string | null; total: number };
+    items: T[];
+    page: { limit: number; nextCursor?: string | null; total: number };
 };
 
-export interface CrudOptions<TDomain, TCreate, TUpdate, TQuery extends Filter<Document>> {
-	collection: string;
-	toDb: (data: TCreate | TUpdate) => Document; // mapea a doc Mongo
-	fromDb: (doc: WithId<Document>) => TDomain; // mapea a dominio
-	defaultSort?: Record<string, 1 | -1>; // por defecto { _id: 1 }
-	softDelete?: boolean; // por defecto true
+/** CRUD repo surface */
+export interface CrudRepo<TDomain, TCreate, TUpdate, TQuery extends Filter<Document>> {
+    create(db: Db, data: TCreate): Promise<TDomain>;
+
+    getById(db: Db, id: string): Promise<TDomain | null>;
+
+    /** Cursor-based listing; pass `after` as last seen _id (as string) */
+    list(
+        db: Db,
+        query: TQuery,
+        options?: { limit?: number; after?: string | null }
+    ): Promise<CursorPage<TDomain>>;
+
+    /** Full update */
+    update(db: Db, id: string, data: TUpdate): Promise<TDomain | null>;
+
+    /** Partial update / patch */
+    patch(db: Db, id: string, data: Partial<TUpdate>): Promise<TDomain | null>;
+
+    /** Soft delete uses isActive=false if enabled; else hard delete */
+    softDelete(db: Db, id: string): Promise<void>;
+
+    /** Always hard delete */
+    removeHard(db: Db, id: string): Promise<void>;
 }
 
+export interface CrudOptions<
+    TDomain,
+    TCreate,
+    TUpdate,
+    TQuery extends Filter<Document>
+> {
+    /** Mongo collection name */
+    collection: string;
+    /** Map incoming create/update payloads to a MongoDB document */
+    toDb: (data: TCreate | TUpdate | Partial<TUpdate>) => Document;
+    /** Map a MongoDB document to a domain object */
+    fromDb: (doc: WithId<Document>) => TDomain;
+    /** Default sort for listing; defaults to {_id: 1} */
+    defaultSort?: Record<string, 1 | -1>;
+    /** If true (default), softDelete will set isActive=false instead of deleting */
+    softDelete?: boolean;
+}
+
+/** Ensure a valid ObjectId from string input */
 function ensureObjectId(id: string): ObjectId {
-	if (!ObjectId.isValid(id)) {
-		const err = new Error('Id inválido');
-		(err as any).status = 400;
-		throw err;
-	}
-	return new ObjectId(id);
+    if (ObjectId.isValid(id)) return new ObjectId(id);
+    throw new Error(`Invalid ObjectId: ${id}`);
 }
 
-export function makeCrud<TDomain, TCreate, TUpdate, TQuery extends Filter<Document>>(
-	opts: CrudOptions<TDomain, TCreate, TUpdate, TQuery>,
-) {
-	const { collection, toDb, fromDb, defaultSort = { _id: 1 }, softDelete = true } = opts;
+/** Build a strongly-typed CRUD repository for a collection */
+export function makeCrud<
+    TDomain,
+    TCreate,
+    TUpdate,
+    TQuery extends Filter<Document> = Filter<Document>
+>(opts: CrudOptions<TDomain, TCreate, TUpdate, TQuery>): CrudRepo<TDomain, TCreate, TUpdate, TQuery> {
+    const {collection, toDb, fromDb, defaultSort = {_id: 1}, softDelete = true,} = opts;
 
-	return {
-		async list(
-			db: Db,
-			query: TQuery,
-			after: string | undefined,
-			limit: number,
-		): Promise<CursorPage<TDomain>> {
-			const col = db.collection(collection);
-			const filter: Filter<Document> = { ...(query as Filter<Document>) };
+    return {
+        async create(db, data) {
+            const col = db.collection(collection);
+            const now = new Date();
+            const doc = {...toDb(data), createdAt: now, updatedAt: now, ...(softDelete ? {isActive: true} : {})};
+            const res = await col.insertOne(doc);
+            const inserted = await col.findOne({_id: res.insertedId});
+            if (!inserted) throw new Error("Insert failed: document not found");
+            return fromDb(inserted as WithId<Document>);
+        },
 
-			if (softDelete) {
-				// por convención, los soft-deleted llevan isActive=false
-				if (filter.isActive === undefined) (filter as any).isActive = true;
-			}
+        async getById(db, id) {
+            const col = db.collection(collection);
+            const _id = ensureObjectId(id);
+            const doc = await col.findOne({_id});
+            return doc ? fromDb(doc as WithId<Document>) : null;
+        },
 
-			if (after) {
-				// Para consistencia del cursor, forzamos orden por _id ascendente
-				if (defaultSort._id !== 1 || Object.keys(defaultSort).length !== 1) {
-					const err = new Error('Cursor "after" requiere sort {_id: 1}');
-					(err as any).status = 500;
-					throw err;
-				}
-				try {
-					(filter as any)._id = { $gt: ensureObjectId(after) };
-				} catch {
-					// si el after no es válido, simplemente no filtras por _id
-				}
-			}
+        async list(db: Db, query: TQuery, options?: {
+            limit?: number;
+            after?: string | null
+        }): Promise<CursorPage<TDomain>> {
+            const col = db.collection(collection);
+            const limit = Math.max(1, Math.min(200, options?.limit ?? 50));
+            const after = options?.after ?? null;
 
-			const total = await col.countDocuments(filter);
-			const cursor = col.find(filter).sort(defaultSort).limit(limit);
-			const docs = await cursor.toArray();
-			const items = docs.map(fromDb);
-			const nextCursor = docs.length === limit ? String(docs[docs.length - 1]._id) : null;
+            // Cursor por _id (ObjectId creciente)
+            const cursorFilter: Filter<Document> = {...(query as Filter<Document>)};
+            if (after) {
+                const _after = ensureObjectId(after);
+                const currentId = (cursorFilter as any)._id as Filter<Document> | undefined;
+                cursorFilter._id = currentId ? {...(currentId as any), $gt: _after} : {$gt: _after};
+            }
 
-			return { items, page: { limit, nextCursor, total } };
-		},
+            const total: number = await col.countDocuments(query as Filter<Document>);
 
-		async get(db: Db, id: string): Promise<TDomain | null> {
-			const col = db.collection(collection);
-			const _id = ensureObjectId(id);
-			const doc = await col.findOne({ _id });
-			return doc ? fromDb(doc as WithId<Document>) : null;
-		},
+            // Tipa el array que vuelve de Mongo para que el _id no sea opcional
+            const docs = await col
+                .find<WithId<Document>>(cursorFilter)
+                .sort(defaultSort)
+                .limit(limit)
+                .toArray();
 
-		async create(db: Db, input: TCreate): Promise<TDomain> {
-			const col = db.collection(collection);
-			const now = new Date(); // guarda Date nativo
-			const doc = toDb({
-				...(input as any),
-				createdAt: now,
-				updatedAt: now,
-				isActive: (input as any)?.isActive ?? true,
-			} as TCreate & Partial<TUpdate>);
-			const ret = await col.insertOne(doc);
-			const created = await col.findOne({ _id: ret.insertedId });
-			return fromDb(created as WithId<Document>);
-		},
+            const items: TDomain[] = docs.map((d) => fromDb(d));
+            // Usa .at(-1) y guarda en variable para que TS haga el narrowing correctamente
+            const last = docs.at(-1);
+            const nextCursor: string | null = docs.length === limit && last ? String(last._id) : null;
 
-		async replace(db: Db, id: string, input: TUpdate): Promise<TDomain> {
-			const col = db.collection(collection);
-			const now = new Date();
-			const _id = ensureObjectId(id);
-			const doc = toDb({ ...(input as any), updatedAt: now } as TUpdate);
-			await col.replaceOne({ _id }, doc, { upsert: false });
-			const found = await col.findOne({ _id });
-			if (!found) {
-				const err = new Error('No encontrado');
-				(err as any).status = 404;
-				throw err;
-			}
-			return fromDb(found as WithId<Document>);
-		},
+            return {items, page: {limit, nextCursor, total}};
+        },
 
-		async patch(db: Db, id: string, input: Partial<TUpdate>): Promise<TDomain> {
-			const col = db.collection(collection);
-			const now = new Date();
-			const _id = ensureObjectId(id);
-			const $set = toDb({ ...(input as any), updatedAt: now } as TUpdate);
-			await col.updateOne({ _id }, { $set } as UpdateFilter<Document>);
-			const found = await col.findOne({ _id });
-			if (!found) {
-				const err = new Error('No encontrado');
-				(err as any).status = 404;
-				throw err;
-			}
-			return fromDb(found as WithId<Document>);
-		},
 
-		async softDelete(db: Db, id: string): Promise<void> {
-			const col = db.collection(collection);
-			const _id = ensureObjectId(id);
-			if (softDelete) {
-				await col.updateOne({ _id }, { $set: { isActive: false, updatedAt: new Date() } });
-			} else {
-				await col.deleteOne({ _id });
-			}
-		},
+        async update(db: Db, id: string, data: TUpdate): Promise<TDomain | null> {
+            const col = db.collection(collection);
+            const _id = ensureObjectId(id);
+            const doc = toDb(data);
 
-		/** Borrado duro (ignora `softDelete`) */
-		async removeHard(db: Db, id: string): Promise<void> {
-			const col = db.collection(collection);
-			const _id = ensureObjectId(id);
-			await col.deleteOne({ _id });
-		},
-	};
+            const res = await col.findOneAndReplace({_id}, {
+                ...doc,
+                updatedAt: new Date()
+            }, {returnDocument: 'after' as const});
+
+            const updated = res?.value;
+            if (!updated) return null;
+
+            return fromDb(updated as WithId<Document>);
+        },
+
+        async patch(db: Db, id: string, data: Partial<TUpdate>): Promise<TDomain | null> {
+            const col = db.collection(collection);
+            const _id = ensureObjectId(id);
+            const update: UpdateFilter<Document> = {$set: {...toDb(data as Partial<TUpdate>), updatedAt: new Date()}};
+            const res = await col.findOneAndUpdate({_id}, update, {returnDocument: 'after' as const});
+            const updated = res?.value;
+            if (!updated) return null;
+
+            return fromDb(updated as WithId<Document>);
+        },
+
+        async softDelete(db, id) {
+            const col = db.collection(collection);
+            const _id = ensureObjectId(id);
+            if (softDelete) {
+                await col.updateOne({_id}, {$set: {isActive: false, updatedAt: new Date()}});
+            } else {
+                await col.deleteOne({_id});
+            }
+        },
+
+        async removeHard(db, id) {
+            const col = db.collection(collection);
+            const _id = ensureObjectId(id);
+            await col.deleteOne({_id});
+        },
+    };
 }

@@ -1,0 +1,95 @@
+import { z } from 'zod';
+import { Id, DateTime, Money, SoftDelete, Percentage } from '../zod.schemas';
+export const PromotionRule = z.enum([
+	'XForY',
+	'DiscountPerUnit',
+	'BulkPrice',
+	'PercentageDiscount',
+	'ComboDiscount',
+	'FixedPriceBundle',
+	'BuyXGetYFree',
+	'MaxUnitsDiscounted',
+	'FirstXUnitsFree',
+	'TimeLimitedDiscount',
+]);
+const XForY = z.object({
+	_rule: z.literal('XForY'),
+	buyX: z.number().int().positive(),
+	payY: z.number().int().positive(),
+});
+const DiscountPerUnit = z
+	.object({
+		_rule: z.literal('DiscountPerUnit'),
+		amountOff: Money.optional(),
+		pctOff: Percentage.optional(),
+	})
+	.refine((d) => !!d.amountOff || !!d.pctOff, { message: 'amountOff o pctOff requerido' });
+const BulkPrice = z.object({
+	_rule: z.literal('BulkPrice'),
+	minQty: z.number().int().positive(),
+	bulkUnitPrice: Money,
+});
+const PercentageDiscount = z.object({ _rule: z.literal('PercentageDiscount'), pct: Percentage });
+const ComboDiscount = z.object({
+	_rule: z.literal('ComboDiscount'),
+	combo: z.array(z.object({ productId: Id, qty: z.number().int().positive() })).min(1),
+	comboPrice: Money,
+});
+const FixedPriceBundle = z.object({
+	_rule: z.literal('FixedPriceBundle'),
+	items: z.array(z.object({ productId: Id, qty: z.number().int().positive() })).min(1),
+	totalPrice: Money,
+});
+const BuyXGetYFree = z.object({
+	_rule: z.literal('BuyXGetYFree'),
+	buyX: z.number().int().positive(),
+	getY: z.number().int().positive(),
+	productId: Id,
+});
+const MaxUnitsDiscounted = z.object({
+	_rule: z.literal('MaxUnitsDiscounted'),
+	maxUnits: z.number().int().positive(),
+	pct: Percentage.optional(),
+	amountOff: Money.optional(),
+});
+const FirstXUnitsFree = z.object({
+	_rule: z.literal('FirstXUnitsFree'),
+	freeUnits: z.number().int().positive(),
+});
+const TimeLimitedDiscount = z.object({
+	_rule: z.literal('TimeLimitedDiscount'),
+	start: DateTime,
+	end: DateTime,
+	pct: Percentage.optional(),
+	amountOff: Money.optional(),
+});
+export const PromotionConditions = z.discriminatedUnion('_rule', [
+	XForY,
+	DiscountPerUnit,
+	BulkPrice,
+	PercentageDiscount,
+	ComboDiscount,
+	FixedPriceBundle,
+	BuyXGetYFree,
+	MaxUnitsDiscounted,
+	FirstXUnitsFree,
+	TimeLimitedDiscount,
+]);
+export const Promotion = SoftDelete.and(
+	z.object({
+		id: Id.optional(),
+		eventId: Id,
+		name: z.string().min(1),
+		description: z.string().optional(),
+		rule: PromotionRule,
+		conditions: PromotionConditions.optional(),
+		applicables: z.array(Id).optional(),
+		startDate: DateTime,
+		endDate: DateTime,
+		priority: z.number().int(),
+		isCumulative: z.boolean(),
+		createdAt: DateTime.optional(),
+		updatedAt: DateTime.optional(),
+	}),
+);
+export type PromotionT = z.infer<typeof Promotion>;
