@@ -55,17 +55,10 @@ class Products COLLECTION {
   isActive?: boolean
   name: string
   description?: string
-  price: Decimal (7,2)
-  vatPct: enum{0%,4%,10%,21%}
-  vatAmount: Decimal (7,2)
-  netPrice: Decimal (7,2)
-  isPackage: boolean
-  unitsPerPack?: Integer
-  unitPrice?: Decimal (7,2)
+  stock: Integer
   promotions: string [Promotions..]
   nominalPrice?: Decimal (7,2)
-  supplement?: string [ConsumptionTypeId]
-
+  supplement?: object {ConsumptionTypeId:Integer}
 }
 
 class Promotions COLLECTION {

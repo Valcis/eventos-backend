@@ -1,166 +1,567 @@
-import { getDb, getClient } from '../infra/mongo/client';
+import {ObjectId} from 'mongodb';
+import {connectMongo, closeMongo, getDb} from '../infra/mongo/client';
 
 async function run(): Promise<void> {
-	const client = await getClient();
-	const db = await getDb();
+    await connectMongo();
+    const database = getDb();
 
-	const eventId = 'evento123';
+    const now = new Date();
 
-	// 1) event-configs (selectores + presets mínimos)
-	await db.collection('event_configs').updateOne(
-		{ eventId },
-		{
-			$set: {
-				eventId,
-				selectores: {
-					comercial: [{ id: 'c1', nombre: 'Laura', isActive: true }],
-					metodoPago: [
-						{ id: 'ef1', nombre: 'efectivo', isActive: true },
-						{ id: 'bz1', nombre: 'bizum', requiereReceptor: true, isActive: true },
-					],
-					receptor: [{ id: 'rc1', nombre: 'Caja Principal', isActive: true }],
-					tipoConsumo: [{ id: 'lc1', nombre: 'para_llevar', isActive: true }],
-					puntoRecogida: [{ id: 'p1', nombre: 'Mostrador A', isActive: true }],
-				},
-				presets: {
-					precios: {
-						order: ['concepto', 'importe', 'isActive', 'createdAt', 'updatedAt', 'id'],
-						hidden: ['moneda', 'createdAt', 'updatedAt', 'id'],
-						widths: { concepto: 240, importe: 120 },
-					},
-					gastos: {
-						order: [
-							'producto',
-							'cantidad',
-							'tipoPrecio',
-							'precioBase',
-							'precioNeto',
-							'comprobado',
-							'isActive',
-							'createdAt',
-							'updatedAt',
-							'id',
-						],
-						hidden: [
-							'tipoIVA',
-							'isPack',
-							'unidadesPack',
-							'precioUnidad',
-							'pagadorId',
-							'tiendaId',
-							'notas',
-							'locked',
-							'isActive',
-							'createdAt',
-							'updatedAt',
-							'id',
-						],
-						widths: { producto: 240, precioNeto: 120 },
-					},
-					reservas: {
-						order: [
-							'cliente',
-							'tipoConsumoId',
-							'metodoPagoId',
-							'totalPedido',
-							'pagado',
-							'createdAt',
-							'updatedAt',
-							'id',
-						],
-						hidden: [
-							'picarones',
-							'receptorId',
-							'comercialId',
-							'puntoRecogidaId',
-							'comprobado',
-							'locked',
-							'isActive',
-							'createdAt',
-							'updatedAt',
-							'id',
-						],
-						widths: { cliente: 220, totalPedido: 120 },
-					},
-				},
-			},
-		},
-		{ upsert: true },
-	);
+    // Limpiar colecciones existentes (opcional - comentar si no se desea)
+    console.log('Limpiando colecciones...');
+    const collections = [
+        'events',
+        'reservations',
+        'products',
+        'promotions',
+        'expenses',
+        'salespeople',
+        'payment_methods',
+        'cashiers',
+        'stores',
+        'units',
+        'consumption_types',
+        'payers',
+        'pickup_points',
+        'partners',
+    ];
+    for (const collectionName of collections) {
+        await database.collection(collectionName).deleteMany({});
+    }
 
-	const now = new Date();
+    // ==================== EVENTS ====================
+    console.log('Creando evento...');
+    const eventResult = await database.collection('events').insertOne({
+        _id: new ObjectId(),
+        name: 'Fiesta de la Parrillada 2025',
+        date: new Date('2025-06-15'),
+        capacity: 200,
+        capitalAmount: '5000.00',
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+    });
+    const eventId = eventResult.insertedId.toString();
+    console.log(`Evento creado: ${eventId}`);
 
-	// 2) precios
-	await db.collection('precios').insertMany([
-		{
-			eventId,
-			concepto: 'Parrillada',
-			importe: 12.5,
-			moneda: 'EUR',
-			isActive: true,
-			createdAt: now,
-			updatedAt: now,
-		},
-		{
-			eventId,
-			concepto: 'Picarones',
-			importe: 4.0,
-			moneda: 'EUR',
-			isActive: true,
-			createdAt: now,
-			updatedAt: now,
-		},
-	]);
+    // ==================== SALESPEOPLE ====================
+    console.log('Creando vendedores...');
+    const salespersonResult = await database.collection('salespeople').insertMany([
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Laura García',
+            phone: '+34600111222',
+            notes: 'Vendedora principal',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Carlos Ruiz',
+            phone: '+34600333444',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+    ]);
+    const salespersonId = salespersonResult.insertedIds[0]?.toString();
+    if (!salespersonId) throw new Error('Failed to insert salesperson');
 
-	// 3) gastos
-	await db.collection('gastos').insertMany([
-		{
-			eventId,
-			producto: 'Carbón 5kg',
-			cantidad: 2,
-			tipoPrecio: 'con IVA',
-			tipoIVA: 21,
-			precioBase: 10,
-			precioNeto: 12.1,
-			comprobado: false,
-			locked: false,
-			isActive: true,
-			pagadorId: 'c1',
-			tiendaId: 'p1',
-			createdAt: now,
-			updatedAt: now,
-		},
-	]);
+    // ==================== PAYMENT METHODS ====================
+    console.log('Creando métodos de pago...');
+    const paymentMethodResult = await database.collection('payment_methods').insertMany([
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Efectivo',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Bizum',
+            notes: 'Requiere número de teléfono',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Tarjeta',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+    ]);
+    const paymentMethodId = paymentMethodResult.insertedIds[0]?.toString();
+    if (!paymentMethodId) throw new Error('Failed to insert payment method');
 
-	// 4) reservas
-	await db.collection('reservas').insertMany([
-		{
-			eventId,
-			cliente: 'Juan Pérez',
-			parrilladas: 1,
-			picarones: 0,
-			metodoPagoId: 'bz1',
-			receptorId: 'rc1',
-			tipoConsumoId: 'lc1',
-			comercialId: 'c1',
-			totalPedido: 24.0,
-			pagado: true,
-			comprobado: false,
-			locked: false,
-			puntoRecogidaId: 'p1',
-			isActive: true,
-			createdAt: now,
-			updatedAt: now,
-		},
-	]);
+    // ==================== CASHIERS ====================
+    console.log('Creando cajeros...');
+    const cashierResult = await database.collection('cashiers').insertMany([
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Caja Principal',
+            phone: '+34600555666',
+            notes: 'Caja 1 - entrada principal',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Caja Secundaria',
+            phone: '+34600777888',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+    ]);
+    const cashierId = cashierResult.insertedIds[0]?.toString();
+    if (!cashierId) throw new Error('Failed to insert cashier');
 
-	await client.close();
-	// eslint-disable-next-line no-console
-	console.log('Seed OK');
+    // ==================== CONSUMPTION TYPES ====================
+    console.log('Creando tipos de consumo...');
+    const consumptionTypeResult = await database.collection('consumption_types').insertMany([
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Para llevar',
+            notes: 'Comida para llevar',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'En el sitio',
+            notes: 'Consumo en mesas',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+    ]);
+    const consumptionTypeId1 = consumptionTypeResult.insertedIds[0]?.toString();
+    const consumptionTypeId2 = consumptionTypeResult.insertedIds[1]?.toString();
+    if (!consumptionTypeId1 || !consumptionTypeId2) throw new Error('Failed to insert consumption types');
+
+    // ==================== PICKUP POINTS ====================
+    console.log('Creando puntos de recogida...');
+    const pickupPointResult = await database.collection('pickup_points').insertMany([
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Mostrador A',
+            dealerName: 'María López',
+            phone: '+34600999000',
+            address: 'Plaza Mayor 1',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Mostrador B',
+            dealerName: 'Pedro Martínez',
+            phone: '+34600111000',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+    ]);
+    const pickupPointId = pickupPointResult.insertedIds[0]?.toString();
+    if (!pickupPointId) throw new Error('Failed to insert pickup point');
+
+    // ==================== STORES ====================
+    console.log('Creando tiendas...');
+    const storeResult = await database.collection('stores').insertMany([
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Mercado Central',
+            seller: 'Juan Comerciante',
+            phone: '+34600222333',
+            address: 'Calle Mayor 45',
+            email: 'mercado@example.com',
+            openingHours: 'L-V 9:00-20:00',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Proveedora del Sur',
+            phone: '+34600444555',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+    ]);
+    const storeId = storeResult.insertedIds[0]?.toString();
+    if (!storeId) throw new Error('Failed to insert store');
+
+    // ==================== UNITS ====================
+    console.log('Creando unidades...');
+    const unitResult = await database.collection('units').insertMany([
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Kilogramo',
+            abbreviation: 'kg',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Litro',
+            abbreviation: 'L',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Unidad',
+            abbreviation: 'ud',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+    ]);
+    const unitId = unitResult.insertedIds[0]?.toString();
+    if (!unitId) throw new Error('Failed to insert unit');
+
+    // ==================== PAYERS ====================
+    console.log('Creando pagadores...');
+    const payerResult = await database.collection('payers').insertMany([
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Organización Principal',
+            phone: '+34600666777',
+            notes: 'Cuenta principal del evento',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Socio 1',
+            phone: '+34600888999',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+    ]);
+    const payerId = payerResult.insertedIds[0]?.toString();
+    if (!payerId) throw new Error('Failed to insert payer');
+
+    // ==================== PARTNERS ====================
+    console.log('Creando socios...');
+    await database.collection('partners').insertMany([
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Ana Fernández',
+            stake: '35.50',
+            phone: '+34611222333',
+            email: 'ana@example.com',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Miguel Torres',
+            stake: '25.00',
+            phone: '+34611444555',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Sofía Ramírez',
+            stake: '39.50',
+            email: 'sofia@example.com',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+    ]);
+
+    // ==================== PRODUCTS ====================
+    console.log('Creando productos...');
+    const productResult = await database.collection('products').insertMany([
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Parrillada Completa',
+            description: 'Parrillada con carne, chorizo y morcilla',
+            stock: 50,
+            nominalPrice: '15.00',
+            supplement: {
+                [consumptionTypeId1]: 0, // para llevar sin suplemento
+                [consumptionTypeId2]: 2, // en sitio +2€
+            },
+            promotions: [],
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Picarones',
+            description: 'Postre típico peruano',
+            stock: 100,
+            nominalPrice: '5.00',
+            promotions: [],
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Cerveza Artesanal',
+            description: 'Cerveza IPA local 33cl',
+            stock: 200,
+            nominalPrice: '4.50',
+            notes: 'Mantener refrigerada',
+            promotions: [],
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Refresco',
+            stock: 150,
+            nominalPrice: '2.50',
+            promotions: [],
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+    ]);
+    const productId1 = productResult.insertedIds[0]?.toString();
+    const productId2 = productResult.insertedIds[1]?.toString();
+    const productId3 = productResult.insertedIds[2]?.toString();
+    if (!productId1 || !productId2 || !productId3) throw new Error('Failed to insert products');
+
+    // ==================== PROMOTIONS ====================
+    console.log('Creando promociones...');
+    const promotionResult = await database.collection('promotions').insertMany([
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: '3x2 en Cervezas',
+            description: 'Compra 3 cervezas y paga solo 2',
+            rule: 'XForY',
+            conditions: {
+                _rule: 'XForY',
+                buyX: 3,
+                payY: 2,
+            },
+            applicables: [productId3],
+            startDate: new Date('2025-06-15T00:00:00Z'),
+            endDate: new Date('2025-06-15T23:59:59Z'),
+            priority: 1,
+            isCumulative: false,
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            _id: new ObjectId(),
+            eventId,
+            name: 'Descuento 10% Parrillada',
+            description: '10% de descuento en parrilladas',
+            rule: 'PercentageDiscount',
+            conditions: {
+                _rule: 'PercentageDiscount',
+                pct: '10.00',
+            },
+            applicables: [productId1],
+            startDate: new Date('2025-06-15T12:00:00Z'),
+            endDate: new Date('2025-06-15T14:00:00Z'),
+            priority: 2,
+            isCumulative: true,
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+    ]);
+    const promotionId1 = promotionResult.insertedIds[0]?.toString();
+    if (!promotionId1) throw new Error('Failed to insert promotion');
+
+    // Actualizar productos con promociones
+    await database.collection('products').updateOne({_id: new ObjectId(productId3)}, {$set: {promotions: [promotionId1]}});
+
+    // ==================== EXPENSES ====================
+    console.log('Creando gastos...');
+    await database.collection('expenses').insertMany([
+        {
+            _id: new ObjectId(),
+            eventId,
+            ingredient: 'Carbón 5kg',
+            unitId,
+            quantity: '10.00',
+            basePrice: '8.26',
+            vatPct: 21,
+            vatAmount: '1.74',
+            netPrice: '10.00',
+            isPackage: true,
+            unitsPerPack: 5,
+            unitPrice: '2.00',
+            payerId,
+            storeId,
+            isVerified: true,
+            notes: 'Compra para el evento',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            _id: new ObjectId(),
+            eventId,
+            ingredient: 'Carne de res',
+            unitId,
+            quantity: '25.00',
+            basePrice: '192.31',
+            vatPct: 4,
+            vatAmount: '7.69',
+            netPrice: '200.00',
+            isPackage: false,
+            payerId,
+            storeId,
+            isVerified: false,
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            _id: new ObjectId(),
+            eventId,
+            ingredient: 'Servilletas',
+            quantity: '500.00',
+            basePrice: '28.93',
+            vatPct: 21,
+            vatAmount: '6.07',
+            netPrice: '35.00',
+            isPackage: true,
+            unitsPerPack: 100,
+            unitPrice: '0.07',
+            payerId,
+            isVerified: true,
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+    ]);
+
+    // ==================== RESERVATIONS ====================
+    console.log('Creando reservas...');
+    await database.collection('reservations').insertMany([
+        {
+            _id: new ObjectId(),
+            eventId,
+            reserver: 'Juan Pérez',
+            order: {
+                [productId1]: 2, // 2 parrilladas
+                [productId2]: 2, // 2 picarones
+                [productId3]: 3, // 3 cervezas
+            },
+            totalAmount: '43.50',
+            salespersonId,
+            consumptionTypeId: consumptionTypeId1,
+            pickupPointId,
+            hasPromoApplied: true,
+            linkedReservations: [],
+            deposit: '20.00',
+            isDelivered: false,
+            isPaid: false,
+            paymentMethodId,
+            cashierId,
+            notes: 'Cliente habitual',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            _id: new ObjectId(),
+            eventId,
+            reserver: 'María González',
+            order: {
+                [productId1]: 1, // 1 parrillada
+                [productId3]: 2, // 2 cervezas
+            },
+            totalAmount: '24.00',
+            salespersonId,
+            consumptionTypeId: consumptionTypeId2,
+            pickupPointId,
+            hasPromoApplied: false,
+            linkedReservations: [],
+            isDelivered: true,
+            isPaid: true,
+            paymentMethodId,
+            cashierId,
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            _id: new ObjectId(),
+            eventId,
+            reserver: 'Carlos Rodríguez',
+            order: {
+                [productId2]: 5, // 5 picarones
+            },
+            totalAmount: '25.00',
+            salespersonId,
+            consumptionTypeId: consumptionTypeId1,
+            hasPromoApplied: false,
+            linkedReservations: [],
+            isDelivered: false,
+            isPaid: true,
+            paymentMethodId,
+            notes: 'Pedido grande - preparar con anticipación',
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        },
+    ]);
+
+    await closeMongo();
+    console.log('✅ Seed completado correctamente');
+    console.log(`   - Evento: ${eventId}`);
+    console.log(`   - 2 vendedores, 3 métodos de pago, 2 cajeros`);
+    console.log(`   - 2 tipos de consumo, 2 puntos de recogida`);
+    console.log(`   - 2 tiendas, 3 unidades, 2 pagadores, 3 socios`);
+    console.log(`   - 4 productos, 2 promociones`);
+    console.log(`   - 3 gastos, 3 reservas`);
 }
 
 run().catch((err) => {
-	// eslint-disable-next-line no-console
-	console.error(err);
-	process.exit(1);
+    console.error('❌ Error en seed:', err);
+    process.exit(1);
 });
