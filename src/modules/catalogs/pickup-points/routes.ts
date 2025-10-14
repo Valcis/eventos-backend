@@ -6,8 +6,15 @@ export default async function pickup_pointsRoutes(app: FastifyInstance) {
 	const ctrl = makeController<PickupPointT>(
 		'pickup_points',
 		(data) => PickupPoint.parse(data),
-		(doc) => ({ id: String(doc._id), ...doc }),
+		(doc) => {
+			const { _id, ...rest } = doc;
+			return PickupPoint.parse({
+				...(rest as unknown as Record<string, unknown>),
+				id: String(_id),
+			});
+		},
 	);
+
 	app.get('/', ctrl.list);
 	app.get('/:id', ctrl.get);
 	app.post('/', ctrl.create);

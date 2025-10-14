@@ -2,9 +2,9 @@ import fp from 'fastify-plugin';
 import type { FastifyInstance } from 'fastify';
 import Swagger from '@fastify/swagger';
 import SwaggerUI from '@fastify/swagger-ui';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, resolve } from 'path';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 import yaml from 'yaml';
 
 export interface SwaggerPluginOptions {

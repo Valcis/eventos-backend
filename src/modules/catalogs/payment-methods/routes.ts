@@ -6,8 +6,15 @@ export default async function payment_methodsRoutes(app: FastifyInstance) {
 	const ctrl = makeController<PaymentMethodT>(
 		'payment_methods',
 		(data) => PaymentMethod.parse(data),
-		(doc) => ({ id: String(doc._id), ...doc }),
+		(doc) => {
+			const { _id, ...rest } = doc;
+			return PaymentMethod.parse({
+				...(rest as unknown as Record<string, unknown>),
+				id: String(_id),
+			});
+		},
 	);
+
 	app.get('/', ctrl.list);
 	app.get('/:id', ctrl.get);
 	app.post('/', ctrl.create);

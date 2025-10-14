@@ -10,7 +10,7 @@ const Named = z
 		createdAt: DateTime.optional(),
 		updatedAt: DateTime.optional(),
 	})
-	.and(SoftDelete);
+	.merge(SoftDelete);
 export const Salesperson = Named.extend({ phone: z.string() });
 export type SalespersonT = z.infer<typeof Salesperson>;
 export const PaymentMethod = Named;

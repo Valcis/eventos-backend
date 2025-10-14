@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SRC = 'src';
-let bad: string[] = [];
+const bad: string[] = [];
 
 function walk(dir: string) {
 	for (const entry of readdirSync(dir)) {

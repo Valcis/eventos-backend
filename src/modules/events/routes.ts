@@ -6,8 +6,15 @@ export default async function eventsRoutes(app: FastifyInstance) {
 	const ctrl = makeController<EventT>(
 		'events',
 		(data) => Event.parse(data),
-		(doc) => ({ id: String(doc._id), ...doc }),
+		(doc) => {
+			const { _id, ...rest } = doc;
+			return Event.parse({
+				...(rest as unknown as Record<string, unknown>),
+				id: String(_id),
+			});
+		},
 	);
+
 	app.get('/', ctrl.list);
 	app.get('/:id', ctrl.get);
 	app.post('/', ctrl.create);

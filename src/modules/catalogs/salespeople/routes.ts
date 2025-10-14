@@ -6,7 +6,13 @@ export default async function salespeopleRoutes(app: FastifyInstance) {
 	const ctrl = makeController<SalespersonT>(
 		'salespeople',
 		(data) => Salesperson.parse(data),
-		(doc) => ({ id: String(doc._id), ...doc }),
+		(doc) => {
+			const { _id, ...rest } = doc;
+			return Salesperson.parse({
+				...(rest as unknown as Record<string, unknown>),
+				id: String(_id),
+			});
+		},
 	);
 	app.get('/', ctrl.list);
 	app.get('/:id', ctrl.get);

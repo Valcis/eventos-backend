@@ -9,7 +9,7 @@ async function main(): Promise<void> {
 		await client.connect();
 		const db = client.db(env.MONGODB_DB);
 		await ensureMongoArtifacts(db);
-		// eslint-disable-next-line no-console
+
 		console.log('✓ Índices asegurados en', env.MONGODB_DB);
 	} finally {
 		await client.close();
@@ -17,7 +17,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-	// eslint-disable-next-line no-console
 	console.error('Error asegurando índices:', err);
 	process.exit(1);
 });
