@@ -109,8 +109,8 @@ export const PromotionConditions = PromotionConditionsBase.superRefine((val, ctx
 		case 'ComboDiscount':
 		case 'MaxUnitsDiscounted':
 		case 'TimeLimitedDiscount': {
-			const hasPct = typeof (val as any).percent === 'number';
-			const hasAmt = typeof (val as any).amountOff === 'string';
+			const hasPct = typeof val.percent === 'number';
+			const hasAmt = typeof val.amountOff === 'string';
 			if (!hasPct && !hasAmt) {
 				ctx.addIssue({
 					code: z.ZodIssueCode.custom,

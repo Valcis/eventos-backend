@@ -10,8 +10,9 @@ export interface SwaggerModuleOptions {
 const kDocsRegistered = Symbol('swagger-registered');
 
 export default async function swaggerModule(app: FastifyInstance, opts?: SwaggerModuleOptions) {
-	if ((app as any)[kDocsRegistered]) return;
-	(app as any)[kDocsRegistered] = true;
+	const bag = app as unknown as { [k: symbol]: boolean };
+	if (bag[kDocsRegistered]) return;
+	bag[kDocsRegistered] = true;
 
 	await app.register(swaggerPlugin, {
 		routePrefix: '/',

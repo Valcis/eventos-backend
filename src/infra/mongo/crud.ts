@@ -33,7 +33,7 @@ export interface CrudRepo<TDomain, TCreate, TUpdate, TQuery extends Filter<Docum
 	removeHard(db: Db, id: string): Promise<void>;
 }
 
-export interface CrudOptions<TDomain, TCreate, TUpdate, TQuery extends Filter<Document>> {
+export interface CrudOptions<TDomain, TCreate, TUpdate> {
 	/** Mongo collection name */
 	collection: string;
 	/** Map incoming create/update payloads to a MongoDB document */
@@ -58,9 +58,7 @@ export function makeCrud<
 	TCreate,
 	TUpdate,
 	TQuery extends Filter<Document> = Filter<Document>,
->(
-	opts: CrudOptions<TDomain, TCreate, TUpdate, TQuery>,
-): CrudRepo<TDomain, TCreate, TUpdate, TQuery> {
+>(opts: CrudOptions<TDomain, TCreate, TUpdate>): CrudRepo<TDomain, TCreate, TUpdate, TQuery> {
 	const { collection, toDb, fromDb, defaultSort = { _id: 1 }, softDelete = true } = opts;
 
 	return {
@@ -102,10 +100,8 @@ export function makeCrud<
 			const cursorFilter: Filter<Document> = { ...(query as Filter<Document>) };
 			if (after) {
 				const _after = ensureObjectId(after);
-				const currentId = (cursorFilter as any)._id as Filter<Document> | undefined;
-				cursorFilter._id = currentId
-					? { ...(currentId as any), $gt: _after }
-					: { $gt: _after };
+				const currentId = cursorFilter._id as Filter<Document> | undefined;
+				cursorFilter._id = currentId ? { ...currentId, $gt: _after } : { $gt: _after };
 			}
 
 			const total: number = await col.countDocuments(query as Filter<Document>);

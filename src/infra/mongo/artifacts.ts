@@ -2,20 +2,20 @@
  * Fuente: schemas en src/schemas y docs/db.indexes.md / *.puml
  * NOTA: nombres de índices siguen el patrón existente: 'idx_*' y 'uniq_*'
  */
-import type { Db, CreateIndexesOptions, IndexDescription } from 'mongodb';
+import type { Db, IndexDescription } from 'mongodb';
 
 const ci = { locale: 'en', strength: 2 } as const; // Case-insensitive uniques
 
 async function ensure(db: Db, col: string, specs: IndexDescription[]): Promise<void> {
 	if (specs.length === 0) return;
-	await db.collection(col).createIndexes(specs as any);
+	await db.collection(col).createIndexes(specs);
 }
 
 export async function ensureMongoArtifacts(db: Db): Promise<void> {
 	// EVENTS
 	await ensure(db, 'events', [
 		{ key: { date: 1 }, name: 'idx_events_date' },
-		{ key: { name: 1 }, name: 'uniq_events_name', unique: true, collation: ci as any },
+		{ key: { name: 1 }, name: 'uniq_events_name', unique: true, collation: ci },
 	]);
 
 	// RESERVATIONS
@@ -42,7 +42,7 @@ export async function ensureMongoArtifacts(db: Db): Promise<void> {
 			key: { eventId: 1, reserver: 1 },
 			name: 'uniq_reservations_eventId_reserver',
 			unique: true,
-			collation: ci as any,
+			collation: ci,
 		},
 	]);
 
@@ -52,7 +52,7 @@ export async function ensureMongoArtifacts(db: Db): Promise<void> {
 			key: { eventId: 1, name: 1 },
 			name: 'uniq_products_eventId_name',
 			unique: true,
-			collation: ci as any,
+			collation: ci,
 		},
 		{
 			key: { eventId: 1, categoryId: 1, name: 1 },
@@ -94,7 +94,7 @@ export async function ensureMongoArtifacts(db: Db): Promise<void> {
 				key: { eventId: 1, name: 1 },
 				name: `uniq_${col}_eventId_name`,
 				unique: true,
-				collation: ci as any,
+				collation: ci,
 			},
 		]);
 	}

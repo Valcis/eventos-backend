@@ -32,7 +32,7 @@ export default fp<SwaggerPluginOptions>(
 	async function docsPlugin(app: FastifyInstance, opts) {
 		const yamlPath = resolveYamlPath(opts?.yamlPath);
 
-		let doc: any;
+		let doc: Record<string, unknown>;
 		if (yamlPath) {
 			const raw = fs.readFileSync(yamlPath, 'utf-8');
 			const parsed = yaml.parse(raw);

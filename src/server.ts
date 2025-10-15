@@ -6,7 +6,7 @@ const env = getEnv();
 buildApp().then((app) => {
 	app.listen({ port: env.PORT, host: '0.0.0.0' })
 		.then(() => {
-			app.log.info(`Eventos API v2.0.0 on :${env.PORT}${env.BASE_PATH} (docs at /docs)`);
+			app.log.info(`Eventos API v2.0.0 on :${env.PORT}${env.BASE_PATH} (docs at /swagger)`);
 		})
 		.catch((err) => {
 			app.log.error(err);

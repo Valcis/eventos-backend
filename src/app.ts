@@ -1,4 +1,4 @@
-import Fastify from 'fastify';
+import Fastify, { FastifyError } from 'fastify';
 import { MongoClient } from 'mongodb';
 import { buildLoggerOptions } from './core/logging/logger';
 import corsPlugin from './plugins/cors';
@@ -84,7 +84,7 @@ export async function buildApp() {
 
 	app.addHook('onRoute', (r) => {
 		app.log.info(
-			{ method: r.method, url: r.url, routePrefix: (r as any).prefix },
+			{ method: r.method, url: r.url, routePrefix: (r as { prefix?: string }).prefix },
 			'ROUTE_ADDED',
 		);
 	});
@@ -95,9 +95,9 @@ export async function buildApp() {
 	});
 
 	app.setErrorHandler((err, _req, reply) => {
-		const status = typeof (err as any).statusCode === 'number' ? (err as any).statusCode : 500;
+		const status = (err as FastifyError).statusCode || 500;
 		const payload =
-			process.env.NODE_ENV === 'production'
+			env.NODE_ENV === 'production'
 				? { ok: false, error: err.message }
 				: { ok: false, error: err.message, stack: err.stack };
 		reply.code(status).send(payload);

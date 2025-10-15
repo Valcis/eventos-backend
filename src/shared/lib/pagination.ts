@@ -25,13 +25,16 @@ export function extractFilters<T extends Record<string, unknown>>(
 	query: Omit<T, 'limit' | 'after'> & PaginationQuery,
 ): Omit<T, 'limit' | 'after'> {
 	const {
-		limit: _l,
-		after: _a,
+		limit: _limit,
+		after: _after,
 		...rest
 	} = query as Record<string, unknown> & {
 		limit?: unknown;
 		after?: unknown;
 	};
-	// Devolvemos exactamente “T sin limit/after”
+	// marcar como usados para no romper la regla de "unused vars"
+	void _limit;
+	void _after;
+
 	return rest as Omit<T, 'limit' | 'after'>;
 }
