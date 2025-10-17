@@ -400,7 +400,7 @@ async function run(): Promise<void> {
 			rule: 'PercentageDiscount',
 			conditions: {
 				_rule: 'PercentageDiscount',
-				pct: '10.00',
+				pct: 10.5,
 			},
 			applicables: [productId1],
 			startDate: new Date('2025-06-15T12:00:00Z'),

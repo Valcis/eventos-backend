@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { makeController } from '../../controller';
 import { Salesperson, type SalespersonT } from '../schema';
+import {isoifyFields} from "../../../shared/lib/dates";
 
 export default async function salespeopleRoutes(app: FastifyInstance) {
 	const ctrl = makeController<SalespersonT>(
@@ -8,10 +9,17 @@ export default async function salespeopleRoutes(app: FastifyInstance) {
 		(data) => Salesperson.parse(data),
 		(doc) => {
 			const { _id, ...rest } = doc;
-			return Salesperson.parse({
-				...(rest as unknown as Record<string, unknown>),
-				id: String(_id),
-			});
+            const base = {
+                ...(rest as Record<string, unknown>),
+                id: String(_id),
+            };
+            const normalized = isoifyFields(base, [
+                'date',
+                'createdAt',
+                'updatedAt',
+            ] as const);
+
+            return Salesperson.parse(normalized);
 		},
 	);
 	app.get('/', ctrl.list);
