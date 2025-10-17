@@ -20,13 +20,16 @@ export function ensureDate(input: unknown): Date | null {
  * Convierte a ISO sólo las claves indicadas si vienen como Date.
  * No usa `any`; trabaja con unknown y conversión controlada.
  */
-export function isoifyFields< T extends Record<string, unknown>>(obj: T, keys: readonly string[]): T {
-    const out: Record<string, unknown> = { ...obj };
-    for (const k of keys) {
-        const v = out[k];
-        if (v instanceof Date) {
-            out[k] = v.toISOString();
-        }
-    }
-    return out as T;
+export function isoifyFields<T extends Record<string, unknown>>(
+	obj: T,
+	keys: readonly string[],
+): T {
+	const out: Record<string, unknown> = { ...obj };
+	for (const k of keys) {
+		const v = out[k];
+		if (v instanceof Date) {
+			out[k] = v.toISOString();
+		}
+	}
+	return out as T;
 }

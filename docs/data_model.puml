@@ -1,6 +1,6 @@
 @startuml
 
-title Data Model (Translated and Updated)
+title EVENTOS Data Model
 
 skinparam shadowing true
 skinparam classAttributeIconSize 0
@@ -68,17 +68,25 @@ class Promotions COLLECTION {
   updatedAt: Date
   notes?: string
   isActive?: boolean
-  applicables: string [ProductId..] '
+  targets: TargetFilters  ' Nuevo bloque de target
   name: string
   description?: string
   rule: enum Rules
-  conditions: object  ' JSON/filtros
+  condition: object  ' JSON/filtros
   startDate: Date
   endDate: Date
   priority: Integer
   isCumulative: boolean
-
 }
+
+class TargetFilters {
+  +productIds: string[*]
+  +categoryIds: string[*]
+  +paymentMethods: PaymentMethod[*]
+  +consumptionTypes: ConsumptionType[*]
+}
+
+
 
 class Expenses COLLECTION {
   id: string
@@ -210,16 +218,12 @@ class Partners COLLECTION {
 }
 
 Enum Rules {
-  XForY
+  PercentageDiscount
   DiscountPerUnit
   BulkPrice
-  PercentageDiscount
   ComboDiscount
   FixedPriceBundle
   BuyXGetYFree
-  MaxUnitsDiscounted
-  FirstXUnitsFree
-  TimeLimitedDiscount
 }
 
 
@@ -256,31 +260,90 @@ Expenses --> "1" Payers : payerId
 Expenses --> "0..1" Stores : storeId
 
 
+Promotions o-- TargetFilters
+Rules --o Promotions
+Conditions --o Promotions
+
+
+
+
+
+
+' ===== Core =====
+class Conditions {
+    ***** validar que no haya solapamiento de reglas
+}
+
+' ===== Conditions por Regla =====
+class PercentageDiscountConditions {
+  +percent: int  ' 1..99
+  +maxUnits: int [0..*]  ' opcional; límite de unidades con descuento
+  +maxDiscountAmount: int [0..*]  ' en minor units; opcional
+}
+
+class DiscountPerUnitConditions {
+  +amountPerUnit: int  ' >= 1; minor units
+  +maxUnits: int [0..*]  ' opcional
+  ' Nota: precio final por unidad nunca < 0 (regla de negocio)
+}
+
+class BulkPriceTier {
+  +minQty: int  ' >= 1
+  +unitPrice: int  ' >= 1; minor units
+}
+
+class BulkPriceConditions {
+  +tiers: BulkPriceTier[*]  ' orden asc por minQty; sin solapes
+  +perSku: boolean = true  ' cantidades se computan por SKU (no agregadas)
+  +maxUnits: int [0..*]  ' opcional
+}
+
+class ComboDiscountConditions {
+  +minSubtotal: int  ' >= 1; minor units del combo
+  +percent: int [1..99]  ' uno de percent|amount
+  +amount: int [>=1]     ' uno de percent|amount
+  +maxDiscountAmount: int [0..*]  ' opcional
+  +maxUnits: int [0..*]  ' opcional (si aplica por ítem)
+}
+
+class BundleItem {
+  +productId: string
+  +minQty: int  ' >= 1
+}
+
+class FixedPriceBundleConditions {
+  +items: BundleItem[*]  ' cantidades mínimas por ítem
+  +bundlePrice: int  ' >= 1; minor units
+  +repeatable: boolean = false
+}
+
+class BuyXGetYFreeConditions {
+  +buyQty: int  ' >= 1
+  +getQty: int  ' >= 1
+  +discountPercentOnY: int  ' 1..100
+  +selectCheapestY: boolean = true
+  +repeatable: boolean = true
+  +cheapestGetsDiscount: boolean = true
+  +maxUnits: int [0..*]  ' opcional
+}
+
+' ===== Mapeo rule -> conditions (informativo) =====
+Conditions --> PercentageDiscountConditions : rule=PercentageDiscount
+Conditions --> DiscountPerUnitConditions : rule=DiscountPerUnit
+Conditions --> BulkPriceConditions : rule=BulkPrice
+Conditions --> ComboDiscountConditions : rule=ComboDiscount
+Conditions --> FixedPriceBundleConditions : rule=FixedPriceBundle
+Conditions --> BuyXGetYFreeConditions : rule=BuyXGetYFree
+
+BulkPriceTier --o BulkPriceConditions
+BundleItem --o FixedPriceBundleConditions
+
+
+
 note bottom of Reservations
 order es un mapa productId→qty.
 Validar: productos existen, mismo eventId,
 qty > 0 y reglas de negocio antes de confirmar.
 end note
 
-note bottom of Promotions
-+ rule: es un enum
-+ conditions: objeto dinámico y lo
-generará el back
-end note
-
-note as N1
-Recomendaciones de unicidad por (eventId, name):
-Products, PaymentMethods, Salespeople, Cashiers,
-Stores, Units(abbreviation),Payers, Partners
-ConsumptionTypes, PickupPoints.
-end note
-
 @enduml
-
-
-contexto :
-acepto mapa "order" sin FKs
-reservas  tiene una "orden" donde hay una  lisa de productos con sus cantidades
-un producto puede tener ninguna, una o mas promociones
-una promocion puede afectar a un producto al menos o mas
-hasPromoAplied lo controla el back

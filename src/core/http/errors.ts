@@ -1,29 +1,22 @@
+// src/core/errors/AppError.ts
 export class AppError extends Error {
-	code: string;
-	statusCode: number;
-	meta?: Record<string, unknown>;
-
 	constructor(
+		public statusCode: number,
+		public code: string,
 		message: string,
-		code = 'APP_ERROR',
-		statusCode = 400,
-		meta?: Record<string, unknown>,
 	) {
 		super(message);
-		this.code = code;
-		this.statusCode = statusCode;
-		if (meta !== undefined) this.meta = meta;
 	}
 }
 
 export class NotFoundError extends AppError {
-	constructor(message = 'Not found', meta?: Record<string, unknown>) {
-		super(message, 'NOT_FOUND', 404, meta);
+	constructor(resource: string) {
+		super(404, 'NOT_FOUND', `${resource} not found`);
 	}
 }
 
-export class NotImplementedError extends AppError {
-	constructor(message = 'Not implemented', meta?: Record<string, unknown>) {
-		super(message, 'NOT_IMPLEMENTED', 501, meta);
+export class ValidationError extends AppError {
+	constructor(message: string) {
+		super(400, 'VALIDATION_ERROR', message);
 	}
 }

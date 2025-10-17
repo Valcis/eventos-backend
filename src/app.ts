@@ -1,5 +1,5 @@
 import Fastify, { FastifyError } from 'fastify';
-import { MongoClient } from 'mongodb';
+import rateLimit from '@fastify/rate-limit';
 import { buildLoggerOptions } from './core/logging/logger';
 import corsPlugin from './plugins/cors';
 import { healthRoutes } from './system/health/health.routes';
@@ -19,20 +19,23 @@ import pickupPointsRoutes from './modules/catalogs/pickup-points/routes';
 import partnersRoutes from './modules/catalogs/partners/routes';
 import { getEnv } from './config/env';
 import { ensureMongoArtifacts } from './infra/mongo/artifacts';
+import { connectMongo } from './infra/mongo/client';
 import requestId from './core/logging/requestId';
 import bearerAuth from './plugins/bearer';
 import swaggerModule from './system/swagger/swagger.routes';
+import { AppError } from './core/http/errors';
 
 const env = getEnv();
 
 export async function buildApp() {
-	const client = new MongoClient(env.MONGO_URL);
-	await client.connect();
-	const db = client.db(env.MONGODB_DB);
+	//const client = new MongoClient(env.MONGO_URL);
+	//await client.connect();
+	const db = await connectMongo(); //cambido a singleton
 
 	const app = Fastify({
 		logger: buildLoggerOptions(),
 		disableRequestLogging: true,
+		requestTimeout: 15000,
 	});
 
 	app.decorate('db', db);
@@ -49,6 +52,7 @@ export async function buildApp() {
 
 	await app.register(requestId);
 	await app.register(corsPlugin);
+	await app.register(rateLimit, { max: 100, timeWindow: '1 minute', allowList: ['127.0.0.1'] });
 
 	await app.register(swaggerModule, { prefix: '/swagger' });
 	await app.register(healthRoutes, { prefix: '/health' });
@@ -95,6 +99,12 @@ export async function buildApp() {
 	});
 
 	app.setErrorHandler((err, _req, reply) => {
+		if (err instanceof AppError) {
+			return reply.code(err.statusCode).send({
+				code: err.code,
+				message: err.message,
+			});
+		}
 		const status = (err as FastifyError).statusCode || 500;
 		const payload =
 			env.NODE_ENV === 'production'

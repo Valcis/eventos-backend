@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { makeController } from '../controller';
 import { Event, type EventT } from './schema';
-import {isoifyFields} from "../../shared/lib/dates";
+import { isoifyFields } from '../../shared/lib/dates';
 
 export default async function eventsRoutes(app: FastifyInstance) {
 	const ctrl = makeController<EventT>(
@@ -9,17 +9,13 @@ export default async function eventsRoutes(app: FastifyInstance) {
 		(data) => Event.parse(data),
 		(doc) => {
 			const { _id, ...rest } = doc;
-            const base = {
-                ...(rest as Record<string, unknown>),
-                id: String(_id),
-            };
-            const normalized = isoifyFields(base, [
-                'date',
-                'createdAt',
-                'updatedAt',
-            ] as const);
+			const base = {
+				...(rest as Record<string, unknown>),
+				id: String(_id),
+			};
+			const normalized = isoifyFields(base, ['date', 'createdAt', 'updatedAt'] as const);
 
-            return Event.parse(normalized);
+			return Event.parse(normalized);
 		},
 	);
 

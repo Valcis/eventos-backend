@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { makeController } from '../../controller';
 import { Partner, type PartnerT } from '../schema';
-import {isoifyFields} from "../../../shared/lib/dates";
+import { isoifyFields } from '../../../shared/lib/dates';
 
 export default async function partnersRoutes(app: FastifyInstance) {
 	const ctrl = makeController<PartnerT>(
@@ -9,17 +9,13 @@ export default async function partnersRoutes(app: FastifyInstance) {
 		(data) => Partner.parse(data),
 		(doc) => {
 			const { _id, ...rest } = doc;
-            const base = {
-                ...(rest as Record<string, unknown>),
-                id: String(_id),
-            };
-            const normalized = isoifyFields(base, [
-                'date',
-                'createdAt',
-                'updatedAt',
-            ] as const);
+			const base = {
+				...(rest as Record<string, unknown>),
+				id: String(_id),
+			};
+			const normalized = isoifyFields(base, ['date', 'createdAt', 'updatedAt'] as const);
 
-            return Partner.parse(normalized);
+			return Partner.parse(normalized);
 		},
 	);
 
