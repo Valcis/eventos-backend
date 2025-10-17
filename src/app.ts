@@ -24,6 +24,7 @@ import requestId from './core/logging/requestId';
 import bearerAuth from './plugins/bearer';
 import swaggerModule from './system/swagger/swagger.routes';
 import { AppError } from './core/http/errors';
+import { ZodError } from 'zod';
 
 const env = getEnv();
 
@@ -105,6 +106,14 @@ export async function buildApp() {
 				message: err.message,
 			});
 		}
+
+		if (err instanceof ZodError) {
+			return reply.code(400).send({
+				code: 'VALIDATION_ERROR',
+				errors: err.errors,
+			});
+		}
+
 		const status = (err as FastifyError).statusCode || 500;
 		const payload =
 			env.NODE_ENV === 'production'
