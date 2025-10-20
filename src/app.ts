@@ -24,8 +24,8 @@ import requestId from './core/logging/requestId';
 import bearerAuth from './plugins/bearer';
 import { AppError } from './core/http/errors';
 import { ZodError } from 'zod';
-import { openApiPlugin } from './infra/openapi/plugin';
-import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
+import openApiPlugin from './plugins/openapi';
+import { ZodTypeProvider } from 'fastify-type-provider-zod';
 
 const env = getEnv();
 
@@ -35,7 +35,7 @@ export async function buildApp() {
 		logger: buildLoggerOptions(),
 		disableRequestLogging: true,
 		requestTimeout: 15000,
-	});
+	}).withTypeProvider<ZodTypeProvider>();
 
 	app.decorate('db', db);
 
@@ -53,9 +53,7 @@ export async function buildApp() {
 	await app.register(corsPlugin);
 	await app.register(rateLimit, { max: 100, timeWindow: '1 minute', allowList: ['127.0.0.1'] });
 
-	app.setValidatorCompiler(validatorCompiler);
-	app.setSerializerCompiler(serializerCompiler);
-
+	await app.register(openApiPlugin);
 	await app.register(healthRoutes);
 	await app.register(bearerAuth, { exemptPaths: ['/health', '/swagger'] });
 
@@ -75,8 +73,6 @@ export async function buildApp() {
 	await app.register(payersRoutes, { prefix: base + '/payers' });
 	await app.register(pickupPointsRoutes, { prefix: base + '/pickup-points' });
 	await app.register(partnersRoutes, { prefix: base + '/partners' });
-
-	await app.register(openApiPlugin, { routePrefix: '/swagger' });
 
 	app.addHook('onResponse', async (req, reply) => {
 		req.log.info(

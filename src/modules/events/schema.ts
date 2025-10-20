@@ -1,33 +1,48 @@
 import { z } from 'zod';
 import { Id, DateTime, Money, SoftDelete } from '../catalogs/zod.schemas';
 
-// 1) Base pura (objeto) — sin intersecciones
-export const EventBase = z.object({
-    id: Id.optional(),
-    name: z.string().min(1),
-    date: DateTime,
-    capacity: z.number().int().nonnegative().optional(),
-    capitalAmount: Money.optional(),
-    createdAt: DateTime.optional(),
-    updatedAt: DateTime.optional(),
-});
-
-// 2) “Persistente” con soft delete (mantiene tu export original)
-export const Event = SoftDelete.and(EventBase);
-
-// 3) Esquemas de IO claros (evita .partial() sobre intersección)
-export const EventCreate = SoftDelete.and(
-    EventBase.omit({ id: true, createdAt: true, updatedAt: true }),
+// Schema base (documento de BD con todos los campos)
+export const Event = SoftDelete.and(
+	z.object({
+		id: Id.optional().or(z.undefined()),
+		name: z.string().min(1),
+		date: DateTime,
+		capacity: z.number().int().nonnegative().optional().or(z.undefined()),
+		capitalAmount: Money.optional().or(z.undefined()),
+		createdAt: DateTime.optional().or(z.undefined()),
+		updatedAt: DateTime.optional().or(z.undefined()),
+	}),
 );
-
-export const EventReplace = SoftDelete.and(
-    EventBase.omit({ createdAt: true, updatedAt: true }),
-);
-
-// Aquí SÍ: parcial sobre el objeto base, y luego intersectar
-export const EventPatch = SoftDelete.and(EventBase.partial());
-
 export type EventT = z.infer<typeof Event>;
+
+// Para POST /events (crear): sin id, sin timestamps
+export const EventCreate = SoftDelete.and(
+	z.object({
+		name: z.string().min(1),
+		date: DateTime,
+		capacity: z.number().int().nonnegative().optional().or(z.undefined()),
+		capitalAmount: Money.optional().or(z.undefined()),
+	}),
+);
 export type EventCreateT = z.infer<typeof EventCreate>;
+
+// Para PUT /events/:id (reemplazo total): sin id (viene en path), sin timestamps
+export const EventReplace = SoftDelete.and(
+	z.object({
+		name: z.string().min(1),
+		date: DateTime,
+		capacity: z.number().int().nonnegative().optional().or(z.undefined()),
+		capitalAmount: Money.optional().or(z.undefined()),
+	}),
+);
 export type EventReplaceT = z.infer<typeof EventReplace>;
+
+// Para PATCH /events/:id (actualización parcial): todo opcional
+export const EventPatch = z.object({
+	isActive: z.boolean().optional().or(z.undefined()),
+	name: z.string().min(1).optional().or(z.undefined()),
+	date: DateTime.optional().or(z.undefined()),
+	capacity: z.number().int().nonnegative().optional().or(z.undefined()),
+	capitalAmount: Money.optional().or(z.undefined()),
+});
 export type EventPatchT = z.infer<typeof EventPatch>;
