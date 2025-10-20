@@ -22,17 +22,15 @@ import { ensureMongoArtifacts } from './infra/mongo/artifacts';
 import { connectMongo } from './infra/mongo/client';
 import requestId from './core/logging/requestId';
 import bearerAuth from './plugins/bearer';
-import swaggerModule from './system/swagger/swagger.routes';
 import { AppError } from './core/http/errors';
 import { ZodError } from 'zod';
+import { openApiPlugin } from './infra/openapi/plugin';
+import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 
 const env = getEnv();
 
 export async function buildApp() {
-	//const client = new MongoClient(env.MONGO_URL);
-	//await client.connect();
 	const db = await connectMongo(); //cambido a singleton
-
 	const app = Fastify({
 		logger: buildLoggerOptions(),
 		disableRequestLogging: true,
@@ -55,11 +53,14 @@ export async function buildApp() {
 	await app.register(corsPlugin);
 	await app.register(rateLimit, { max: 100, timeWindow: '1 minute', allowList: ['127.0.0.1'] });
 
-	await app.register(swaggerModule, { prefix: '/swagger' });
-	await app.register(healthRoutes, { prefix: '/health' });
+	app.setValidatorCompiler(validatorCompiler);
+	app.setSerializerCompiler(serializerCompiler);
+
+	await app.register(healthRoutes);
 	await app.register(bearerAuth, { exemptPaths: ['/health', '/swagger'] });
 
 	const base = env.BASE_PATH.endsWith('/') ? env.BASE_PATH.slice(0, -1) : env.BASE_PATH;
+
 	await app.register(eventsRoutes, { prefix: base + '/events' });
 	await app.register(reservationsRoutes, { prefix: base + '/reservations' });
 	await app.register(productsRoutes, { prefix: base + '/products' });
@@ -74,6 +75,8 @@ export async function buildApp() {
 	await app.register(payersRoutes, { prefix: base + '/payers' });
 	await app.register(pickupPointsRoutes, { prefix: base + '/pickup-points' });
 	await app.register(partnersRoutes, { prefix: base + '/partners' });
+
+	await app.register(openApiPlugin, { routePrefix: '/swagger' });
 
 	app.addHook('onResponse', async (req, reply) => {
 		req.log.info(

@@ -1,7 +1,10 @@
+import './openapi';
 import type { FastifyInstance } from 'fastify';
 import { makeController } from '../controller';
 import { Event, type EventT } from './schema';
 import { isoifyFields } from '../../shared/lib/dates';
+
+
 
 export default async function eventsRoutes(app: FastifyInstance) {
 	const ctrl = makeController<EventT>(
