@@ -3,6 +3,8 @@ import type { Db, Document, Filter, WithId } from 'mongodb';
 import { makeCrud } from '../infra/mongo/crud';
 import type { PaginationQuery } from '../shared/types/pagination';
 import { parsePaginationParams, extractFilters } from '../shared/lib/pagination';
+import { AppError } from '../core/http/errors';
+import { ObjectId } from 'mongodb';
 
 export function makeController<
 	TDomain,
@@ -38,9 +40,16 @@ export function makeController<
 		get: async (req: FastifyRequest, reply: FastifyReply) => {
 			const db = (req.server as unknown as { db: Db }).db;
 			const { id } = req.params as { id: string };
+
+			// Validar formato de ObjectId
+			if (!ObjectId.isValid(id)) {
+				throw new AppError(400, 'INVALID_ID', `El ID "${id}" no tiene un formato válido. Debe ser un ObjectId de 24 caracteres hexadecimales.`);
+			}
+
 			const found = await repo.getById(db, id);
-			if (!found)
-				return reply.code(404).send({ code: 'NOT_FOUND', message: 'No encontrado' });
+			if (!found) {
+				throw new AppError(404, 'NOT_FOUND', `No se encontró ningún registro con el ID "${id}".`);
+			}
 			return reply.send(found);
 		},
 		create: async (req: FastifyRequest, reply: FastifyReply) => {
@@ -51,18 +60,42 @@ export function makeController<
 		replace: async (req: FastifyRequest, reply: FastifyReply) => {
 			const db = (req.server as unknown as { db: Db }).db;
 			const { id } = req.params as { id: string };
+
+			// Validar formato de ObjectId
+			if (!ObjectId.isValid(id)) {
+				throw new AppError(400, 'INVALID_ID', `El ID "${id}" no tiene un formato válido. Debe ser un ObjectId de 24 caracteres hexadecimales.`);
+			}
+
 			const updated = await repo.update(db, id, req.body as TUpdate);
+			if (!updated) {
+				throw new AppError(404, 'NOT_FOUND', `No se encontró ningún registro con el ID "${id}" para actualizar.`);
+			}
 			return reply.send(updated);
 		},
 		patch: async (req: FastifyRequest, reply: FastifyReply) => {
 			const db = (req.server as unknown as { db: Db }).db;
 			const { id } = req.params as { id: string };
+
+			// Validar formato de ObjectId
+			if (!ObjectId.isValid(id)) {
+				throw new AppError(400, 'INVALID_ID', `El ID "${id}" no tiene un formato válido. Debe ser un ObjectId de 24 caracteres hexadecimales.`);
+			}
+
 			const updated = await repo.patch(db, id, req.body as Partial<TUpdate>);
+			if (!updated) {
+				throw new AppError(404, 'NOT_FOUND', `No se encontró ningún registro con el ID "${id}" para actualizar.`);
+			}
 			return reply.send(updated);
 		},
 		remove: async (req: FastifyRequest, reply: FastifyReply) => {
 			const db = (req.server as unknown as { db: Db }).db;
 			const { id } = req.params as { id: string };
+
+			// Validar formato de ObjectId
+			if (!ObjectId.isValid(id)) {
+				throw new AppError(400, 'INVALID_ID', `El ID "${id}" no tiene un formato válido. Debe ser un ObjectId de 24 caracteres hexadecimales.`);
+			}
+
 			await repo.softDelete(db, id);
 			return reply.code(204).send();
 		},

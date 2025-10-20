@@ -2,8 +2,8 @@ import fp from 'fastify-plugin';
 import swagger from '@fastify/swagger';
 import swaggerUI from '@fastify/swagger-ui';
 import {
-	serializerCompiler,
 	validatorCompiler,
+	serializerCompiler,
 	jsonSchemaTransform,
 } from 'fastify-type-provider-zod';
 
@@ -11,7 +11,8 @@ export default fp(
 	async (app) => {
 		// Configurar validadores Zod
 		app.setValidatorCompiler(validatorCompiler);
-		app.setSerializerCompiler(serializerCompiler);
+		// Serializer deshabilitado: causa problemas con error handlers
+		// app.setSerializerCompiler(serializerCompiler);
 
 		// Registrar Swagger
 		await app.register(swagger, {
@@ -32,14 +33,14 @@ export default fp(
 					},
 				},
 			},
-			transform: jsonSchemaTransform, // Zod → OpenAPI
+			transform: jsonSchemaTransform,
 		});
 
 		// UI
 		await app.register(swaggerUI, {
 			routePrefix: '/swagger',
-            staticCSP: true,
-            uiConfig: {
+			staticCSP: true,
+			uiConfig: {
 				docExpansion: 'list',
 				deepLinking: true,
 				filter: true,

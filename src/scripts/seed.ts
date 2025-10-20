@@ -34,9 +34,9 @@ async function run(): Promise<void> {
 	const eventResult = await database.collection('events').insertOne({
 		_id: new ObjectId(),
 		name: 'Fiesta de la Parrillada 2025',
-		date: new Date('2025-06-15'),
+		date: new Date('2025-06-15T12:00:00.000Z'), // ISO con hora
 		capacity: 200,
-		capitalAmount: '5000.00',
+		capitalAmount: '5000.00', // Formato Money correcto
 		isActive: true,
 		createdAt: now,
 		updatedAt: now,
@@ -318,9 +318,10 @@ async function run(): Promise<void> {
 			description: 'Parrillada con carne, chorizo y morcilla',
 			stock: 50,
 			nominalPrice: '15.00',
+			// IMPORTANTE: supplement usa ENTEROS (céntimos), no decimales
 			supplement: {
-				[consumptionTypeId1]: 0, // para llevar sin suplemento
-				[consumptionTypeId2]: 2, // en sitio +2€
+				[consumptionTypeId1]: 0, // para llevar sin suplemento (0 céntimos)
+				[consumptionTypeId2]: 200, // en sitio +2€ (200 céntimos)
 			},
 			promotions: [],
 			isActive: true,
@@ -524,6 +525,7 @@ async function run(): Promise<void> {
 			pickupPointId,
 			hasPromoApplied: false,
 			linkedReservations: [],
+			deposit: '0.00', // Añadido - campo obligatorio según schema
 			isDelivered: true,
 			isPaid: true,
 			paymentMethodId,
@@ -542,11 +544,14 @@ async function run(): Promise<void> {
 			totalAmount: '25.00',
 			salespersonId,
 			consumptionTypeId: consumptionTypeId1,
+			pickupPointId, // Añadido - asegurarnos que existe
 			hasPromoApplied: false,
 			linkedReservations: [],
+			deposit: '10.00', // Añadido - campo obligatorio según schema
 			isDelivered: false,
 			isPaid: true,
 			paymentMethodId,
+			cashierId, // Añadido - asegurarnos que existe
 			notes: 'Pedido grande - preparar con anticipación',
 			isActive: true,
 			createdAt: now,

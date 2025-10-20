@@ -98,27 +98,79 @@ export async function buildApp() {
 		reply.code(404).send({ ok: false, error: 'Not Found' });
 	});
 
-	app.setErrorHandler((err, _req, reply) => {
+	app.setErrorHandler((err, req, reply) => {
+		// Log del error siempre
+		req.log.error({ err, url: req.url, method: req.method }, 'Request error');
+
+		// Error de aplicación personalizado
 		if (err instanceof AppError) {
-			return reply.code(err.statusCode).send({
+			const statusCode = err.statusCode;
+			const errorName = statusCode === 404 ? 'Not Found' :
+			                  statusCode === 400 ? 'Bad Request' :
+			                  statusCode === 401 ? 'Unauthorized' :
+			                  statusCode === 403 ? 'Forbidden' :
+			                  statusCode === 409 ? 'Conflict' :
+			                  'Internal Server Error';
+
+			return reply.code(statusCode).send({
+				statusCode,
 				code: err.code,
+				error: errorName,
 				message: err.message,
 			});
 		}
 
+		// Error de validación Zod
 		if (err instanceof ZodError) {
 			return reply.code(400).send({
+				statusCode: 400,
 				code: 'VALIDATION_ERROR',
-				errors: err.errors,
+				error: 'Bad Request',
+				message: 'Error de validación en los datos enviados',
+				details: err.errors.map((e) => ({
+					path: e.path,
+					message: e.message,
+				})),
 			});
 		}
 
+		// Error de duplicado de MongoDB (código 11000)
+		if (err.code === 11000 || err.code === '11000') {
+			return reply.code(409).send({
+				statusCode: 409,
+				code: 'DUPLICATE_ENTRY',
+				error: 'Conflict',
+				message: 'Ya existe un registro con los mismos datos únicos. Por favor verifica que no estés duplicando información (nombre, fecha, etc.).',
+			});
+		}
+
+		// Errores de Fastify y otros
 		const status = (err as FastifyError).statusCode || 500;
-		const payload =
-			env.NODE_ENV === 'production'
-				? { ok: false, error: err.message }
-				: { ok: false, error: err.message, stack: err.stack };
-		reply.code(status).send(payload);
+		const errorName = status === 404 ? 'Not Found' :
+		                  status === 400 ? 'Bad Request' :
+		                  status === 401 ? 'Unauthorized' :
+		                  status === 403 ? 'Forbidden' :
+		                  status === 500 ? 'Internal Server Error' :
+		                  'Error';
+
+		// Mensaje más descriptivo para errores de validación de Fastify
+		let message = err.message || 'Error interno del servidor';
+		if ((err as FastifyError).code === 'FST_ERR_VALIDATION') {
+			const validation = err as FastifyError & { validation?: Array<{ instancePath?: string; message?: string }> };
+			if (validation.validation && validation.validation.length > 0) {
+				const first = validation.validation[0];
+				const field = first.instancePath?.replace(/^\//, '').replace(/\//g, '.') || 'campo desconocido';
+				message = `Error de validación en "${field}": ${first.message || 'formato inválido'}. Revisa el formato esperado en la documentación.`;
+			}
+		}
+
+		reply.code(status).send({
+			statusCode: status,
+			code: (err as FastifyError).code || 'INTERNAL_ERROR',
+			error: errorName,
+			message,
+			...(env.NODE_ENV !== 'production' && { stack: err.stack }),
+		});
 	});
 
 	app.ready((e) => {
