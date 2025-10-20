@@ -54,7 +54,7 @@ export async function buildApp() {
 	await app.register(rateLimit, { max: 100, timeWindow: '1 minute', allowList: ['127.0.0.1'] });
 
 	await app.register(openApiPlugin);
-	await app.register(healthRoutes);
+	await app.register(healthRoutes, { prefix: '/health' });
 	await app.register(bearerAuth, { exemptPaths: ['/health', '/swagger'] });
 
 	const base = env.BASE_PATH.endsWith('/') ? env.BASE_PATH.slice(0, -1) : env.BASE_PATH;
