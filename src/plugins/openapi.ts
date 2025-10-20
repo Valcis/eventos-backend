@@ -9,10 +9,8 @@ import {
 
 export default fp(
 	async (app) => {
-		// Configurar validadores Zod
 		app.setValidatorCompiler(validatorCompiler);
-		// Serializer deshabilitado: causa problemas con error handlers
-		// app.setSerializerCompiler(serializerCompiler);
+		 app.setSerializerCompiler(serializerCompiler);
 
 		// Registrar Swagger
 		await app.register(swagger, {

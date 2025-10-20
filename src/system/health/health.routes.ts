@@ -10,17 +10,15 @@ const HealthResponse = z.object({
 });
 
 export const healthRoutes: FastifyPluginCallback = (app, _opts, done) => {
-	app.get(
-		'/',
+	app.get('/',
 		{
 			schema: {
 				tags: [TAG],
 				summary: 'Health check',
 				description: 'Devuelve el estado básico del servicio',
-				// Response schema deshabilitado - sin serializerCompiler causa errores
-				// response: {
-				// 	200: HealthResponse,
-				// },
+				response: {
+					200: HealthResponse,
+				},
 			},
 		},
 		async (_req, reply) => {
