@@ -4,14 +4,8 @@ import {Event, EventCreate, EventReplace, EventPatch, EventT} from './schema';
 import {makeController} from '../controller';
 import {isoifyFields} from '../../shared/lib/dates';
 import {
-    createPagedResponse,
-    createCreatedResponse,
-    NotFoundResponse,
-    ValidationErrorResponse,
-    UnauthorizedResponse,
-    InternalErrorResponse,
-    NoContentResponse,
-    ConflictResponse,
+    createPagedResponse, createCreatedResponse, NotFoundResponse, ValidationErrorResponse, UnauthorizedResponse,
+    InternalErrorResponse, NoContentResponse, ConflictResponse,
 } from '../../shared/schemas/responses';
 
 // Schemas de paginación y filtros
@@ -216,11 +210,11 @@ export default async function eventsRoutes(app: FastifyInstance) {
                 params: IdParam,
                 body: EventReplace,
                 response: {
-                	200: Event.describe('Evento actualizado exitosamente con todos los nuevos valores'),
-                	400: ValidationErrorResponse.describe('Error de validación en los datos enviados o ID inválido'),
-                	401: UnauthorizedResponse.describe('Token de autenticación inválido o faltante'),
-                	404: NotFoundResponse.describe('Evento no encontrado con el ID proporcionado'),
-                	500: InternalErrorResponse.describe('Error interno del servidor'),
+                    200: Event.describe('Evento actualizado exitosamente con todos los nuevos valores'),
+                    400: ValidationErrorResponse.describe('Error de validación en los datos enviados o ID inválido'),
+                    401: UnauthorizedResponse.describe('Token de autenticación inválido o faltante'),
+                    404: NotFoundResponse.describe('Evento no encontrado con el ID proporcionado'),
+                    500: InternalErrorResponse.describe('Error interno del servidor'),
                 },
                 security: [{bearerAuth: []}],
             },
@@ -239,11 +233,11 @@ export default async function eventsRoutes(app: FastifyInstance) {
                 params: IdParam,
                 body: EventPatch,
                 response: {
-                	200: Event.describe('Evento actualizado exitosamente con los campos modificados'),
-                	400: ValidationErrorResponse.describe('Error de validación en los datos enviados o ID inválido'),
-                	401: UnauthorizedResponse.describe('Token de autenticación inválido o faltante'),
-                	404: NotFoundResponse.describe('Evento no encontrado con el ID proporcionado'),
-                	500: InternalErrorResponse.describe('Error interno del servidor'),
+                    200: Event.describe('Evento actualizado exitosamente con los campos modificados'),
+                    400: ValidationErrorResponse.describe('Error de validación en los datos enviados o ID inválido'),
+                    401: UnauthorizedResponse.describe('Token de autenticación inválido o faltante'),
+                    404: NotFoundResponse.describe('Evento no encontrado con el ID proporcionado'),
+                    500: InternalErrorResponse.describe('Error interno del servidor'),
                 },
                 security: [{bearerAuth: []}],
             },
@@ -261,11 +255,11 @@ export default async function eventsRoutes(app: FastifyInstance) {
                     'Marca el evento como inactivo (isActive = false). El evento y todas sus entidades relacionadas no se eliminan físicamente de la base de datos, solo se ocultan.',
                 params: IdParam,
                 response: {
-                	204: NoContentResponse.describe('Evento marcado como inactivo exitosamente (sin contenido en respuesta)'),
-                	400: ValidationErrorResponse.describe('ID inválido (formato incorrecto)'),
-                	401: UnauthorizedResponse.describe('Token de autenticación inválido o faltante'),
-                	404: NotFoundResponse.describe('Evento no encontrado con el ID proporcionado'),
-                	500: InternalErrorResponse.describe('Error interno del servidor'),
+                    204: NoContentResponse.describe('Evento marcado como inactivo exitosamente (sin contenido en respuesta)'),
+                    400: ValidationErrorResponse.describe('ID inválido (formato incorrecto)'),
+                    401: UnauthorizedResponse.describe('Token de autenticación inválido o faltante'),
+                    404: NotFoundResponse.describe('Evento no encontrado con el ID proporcionado'),
+                    500: InternalErrorResponse.describe('Error interno del servidor'),
                 },
                 security: [{bearerAuth: []}],
             },
