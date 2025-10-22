@@ -1,9 +1,15 @@
+import type { SortBy, SortDir } from './sort';
+
 export type PaginationQuery = {
-	limit?: number | string;
-	after?: string | null | undefined;
+    limit?: number | string;
+    after?: string | null;
+    sortBy?: SortBy;
+    sortDir?: SortDir;
 };
 
 export type Page = {
-	limit: number;
-	after: string | null; // ← contrato fuerte para el backend
+    limit: number;
+    after: string | null;
+    sortBy: SortBy;
+    sortDir: SortDir;
 };

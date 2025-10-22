@@ -1,40 +1,70 @@
 import type { PaginationQuery, Page } from '../types/pagination';
+import type { SortBy, SortDir } from '../types/sort';
 
 /**
  * Parsea los parámetros de paginación cursor-based desde el query string
- * @param query - Query string con limit y after opcionales
- * @returns Objeto Page con limit normalizado y after normalizado (string | null)
+ * @param query - Query string con limit, after, sortBy y sortDir opcionales
+ * @returns Objeto Page con valores normalizados
  */
-export function parsePaginationParams(query: PaginationQuery): Page {
-	const rawLimit = typeof query.limit === 'string' ? Number(query.limit) : (query.limit ?? 15);
+export function parsePaginationParams(
+    query: PaginationQuery,
+    defaults: { sortBy?: SortBy; sortDir?: SortDir } = {}
+): Page {
+    const rawLimit = typeof query.limit === 'string' ? Number(query.limit) : (query.limit ?? 15);
+    const limit = Math.min(50, Math.max(5, Number.isFinite(rawLimit) ? rawLimit : 15));
 
-	const limit = Math.min(50, Math.max(5, Number.isFinite(rawLimit) ? rawLimit : 15));
+    // Normalizar after: solo string válido o null
+    const after = typeof query.after === 'string' && query.after !== '' ? query.after : null;
 
-	// Clave: normalizamos a `null` cuando no hay after válido (nunca undefined)
-	const after = typeof query.after === 'string' ? query.after : null;
+    // Normalizar sortBy
+    const sortBy: SortBy =
+        typeof query.sortBy === 'string' && isValidSortBy(query.sortBy)
+            ? (query.sortBy as SortBy)
+            : (defaults.sortBy ?? 'createdAt');
 
-	return { limit, after };
+    // Normalizar sortDir
+    const sortDir: SortDir =
+        query.sortDir === 'asc' || query.sortDir === 'desc'
+            ? query.sortDir
+            : (defaults.sortDir ?? 'desc');
+
+    return { limit, after, sortBy, sortDir };
 }
 
 /**
- * Extrae filtros del query string eliminando parámetros de paginación
+ * Valida si un string es un SortBy válido
+ */
+function isValidSortBy(value: string): boolean {
+    const validValues: SortBy[] = ['createdAt', 'updatedAt', 'amount'];
+    return validValues.includes(value as SortBy);
+}
+
+/**
+ * Extrae filtros del query string eliminando parámetros de paginación y sort
  * @param query - Query completo incluyendo paginación
- * @returns Objeto con solo los filtros de búsqueda (tipado, sin `any`)
+ * @returns Objeto con solo los filtros de búsqueda
  */
 export function extractFilters<T extends Record<string, unknown>>(
-	query: Omit<T, 'limit' | 'after'> & PaginationQuery,
-): Omit<T, 'limit' | 'after'> {
-	const {
-		limit: _limit,
-		after: _after,
-		...rest
-	} = query as Record<string, unknown> & {
-		limit?: unknown;
-		after?: unknown;
-	};
-	// marcar como usados para no romper la regla de "unused vars"
-	void _limit;
-	void _after;
+    query: Omit<T, 'limit' | 'after' | 'sortBy' | 'sortDir'> & PaginationQuery,
+): Omit<T, 'limit' | 'after' | 'sortBy' | 'sortDir'> {
+    const {
+        limit: _limit,
+        after: _after,
+        sortBy: _sortBy,
+        sortDir: _sortDir,
+        ...rest
+    } = query as Record<string, unknown> & {
+        limit?: unknown;
+        after?: unknown;
+        sortBy?: unknown;
+        sortDir?: unknown;
+    };
 
-	return rest as Omit<T, 'limit' | 'after'>;
+    // Marcar como usados
+    void _limit;
+    void _after;
+    void _sortBy;
+    void _sortDir;
+
+    return rest as Omit<T, 'limit' | 'after' | 'sortBy' | 'sortDir'>;
 }
