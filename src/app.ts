@@ -135,7 +135,8 @@ export async function buildApp() {
 		}
 
 		// Error de duplicado de MongoDB (código 11000)
-		if (err.code === 11000 || err.code === '11000') {
+		const errorCode = (err as { code?: number | string }).code;
+		if (errorCode === 11000 || errorCode === '11000') {
 			return reply.code(409).send({
 				statusCode: 409,
 				code: 'DUPLICATE_ENTRY',
@@ -159,8 +160,10 @@ export async function buildApp() {
 			const validation = err as FastifyError & { validation?: Array<{ instancePath?: string; message?: string }> };
 			if (validation.validation && validation.validation.length > 0) {
 				const first = validation.validation[0];
-				const field = first.instancePath?.replace(/^\//, '').replace(/\//g, '.') || 'campo desconocido';
-				message = `Error de validación en "${field}": ${first.message || 'formato inválido'}. Revisa el formato esperado en la documentación.`;
+				if (first) {
+					const field = first.instancePath?.replace(/^\//, '').replace(/\//g, '.') || 'campo desconocido';
+					message = `Error de validación en "${field}": ${first.message || 'formato inválido'}. Revisa el formato esperado en la documentación.`;
+				}
 			}
 		}
 

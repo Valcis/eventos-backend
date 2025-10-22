@@ -39,10 +39,10 @@ export function makeController<
             const query = req.query as unknown as QInput;
 
             // Parsear paginación y sort con defaults del controller
-            const page = parsePaginationParams(query, {
-                sortBy: options?.defaultSortBy,
-                sortDir: options?.defaultSortDir,
-            });
+            const defaults: { sortBy?: SortBy; sortDir?: SortDir } = {};
+            if (options?.defaultSortBy) defaults.sortBy = options.defaultSortBy;
+            if (options?.defaultSortDir) defaults.sortDir = options.defaultSortDir;
+            const page = parsePaginationParams(query, defaults);
 
             // Extraer filtros (sin params de paginación/sort)
             const filters = extractFilters<TQuery>(query);

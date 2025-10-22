@@ -25,11 +25,11 @@ export function buildLoggerOptions() {
                     socket?: { remotePort?: number };
                 };
                 return {
-                    method: r.method,
-                    url: r.url,
-                    hostname: r.hostname,
-                    remoteAddress: r.ip,
-                    remotePort: r.socket?.remotePort,
+                    method: r.method ?? 'UNKNOWN',
+                    url: r.url ?? 'UNKNOWN',
+                    hostname: r.hostname ?? 'UNKNOWN',
+                    remoteAddress: r.ip ?? 'UNKNOWN',
+                    remotePort: r.socket?.remotePort ?? 0,
                 };
             },
         },

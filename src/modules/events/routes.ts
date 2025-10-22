@@ -119,7 +119,8 @@ export default async function eventsRoutes(app: FastifyInstance) {
             });
 
             // Calcular nextCursor
-            const nextCursor = docs.length === limit ? String(docs[docs.length - 1]._id) : null;
+            const lastDoc = docs[docs.length - 1];
+            const nextCursor = docs.length === limit && lastDoc ? String(lastDoc._id) : null;
 
             return reply.send({
                 items,
