@@ -9,26 +9,29 @@ import {
 	type ProductT,
 } from './schema';
 import { isoifyFields } from '../../../shared/lib/dates';
+import {
+	createPagedResponse,
+	createCreatedResponse,
+	NotFoundResponse,
+	ValidationErrorResponse,
+	UnauthorizedResponse,
+	InternalErrorResponse,
+	NoContentResponse,
+} from '../../../shared/schemas/responses';
 
-// Schemas de paginación
-const PaginationQuery = z.object({
-	limit: z.coerce.number().int().min(5).max(50).optional(),
-	after: z.string().optional(),
+// Schemas de query con paginación, sort y filtros
+const ProductsQueryParams = z.object({
+	limit: z.coerce.number().int().min(5).max(50).optional().describe('Número de resultados por página (5-50). Default: 15'),
+	after: z.string().optional().describe('Cursor para paginación (ID del último elemento)'),
+	sortBy: z.enum(['createdAt', 'updatedAt', 'name', 'stock']).optional().describe('Campo por el cual ordenar. Default: createdAt'),
+	sortDir: z.enum(['asc', 'desc']).optional().describe('Dirección de ordenación. Default: desc'),
 	eventId: z.string().optional().describe('Filtrar por ID de evento'),
-	name: z.string().optional().describe('Filtrar por nombre (búsqueda parcial)'),
+	name: z.string().optional().describe('Filtrar por nombre (búsqueda parcial, case-insensitive)'),
 });
 
-// Comentado - no se usa sin response schemas
-// const PageMeta = z.object({
-// 	limit: z.number().int().positive(),
-// 	nextCursor: z.string().optional(),
-// 	total: z.number().int().nonnegative(),
-// });
-
-// const ProductPage = z.object({
-// 	items: z.array(Product),
-// 	page: PageMeta,
-// });
+// Schemas de respuesta
+const ProductPageResponse = createPagedResponse(Product, 'productos');
+const ProductCreatedResponse = createCreatedResponse(Product, 'Producto');
 
 const IdParam = z.object({
 	id: z.string().min(1).describe('ID del producto'),
@@ -50,7 +53,7 @@ export default async function productsRoutes(app: FastifyInstance) {
 		},
 	);
 
-	// GET /products - Listar productos paginados
+	// GET /products - Listar productos paginados y ordenables
 	app.get(
 		'/',
 		{
@@ -58,8 +61,14 @@ export default async function productsRoutes(app: FastifyInstance) {
 				tags: ['Productos'],
 				summary: 'Listar productos',
 				description:
-					'Obtiene un listado paginado de productos. Permite filtrar por evento y nombre.',
-				querystring: PaginationQuery,
+					'Obtiene un listado paginado y ordenable de productos. Permite filtrar por evento y nombre. Por defecto se ordenan por createdAt descendente (más recientes primero).',
+				querystring: ProductsQueryParams,
+				response: {
+					200: ProductPageResponse.describe('Lista paginada de productos'),
+					400: ValidationErrorResponse.describe('Error de validación en parámetros'),
+					401: UnauthorizedResponse.describe('Token inválido o faltante'),
+					500: InternalErrorResponse.describe('Error interno del servidor'),
+				},
 				security: [{ bearerAuth: [] }],
 			},
 		},
@@ -75,6 +84,12 @@ export default async function productsRoutes(app: FastifyInstance) {
 				summary: 'Obtener producto por ID',
 				description: 'Recupera la información completa de un producto específico',
 				params: IdParam,
+				response: {
+					200: Product.describe('Producto encontrado'),
+					404: NotFoundResponse.describe('Producto no encontrado'),
+					401: UnauthorizedResponse.describe('Token inválido o faltante'),
+					500: InternalErrorResponse.describe('Error interno del servidor'),
+				},
 				security: [{ bearerAuth: [] }],
 			},
 		},
@@ -91,6 +106,12 @@ export default async function productsRoutes(app: FastifyInstance) {
 				description:
 					'Crea un nuevo producto en el sistema. El stock inicial debe ser >= 0. Los campos id, createdAt y updatedAt son generados automáticamente.',
 				body: ProductCreate,
+				response: {
+					201: ProductCreatedResponse.describe('Producto creado exitosamente'),
+					400: ValidationErrorResponse.describe('Error de validación en el body'),
+					401: UnauthorizedResponse.describe('Token inválido o faltante'),
+					500: InternalErrorResponse.describe('Error interno del servidor'),
+				},
 				security: [{ bearerAuth: [] }],
 			},
 		},
@@ -108,6 +129,13 @@ export default async function productsRoutes(app: FastifyInstance) {
 					'Reemplaza todos los campos del producto (excepto id, eventId y timestamps). Los campos no enviados se establecerán a sus valores por defecto.',
 				params: IdParam,
 				body: ProductReplace,
+				response: {
+					200: Product.describe('Producto actualizado exitosamente'),
+					400: ValidationErrorResponse.describe('Error de validación en el body'),
+					404: NotFoundResponse.describe('Producto no encontrado'),
+					401: UnauthorizedResponse.describe('Token inválido o faltante'),
+					500: InternalErrorResponse.describe('Error interno del servidor'),
+				},
 				security: [{ bearerAuth: [] }],
 			},
 		},
@@ -125,6 +153,13 @@ export default async function productsRoutes(app: FastifyInstance) {
 					'Actualiza solo los campos especificados del producto. Los campos no enviados mantienen su valor actual.',
 				params: IdParam,
 				body: ProductPatch,
+				response: {
+					200: Product.describe('Producto actualizado exitosamente'),
+					400: ValidationErrorResponse.describe('Error de validación en el body'),
+					404: NotFoundResponse.describe('Producto no encontrado'),
+					401: UnauthorizedResponse.describe('Token inválido o faltante'),
+					500: InternalErrorResponse.describe('Error interno del servidor'),
+				},
 				security: [{ bearerAuth: [] }],
 			},
 		},
@@ -141,6 +176,12 @@ export default async function productsRoutes(app: FastifyInstance) {
 				description:
 					'Marca el producto como inactivo (isActive = false). El producto no se elimina físicamente de la base de datos.',
 				params: IdParam,
+				response: {
+					204: NoContentResponse.describe('Producto eliminado exitosamente'),
+					404: NotFoundResponse.describe('Producto no encontrado'),
+					401: UnauthorizedResponse.describe('Token inválido o faltante'),
+					500: InternalErrorResponse.describe('Error interno del servidor'),
+				},
 				security: [{ bearerAuth: [] }],
 			},
 		},

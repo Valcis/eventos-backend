@@ -10,13 +10,30 @@ import {
 } from './schema';
 import { isoifyFields } from '../../shared/lib/dates';
 import { Id } from '../catalogs/zod.schemas';
+import {
+	createPagedResponse,
+	createCreatedResponse,
+	NotFoundResponse,
+	ValidationErrorResponse,
+	UnauthorizedResponse,
+	InternalErrorResponse,
+	NoContentResponse,
+} from '../../shared/schemas/responses';
 
 const TAG = 'Gastos';
 
-const PaginationQuery = z.object({
-	limit: z.coerce.number().int().min(5).max(50).optional(),
-	after: z.string().optional(),
+const ExpensesQueryParams = z.object({
+	limit: z.coerce.number().int().min(5).max(50).optional().describe('Número de resultados por página (5-50). Default: 15'),
+	after: z.string().optional().describe('Cursor para paginación'),
+	sortBy: z.enum(['createdAt', 'updatedAt', 'netPrice']).optional().describe('Campo de ordenación. Default: createdAt'),
+	sortDir: z.enum(['asc', 'desc']).optional().describe('Dirección de ordenación. Default: desc'),
+	eventId: z.string().optional().describe('Filtrar por ID de evento'),
+	ingredient: z.string().optional().describe('Filtrar por nombre del ingrediente (búsqueda parcial)'),
+	isVerified: z.coerce.boolean().optional().describe('Filtrar por estado de verificación'),
 });
+
+const ExpensePageResponse = createPagedResponse(Expense, 'gastos');
+const ExpenseCreatedResponse = createCreatedResponse(Expense, 'Gasto');
 
 const IdParam = z.object({
 	id: Id,
@@ -45,8 +62,14 @@ export default async function expensesRoutes(app: FastifyInstance) {
 				tags: [TAG],
 				summary: 'Listar gastos',
 				description:
-					'Obtiene un listado paginado de gastos. Los gastos representan compras de ingredientes, materiales o servicios para un evento.',
-				querystring: PaginationQuery,
+					'Obtiene un listado paginado y ordenable de gastos. Los gastos representan compras de ingredientes, materiales o servicios para un evento. Por defecto se ordenan por createdAt descendente.',
+				querystring: ExpensesQueryParams,
+				response: {
+					200: ExpensePageResponse.describe('Lista paginada de gastos'),
+					400: ValidationErrorResponse.describe('Error de validación en parámetros'),
+					401: UnauthorizedResponse.describe('Token inválido o faltante'),
+					500: InternalErrorResponse.describe('Error interno del servidor'),
+				},
 				security: [{ bearerAuth: [] }],
 			},
 		},
@@ -62,6 +85,12 @@ export default async function expensesRoutes(app: FastifyInstance) {
 				description:
 					'Devuelve los detalles completos de un gasto específico incluyendo información de precios, IVA, cantidades y verificación.',
 				params: IdParam,
+				response: {
+					200: Expense.describe('Gasto encontrado'),
+					404: NotFoundResponse.describe('Gasto no encontrado'),
+					401: UnauthorizedResponse.describe('Token inválido o faltante'),
+					500: InternalErrorResponse.describe('Error interno del servidor'),
+				},
 				security: [{ bearerAuth: [] }],
 			},
 		},
@@ -77,6 +106,12 @@ export default async function expensesRoutes(app: FastifyInstance) {
 				description:
 					'Registra un nuevo gasto para un evento. Incluye cálculos de IVA, precios base y netos, y gestión de paquetes.',
 				body: ExpenseCreate,
+				response: {
+					201: ExpenseCreatedResponse.describe('Gasto creado exitosamente'),
+					400: ValidationErrorResponse.describe('Error de validación en el body'),
+					401: UnauthorizedResponse.describe('Token inválido o faltante'),
+					500: InternalErrorResponse.describe('Error interno del servidor'),
+				},
 				security: [{ bearerAuth: [] }],
 			},
 		},
@@ -93,6 +128,13 @@ export default async function expensesRoutes(app: FastifyInstance) {
 					'Reemplaza todos los campos de un gasto existente (excepto eventId). Requiere proporcionar todos los campos obligatorios.',
 				params: IdParam,
 				body: ExpenseReplace,
+				response: {
+					200: Expense.describe('Gasto actualizado exitosamente'),
+					400: ValidationErrorResponse.describe('Error de validación en el body'),
+					404: NotFoundResponse.describe('Gasto no encontrado'),
+					401: UnauthorizedResponse.describe('Token inválido o faltante'),
+					500: InternalErrorResponse.describe('Error interno del servidor'),
+				},
 				security: [{ bearerAuth: [] }],
 			},
 		},
@@ -109,6 +151,13 @@ export default async function expensesRoutes(app: FastifyInstance) {
 					'Actualiza uno o más campos de un gasto existente. Solo los campos proporcionados serán modificados.',
 				params: IdParam,
 				body: ExpensePatch,
+				response: {
+					200: Expense.describe('Gasto actualizado exitosamente'),
+					400: ValidationErrorResponse.describe('Error de validación en el body'),
+					404: NotFoundResponse.describe('Gasto no encontrado'),
+					401: UnauthorizedResponse.describe('Token inválido o faltante'),
+					500: InternalErrorResponse.describe('Error interno del servidor'),
+				},
 				security: [{ bearerAuth: [] }],
 			},
 		},
@@ -124,6 +173,12 @@ export default async function expensesRoutes(app: FastifyInstance) {
 				description:
 					'Realiza un borrado lógico del gasto (establece isActive=false). El gasto no se elimina físicamente de la base de datos.',
 				params: IdParam,
+				response: {
+					204: NoContentResponse.describe('Gasto eliminado exitosamente'),
+					404: NotFoundResponse.describe('Gasto no encontrado'),
+					401: UnauthorizedResponse.describe('Token inválido o faltante'),
+					500: InternalErrorResponse.describe('Error interno del servidor'),
+				},
 				security: [{ bearerAuth: [] }],
 			},
 		},

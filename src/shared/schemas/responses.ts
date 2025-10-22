@@ -90,9 +90,23 @@ export const InternalErrorResponse = z.object({
  * Usado en respuestas paginadas con cursor
  */
 export const PageMeta = z.object({
-	limit: z.number().int().min(1).max(50).describe('Número de elementos por página solicitados. Ejemplo: 15'),
-	nextCursor: z.string().nullable().describe('Cursor para la siguiente página (ID del último elemento). null si no hay más páginas. Ejemplo: "507f1f77bcf86cd799439011"'),
-	total: z.number().int().nonnegative().describe('Total de elementos que cumplen los filtros (sin paginación). Ejemplo: 42'),
+	limit: z
+		.number()
+		.int()
+		.min(1)
+		.max(50)
+		.describe('Número de elementos por página solicitados. Ejemplo: 15'),
+	nextCursor: z
+		.string()
+		.nullable()
+		.describe(
+			'Cursor para la siguiente página (ID del último elemento). null si no hay más páginas. Ejemplo: "507f1f77bcf86cd799439011"',
+		),
+	total: z
+		.number()
+		.int()
+		.nonnegative()
+		.describe('Total de elementos que cumplen los filtros (sin paginación). Ejemplo: 42'),
 });
 
 /**

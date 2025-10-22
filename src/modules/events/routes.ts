@@ -11,12 +11,15 @@ import {
 // Schemas de paginación y filtros
 const EventsQueryParams = z.object({
     // Paginación
-    limit: z.coerce.number().int().min(5).max(50).optional().describe('Número de resultados por página (5-50)'),
+    limit: z.coerce.number().int().min(5).max(50).optional().describe('Número de resultados por página (5-50). Default: 15'),
     after: z.string().optional().describe('Cursor para paginación (ID del último elemento de la página anterior)'),
+    // Ordenación
+    sortBy: z.enum(['createdAt', 'updatedAt', 'name', 'date']).optional().describe('Campo por el cual ordenar. Default: createdAt'),
+    sortDir: z.enum(['asc', 'desc']).optional().describe('Dirección de ordenación: "asc" (ascendente) o "desc" (descendente). Default: desc'),
     // Filtros opcionales
     name: z.string().optional().describe('Filtrar por nombre del evento (búsqueda parcial, case-insensitive). Ejemplo: "Feria"'),
-    date: z.string().datetime().optional().describe('Filtrar por fecha exacta del evento en formato ISO 8601. Ejemplo: "2025-06-15T12:00:00.000Z"'),
-    createdAt: z.string().datetime().optional().describe('Filtrar por fecha exacta de creación en formato ISO 8601. Ejemplo: "2025-10-20T13:34:58.180Z"'),
+    date: z.string().datetime().optional().describe('Filtrar eventos desde esta fecha en adelante (>=). Formato ISO 8601. Ejemplo: "2025-06-15T12:00:00.000Z"'),
+    createdAt: z.string().datetime().optional().describe('Filtrar eventos creados desde esta fecha en adelante (>=). Formato ISO 8601. Ejemplo: "2025-10-20T13:34:58.180Z"'),
 });
 
 // Schemas de respuesta
@@ -47,7 +50,7 @@ export default async function eventsRoutes(app: FastifyInstance) {
                 tags: ['Eventos'],
                 summary: 'Listar eventos',
                 description:
-                    'Obtiene un listado paginado de eventos con filtros opcionales. Los eventos son la entidad raíz que agrupa todos los catálogos, productos, reservas y gastos de un evento específico. Puedes filtrar por nombre (búsqueda parcial), fecha del evento o fecha de creación.',
+                    'Obtiene un listado paginado y ordenable de eventos con filtros opcionales. Los eventos son la entidad raíz que agrupa todos los catálogos, productos, reservas y gastos de un evento específico. Puedes filtrar por nombre (búsqueda parcial), fecha del evento o fecha de creación. Por defecto se ordenan por fecha de creación descendente (más recientes primero).',
                 querystring: EventsQueryParams,
                 response: {
                     200: EventPageResponse.describe('Lista paginada de eventos con metadatos de paginación'),
@@ -65,26 +68,33 @@ export default async function eventsRoutes(app: FastifyInstance) {
             const query = req.query as QInput;
             const {ObjectId} = await import('mongodb');
 
-            // Separar paginación de filtros
-            const {limit: rawLimit, after, name, date, createdAt} = query;
+            // Separar paginación, ordenación y filtros
+            const {limit: rawLimit, after, sortBy = 'createdAt', sortDir = 'desc', name, date, createdAt} = query;
             const limit = rawLimit || 15;
 
             // Construir filtros de MongoDB
             const mongoFilters: Record<string, unknown> = {};
+
+            // Construir sort de MongoDB
+            const mongoSortDir = sortDir === 'asc' ? 1 : -1;
+            const mongoSort: Record<string, 1 | -1> = {
+                [sortBy]: mongoSortDir,
+                _id: mongoSortDir, // tie-breaker
+            };
 
             // Filtro por nombre: búsqueda parcial case-insensitive
             if (name) {
                 mongoFilters.name = {$regex: name, $options: 'i'};
             }
 
-            // Filtro por fecha del evento: búsqueda exacta
+            // Filtro por fecha del evento: desde esta fecha en adelante (>=)
             if (date) {
-                mongoFilters.date = new Date(date);
+                mongoFilters.date = { $gte: new Date(date) };
             }
 
-            // Filtro por fecha de creación: búsqueda exacta
+            // Filtro por fecha de creación: desde esta fecha en adelante (>=)
             if (createdAt) {
-                mongoFilters.createdAt = new Date(createdAt);
+                mongoFilters.createdAt = { $gte: new Date(createdAt) };
             }
 
             // Cursor: si hay "after", agregamos filtro _id > after
@@ -92,19 +102,19 @@ export default async function eventsRoutes(app: FastifyInstance) {
                 mongoFilters._id = {$gt: new ObjectId(after)};
             }
 
-            // Ejecutar query con paginación
+            // Ejecutar query con paginación y ordenación
             const docs = await db
                 .collection('events')
                 .find(mongoFilters)
-                .sort({_id: -1})
+                .sort(mongoSort)
                 .limit(limit)
                 .toArray();
 
             // Obtener total (sin paginación)
             const total = await db.collection('events').countDocuments({
                 ...(name && {name: {$regex: name, $options: 'i'}}),
-                ...(date && {date: new Date(date)}),
-                ...(createdAt && {createdAt: new Date(createdAt)}),
+                ...(date && {date: { $gte: new Date(date) }}),
+                ...(createdAt && {createdAt: { $gte: new Date(createdAt) }}),
             });
 
             // Mapear documentos a dominio
@@ -187,10 +197,8 @@ export default async function eventsRoutes(app: FastifyInstance) {
             });
 
             if (existing) {
-                const {AppError} = await import('../../core/http/errors');
-                throw new AppError(
-                    409,
-                    'DUPLICATE_EVENT',
+                const { ConflictError } = await import('../../core/http/errors');
+                throw new ConflictError(
                     `Ya existe un evento activo con el nombre "${body.name}" en la fecha ${body.date}. Por favor usa otro nombre o fecha.`,
                 );
             }

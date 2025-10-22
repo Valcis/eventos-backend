@@ -10,13 +10,31 @@ import {
 } from './schema';
 import { isoifyFields } from '../../shared/lib/dates';
 import { Id } from '../catalogs/zod.schemas';
+import {
+	createPagedResponse,
+	createCreatedResponse,
+	NotFoundResponse,
+	ValidationErrorResponse,
+	UnauthorizedResponse,
+	InternalErrorResponse,
+	NoContentResponse,
+} from '../../shared/schemas/responses';
 
 const TAG = 'Reservas';
 
-const PaginationQuery = z.object({
-	limit: z.coerce.number().int().min(5).max(50).optional(),
-	after: z.string().optional(),
+const ReservationsQueryParams = z.object({
+	limit: z.coerce.number().int().min(5).max(50).optional().describe('Número de resultados por página (5-50). Default: 15'),
+	after: z.string().optional().describe('Cursor para paginación'),
+	sortBy: z.enum(['createdAt', 'updatedAt', 'totalAmount']).optional().describe('Campo de ordenación. Default: createdAt'),
+	sortDir: z.enum(['asc', 'desc']).optional().describe('Dirección de ordenación. Default: desc'),
+	eventId: z.string().optional().describe('Filtrar por ID de evento'),
+	reserver: z.string().optional().describe('Filtrar por nombre del cliente (búsqueda parcial)'),
+	isPaid: z.coerce.boolean().optional().describe('Filtrar por estado de pago'),
+	isDelivered: z.coerce.boolean().optional().describe('Filtrar por estado de entrega'),
 });
+
+const ReservationPageResponse = createPagedResponse(Reservation, 'reservas');
+const ReservationCreatedResponse = createCreatedResponse(Reservation, 'Reserva');
 
 const IdParam = z.object({
 	id: Id,
@@ -45,8 +63,14 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 				tags: [TAG],
 				summary: 'Listar reservas',
 				description:
-					'Obtiene un listado paginado de reservas. Las reservas representan pedidos de clientes que incluyen productos, cantidades, precios con promociones y suplementos, estado de entrega y pago.',
-				querystring: PaginationQuery,
+					'Obtiene un listado paginado y ordenable de reservas. Las reservas representan pedidos de clientes que incluyen productos, cantidades, precios con promociones y suplementos, estado de entrega y pago. Por defecto se ordenan por createdAt descendente.',
+				querystring: ReservationsQueryParams,
+				response: {
+					200: ReservationPageResponse.describe('Lista paginada de reservas'),
+					400: ValidationErrorResponse.describe('Error de validación en parámetros'),
+					401: UnauthorizedResponse.describe('Token inválido o faltante'),
+					500: InternalErrorResponse.describe('Error interno del servidor'),
+				},
 				security: [{ bearerAuth: [] }],
 			},
 		},
@@ -62,6 +86,12 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 				description:
 					'Devuelve los detalles completos de una reserva específica incluyendo el pedido (mapa de productos y cantidades), importe total, estado de entrega, estado de pago y toda la información asociada.',
 				params: IdParam,
+				response: {
+					200: Reservation.describe('Reserva encontrada'),
+					404: NotFoundResponse.describe('Reserva no encontrada'),
+					401: UnauthorizedResponse.describe('Token inválido o faltante'),
+					500: InternalErrorResponse.describe('Error interno del servidor'),
+				},
 				security: [{ bearerAuth: [] }],
 			},
 		},
@@ -77,6 +107,12 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 				description:
 					'Registra una nueva reserva para un evento. Incluye el pedido (productos y cantidades), cálculo de precios con promociones y suplementos según el tipo de consumo, anticipo, y métodos de pago.',
 				body: ReservationCreate,
+				response: {
+					201: ReservationCreatedResponse.describe('Reserva creada exitosamente'),
+					400: ValidationErrorResponse.describe('Error de validación en el body'),
+					401: UnauthorizedResponse.describe('Token inválido o faltante'),
+					500: InternalErrorResponse.describe('Error interno del servidor'),
+				},
 				security: [{ bearerAuth: [] }],
 			},
 		},
@@ -93,6 +129,13 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 					'Reemplaza todos los campos de una reserva existente (excepto eventId). Requiere proporcionar todos los campos obligatorios.',
 				params: IdParam,
 				body: ReservationReplace,
+				response: {
+					200: Reservation.describe('Reserva actualizada exitosamente'),
+					400: ValidationErrorResponse.describe('Error de validación en el body'),
+					404: NotFoundResponse.describe('Reserva no encontrada'),
+					401: UnauthorizedResponse.describe('Token inválido o faltante'),
+					500: InternalErrorResponse.describe('Error interno del servidor'),
+				},
 				security: [{ bearerAuth: [] }],
 			},
 		},
@@ -109,6 +152,13 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 					'Actualiza uno o más campos de una reserva existente. Útil para marcar como entregada (isDelivered), pagada (isPaid), o modificar el pedido.',
 				params: IdParam,
 				body: ReservationPatch,
+				response: {
+					200: Reservation.describe('Reserva actualizada exitosamente'),
+					400: ValidationErrorResponse.describe('Error de validación en el body'),
+					404: NotFoundResponse.describe('Reserva no encontrada'),
+					401: UnauthorizedResponse.describe('Token inválido o faltante'),
+					500: InternalErrorResponse.describe('Error interno del servidor'),
+				},
 				security: [{ bearerAuth: [] }],
 			},
 		},
@@ -124,6 +174,12 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 				description:
 					'Realiza un borrado lógico de la reserva (establece isActive=false). La reserva no se elimina físicamente de la base de datos.',
 				params: IdParam,
+				response: {
+					204: NoContentResponse.describe('Reserva eliminada exitosamente'),
+					404: NotFoundResponse.describe('Reserva no encontrada'),
+					401: UnauthorizedResponse.describe('Token inválido o faltante'),
+					500: InternalErrorResponse.describe('Error interno del servidor'),
+				},
 				security: [{ bearerAuth: [] }],
 			},
 		},

@@ -1,6 +1,7 @@
-import {join} from 'node:path';
+import { join } from 'node:path';
+import type { FastifyServerOptions } from 'fastify';
 
-export function buildLoggerOptions() {
+export function buildLoggerOptions(): FastifyServerOptions['logger'] {
     const isDev = process.env.NODE_ENV !== 'production';
 
     return {

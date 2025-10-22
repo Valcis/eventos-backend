@@ -7,3 +7,4 @@ logs/
 .idea/
 package-lock.json
 raw_urls.txt
+.claude/

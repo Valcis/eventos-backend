@@ -35,7 +35,18 @@ export function parsePaginationParams(
  * Valida si un string es un SortBy válido
  */
 function isValidSortBy(value: string): boolean {
-    const validValues: SortBy[] = ['createdAt', 'updatedAt', 'amount'];
+    const validValues: SortBy[] = [
+        'createdAt',
+        'updatedAt',
+        'name',
+        'date',
+        'stock',
+        'priority',
+        'startDate',
+        'endDate',
+        'totalAmount',
+        'netPrice',
+    ];
     return validValues.includes(value as SortBy);
 }
 
