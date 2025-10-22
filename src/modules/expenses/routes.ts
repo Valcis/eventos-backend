@@ -1,13 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { makeController } from '../controller';
-import {
-	Expense,
-	ExpenseCreate,
-	ExpenseReplace,
-	ExpensePatch,
-	type ExpenseT,
-} from './schema';
+import { Expense, ExpenseCreate, ExpenseReplace, ExpensePatch, type ExpenseT } from './schema';
 import { isoifyFields } from '../../shared/lib/dates';
 import { Id } from '../catalogs/zod.schemas';
 import {
@@ -23,12 +17,24 @@ import {
 const TAG = 'Gastos';
 
 const ExpensesQueryParams = z.object({
-	limit: z.coerce.number().int().min(5).max(50).optional().describe('Número de resultados por página (5-50). Default: 15'),
+	limit: z.coerce
+		.number()
+		.int()
+		.min(5)
+		.max(50)
+		.optional()
+		.describe('Número de resultados por página (5-50). Default: 15'),
 	after: z.string().optional().describe('Cursor para paginación'),
-	sortBy: z.enum(['createdAt', 'updatedAt', 'netPrice']).optional().describe('Campo de ordenación. Default: createdAt'),
+	sortBy: z
+		.enum(['createdAt', 'updatedAt', 'netPrice'])
+		.optional()
+		.describe('Campo de ordenación. Default: createdAt'),
 	sortDir: z.enum(['asc', 'desc']).optional().describe('Dirección de ordenación. Default: desc'),
 	eventId: z.string().optional().describe('Filtrar por ID de evento'),
-	ingredient: z.string().optional().describe('Filtrar por nombre del ingrediente (búsqueda parcial)'),
+	ingredient: z
+		.string()
+		.optional()
+		.describe('Filtrar por nombre del ingrediente (búsqueda parcial)'),
 	isVerified: z.coerce.boolean().optional().describe('Filtrar por estado de verificación'),
 });
 

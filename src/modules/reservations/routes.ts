@@ -23,9 +23,18 @@ import {
 const TAG = 'Reservas';
 
 const ReservationsQueryParams = z.object({
-	limit: z.coerce.number().int().min(5).max(50).optional().describe('Número de resultados por página (5-50). Default: 15'),
+	limit: z.coerce
+		.number()
+		.int()
+		.min(5)
+		.max(50)
+		.optional()
+		.describe('Número de resultados por página (5-50). Default: 15'),
 	after: z.string().optional().describe('Cursor para paginación'),
-	sortBy: z.enum(['createdAt', 'updatedAt', 'totalAmount']).optional().describe('Campo de ordenación. Default: createdAt'),
+	sortBy: z
+		.enum(['createdAt', 'updatedAt', 'totalAmount'])
+		.optional()
+		.describe('Campo de ordenación. Default: createdAt'),
 	sortDir: z.enum(['asc', 'desc']).optional().describe('Dirección de ordenación. Default: desc'),
 	eventId: z.string().optional().describe('Filtrar por ID de evento'),
 	reserver: z.string().optional().describe('Filtrar por nombre del cliente (búsqueda parcial)'),

@@ -45,12 +45,18 @@ export const Reservation = z.object({
 	isDelivered: z
 		.boolean()
 		.default(false)
-		.describe('Indica si el pedido ha sido entregado al cliente (true) o está pendiente (false)'),
+		.describe(
+			'Indica si el pedido ha sido entregado al cliente (true) o está pendiente (false)',
+		),
 	isPaid: z
 		.boolean()
 		.default(false)
-		.describe('Indica si la reserva ha sido pagada completamente (true) o está pendiente (false)'),
-	paymentMethodId: Id.describe('ID del método de pago utilizado o previsto (Efectivo, Tarjeta, Bizum, etc.)'),
+		.describe(
+			'Indica si la reserva ha sido pagada completamente (true) o está pendiente (false)',
+		),
+	paymentMethodId: Id.describe(
+		'ID del método de pago utilizado o previsto (Efectivo, Tarjeta, Bizum, etc.)',
+	),
 	cashierId: Id.optional().describe('ID del cajero que gestionó el pago. Opcional.'),
 	notes: z
 		.string()
@@ -69,11 +75,7 @@ export type ReservationT = z.infer<typeof Reservation>;
  * Excluye id, createdAt y updatedAt (generados por el servidor)
  */
 export const ReservationCreate = z.object({
-	isActive: z
-		.boolean()
-		.default(true)
-		.optional()
-		.describe('Estado de activación de la reserva'),
+	isActive: z.boolean().default(true).optional().describe('Estado de activación de la reserva'),
 	eventId: Id.describe('ID del evento'),
 	reserver: z.string().min(1).describe('Nombre del cliente. Ejemplo: "Juan Pérez"'),
 	order: z
@@ -100,15 +102,9 @@ export type ReservationCreateT = z.infer<typeof ReservationCreate>;
  * Similar a ReservationCreate pero sin eventId (no se puede cambiar)
  */
 export const ReservationReplace = z.object({
-	isActive: z
-		.boolean()
-		.default(true)
-		.optional()
-		.describe('Estado de activación'),
+	isActive: z.boolean().default(true).optional().describe('Estado de activación'),
 	reserver: z.string().min(1).describe('Nombre del cliente'),
-	order: z
-		.record(z.string(), z.number().int().positive())
-		.describe('Mapa productId -> cantidad'),
+	order: z.record(z.string(), z.number().int().positive()).describe('Mapa productId -> cantidad'),
 	totalAmount: Money.describe('Importe total'),
 	salespersonId: Id.optional().describe('ID del vendedor'),
 	consumptionTypeId: Id.describe('ID del tipo de consumo'),

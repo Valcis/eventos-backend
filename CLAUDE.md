@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a **TypeScript + Fastify + MongoDB** backend for event management ("EVENTOS"). The system follows strict TypeScript with a layered architecture using Factory patterns for both controllers and repositories.
 
 **Key characteristics:**
+
 - ES modules (`.js` extensions not used in imports)
 - Strict TypeScript with `noImplicitAny`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`
 - Cursor-based pagination by default (not offset/limit)
@@ -79,16 +80,21 @@ All data access uses `makeCrud()` which generates type-safe repositories:
 
 ```typescript
 const repo = makeCrud<TDomain, TCreate, TUpdate>({
-    collection: 'products',
-    toDb: (data) => { /* transform incoming data to MongoDB doc */ },
-    fromDb: (doc) => { /* transform MongoDB doc to domain object */ },
-    softDelete: true,  // default, uses isActive flag
-    defaultSortBy: 'createdAt',  // default sort field
-    defaultSortDir: 'desc',      // default sort direction
+	collection: 'products',
+	toDb: (data) => {
+		/* transform incoming data to MongoDB doc */
+	},
+	fromDb: (doc) => {
+		/* transform MongoDB doc to domain object */
+	},
+	softDelete: true, // default, uses isActive flag
+	defaultSortBy: 'createdAt', // default sort field
+	defaultSortDir: 'desc', // default sort direction
 });
 ```
 
 **Generated operations:**
+
 - `create()` - Auto-adds `createdAt`, `updatedAt`, `isActive: true`
 - `getById()` - Fetch by ObjectId string
 - `list()` - Cursor-based pagination with dynamic sorting
@@ -103,18 +109,19 @@ All HTTP logic uses `makeController()` which generates standard CRUD endpoints:
 
 ```typescript
 const ctrl = makeController<TDomain, TCreate, TUpdate>(
-    'products',
-    mapIn,   // Request body → MongoDB document
-    mapOut,  // MongoDB document → Response body
-    {
-        softDelete: true,
-        defaultSortBy: 'createdAt',
-        defaultSortDir: 'desc',
-    }
+	'products',
+	mapIn, // Request body → MongoDB document
+	mapOut, // MongoDB document → Response body
+	{
+		softDelete: true,
+		defaultSortBy: 'createdAt',
+		defaultSortDir: 'desc',
+	},
 );
 ```
 
 **Generated endpoints:**
+
 - `GET /` - List with cursor pagination
 - `GET /:id` - Get by ID
 - `POST /` - Create new resource
@@ -201,6 +208,7 @@ throw new AppError('NOT_FOUND', 'Resource not found', 404);
 ```
 
 Global error handler in `app.ts` handles:
+
 - `AppError` - Custom application errors
 - `ZodError` - Validation errors (returns structured `details`)
 - MongoDB duplicate key (code 11000) - Returns 409 Conflict
@@ -211,6 +219,7 @@ Global error handler in `app.ts` handles:
 All responses use standardized envelopes (see `core/http/envelopes.ts`):
 
 **Success (single item):**
+
 ```json
 {
   "ok": true,
@@ -219,6 +228,7 @@ All responses use standardized envelopes (see `core/http/envelopes.ts`):
 ```
 
 **Success (list):**
+
 ```json
 {
   "ok": true,
@@ -232,6 +242,7 @@ All responses use standardized envelopes (see `core/http/envelopes.ts`):
 ```
 
 **Error:**
+
 ```json
 {
   "ok": false,
@@ -302,6 +313,7 @@ Uses Pino logger with:
 ### Modifying Indexes
 
 Edit `infra/mongo/artifacts.ts` and either:
+
 - Set `MONGO_BOOT=1` to auto-create on next startup, or
 - Run manual MongoDB commands, or
 - Use `db-ensure.ts` script
@@ -312,19 +324,19 @@ Modify in controller options:
 
 ```typescript
 makeController(collection, mapIn, mapOut, {
-    defaultSortBy: 'date',
-    defaultSortDir: 'asc',
-})
+	defaultSortBy: 'date',
+	defaultSortDir: 'asc',
+});
 ```
 
 Or in CRUD options:
 
 ```typescript
 makeCrud({
-    // ...
-    defaultSortBy: 'name',
-    defaultSortDir: 'asc',
-})
+	// ...
+	defaultSortBy: 'name',
+	defaultSortDir: 'asc',
+});
 ```
 
 ## Important Files
@@ -341,6 +353,7 @@ makeCrud({
 ## Documentation
 
 Comprehensive docs in `/docs`:
+
 - `architecture.md` - Architecture patterns
 - `data-model.md` - Collection schemas
 - `api.md` - API contracts and examples

@@ -50,7 +50,9 @@ export const Expense = z.object({
 		'Precio por unidad individual. Calculado como netPrice / (quantity * unitsPerPack) si isPackage=true, o netPrice / quantity si isPackage=false. Ejemplo: "0.07"',
 	),
 	payerId: Id.describe('ID del pagador que realizó el gasto'),
-	storeId: Id.optional().describe('ID de la tienda/proveedor donde se realizó la compra. Opcional.'),
+	storeId: Id.optional().describe(
+		'ID de la tienda/proveedor donde se realizó la compra. Opcional.',
+	),
 	isVerified: z
 		.boolean()
 		.describe(
@@ -71,11 +73,7 @@ export type ExpenseT = z.infer<typeof Expense>;
  * Excluye id, createdAt y updatedAt (generados por el servidor)
  */
 export const ExpenseCreate = z.object({
-	isActive: z
-		.boolean()
-		.default(true)
-		.optional()
-		.describe('Estado de activación del gasto'),
+	isActive: z.boolean().default(true).optional().describe('Estado de activación del gasto'),
 	eventId: Id.describe('ID del evento al que pertenece este gasto'),
 	ingredient: z
 		.string()
@@ -110,11 +108,7 @@ export type ExpenseCreateT = z.infer<typeof ExpenseCreate>;
  * Similar a ExpenseCreate pero sin eventId (no se puede cambiar)
  */
 export const ExpenseReplace = z.object({
-	isActive: z
-		.boolean()
-		.default(true)
-		.optional()
-		.describe('Estado de activación del gasto'),
+	isActive: z.boolean().default(true).optional().describe('Estado de activación del gasto'),
 	ingredient: z.string().min(1).describe('Nombre del ingrediente o material'),
 	unitId: Id.optional().describe('ID de la unidad de medida'),
 	quantity: Quantity.optional().describe('Cantidad comprada'),

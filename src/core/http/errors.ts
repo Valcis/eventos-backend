@@ -63,7 +63,10 @@ export class ForbiddenError extends AppError {
  * 500 Internal Server Error
  */
 export class InternalServerError extends AppError {
-	constructor(message = 'Internal server error', public readonly originalError?: Error) {
+	constructor(
+		message = 'Internal server error',
+		public readonly originalError?: Error,
+	) {
 		super('INTERNAL_SERVER_ERROR', message, 500);
 	}
 }

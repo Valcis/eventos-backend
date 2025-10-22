@@ -51,7 +51,9 @@ const BulkPrice = z.object({
 /** % descuento */
 const PercentageDiscount = z.object({
 	_rule: z.literal('PercentageDiscount'),
-	percent: Percentage.describe('Porcentaje de descuento a aplicar. Ejemplo: 15 para 15% de descuento'),
+	percent: Percentage.describe(
+		'Porcentaje de descuento a aplicar. Ejemplo: 15 para 15% de descuento',
+	),
 });
 
 /** Descuento por combinación de productos */
@@ -84,7 +86,9 @@ const BuyXGetYFree = z.object({
 		.number()
 		.int()
 		.positive()
-		.describe('Cantidad que el cliente debe comprar. Ejemplo: 2 para "Compra 2 y lleva 1 gratis"'),
+		.describe(
+			'Cantidad que el cliente debe comprar. Ejemplo: 2 para "Compra 2 y lleva 1 gratis"',
+		),
 	freeQty: z
 		.number()
 		.int()
@@ -226,11 +230,7 @@ export type PromotionT = z.infer<typeof Promotion>;
  * Excluye id, createdAt y updatedAt (generados por el servidor)
  */
 export const PromotionCreate = z.object({
-	isActive: z
-		.boolean()
-		.default(true)
-		.optional()
-		.describe('Estado de activación'),
+	isActive: z.boolean().default(true).optional().describe('Estado de activación'),
 	eventId: Id.describe('ID del evento'),
 	name: z.string().min(1).describe('Nombre de la promoción. Ejemplo: "3x2 en Cervezas"'),
 	description: z.string().optional().describe('Descripción detallada'),
@@ -250,11 +250,7 @@ export type PromotionCreateT = z.infer<typeof PromotionCreate>;
  * Similar a PromotionCreate pero sin eventId (no se puede cambiar)
  */
 export const PromotionReplace = z.object({
-	isActive: z
-		.boolean()
-		.default(true)
-		.optional()
-		.describe('Estado de activación'),
+	isActive: z.boolean().default(true).optional().describe('Estado de activación'),
 	name: z.string().min(1).describe('Nombre de la promoción'),
 	description: z.string().optional().describe('Descripción'),
 	rule: PromotionRule.describe('Tipo de regla'),

@@ -1,13 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { makeController } from '../../controller';
-import {
-	Product,
-	ProductCreate,
-	ProductReplace,
-	ProductPatch,
-	type ProductT,
-} from './schema';
+import { Product, ProductCreate, ProductReplace, ProductPatch, type ProductT } from './schema';
 import { isoifyFields } from '../../../shared/lib/dates';
 import {
 	createPagedResponse,
@@ -21,9 +15,18 @@ import {
 
 // Schemas de query con paginación, sort y filtros
 const ProductsQueryParams = z.object({
-	limit: z.coerce.number().int().min(5).max(50).optional().describe('Número de resultados por página (5-50). Default: 15'),
+	limit: z.coerce
+		.number()
+		.int()
+		.min(5)
+		.max(50)
+		.optional()
+		.describe('Número de resultados por página (5-50). Default: 15'),
 	after: z.string().optional().describe('Cursor para paginación (ID del último elemento)'),
-	sortBy: z.enum(['createdAt', 'updatedAt', 'name', 'stock']).optional().describe('Campo por el cual ordenar. Default: createdAt'),
+	sortBy: z
+		.enum(['createdAt', 'updatedAt', 'name', 'stock'])
+		.optional()
+		.describe('Campo por el cual ordenar. Default: createdAt'),
 	sortDir: z.enum(['asc', 'desc']).optional().describe('Dirección de ordenación. Default: desc'),
 	eventId: z.string().optional().describe('Filtrar por ID de evento'),
 	name: z.string().optional().describe('Filtrar por nombre (búsqueda parcial, case-insensitive)'),

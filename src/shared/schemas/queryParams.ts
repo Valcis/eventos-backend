@@ -9,7 +9,9 @@ export const SortDir = z.enum(['asc', 'desc']).default('desc');
  * Campos de ordenación por tipo de colección
  */
 export const EventSortBy = z.enum(['createdAt', 'updatedAt', 'name', 'date']).default('createdAt');
-export const ProductSortBy = z.enum(['createdAt', 'updatedAt', 'name', 'stock']).default('createdAt');
+export const ProductSortBy = z
+	.enum(['createdAt', 'updatedAt', 'name', 'stock'])
+	.default('createdAt');
 export const PromotionSortBy = z
 	.enum(['createdAt', 'updatedAt', 'name', 'priority', 'startDate', 'endDate'])
 	.default('createdAt');

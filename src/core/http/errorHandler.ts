@@ -91,7 +91,8 @@ function handleFastifyValidationError(err: FastifyError): ErrorResponse {
 	if (validation.validation && validation.validation.length > 0) {
 		const first = validation.validation[0];
 		if (first) {
-			const field = first.instancePath?.replace(/^\//, '').replace(/\//g, '.') || 'campo desconocido';
+			const field =
+				first.instancePath?.replace(/^\//, '').replace(/\//g, '.') || 'campo desconocido';
 			message = `Error de validación en "${field}": ${first.message || 'formato inválido'}. Revisa el formato esperado en la documentación.`;
 		}
 	}
@@ -107,7 +108,9 @@ function handleFastifyValidationError(err: FastifyError): ErrorResponse {
 /**
  * Handle generic Fastify errors and unknown errors
  */
-function handleGenericError(err: Error & { code?: string | number; statusCode?: number }): ErrorResponse {
+function handleGenericError(
+	err: Error & { code?: string | number; statusCode?: number },
+): ErrorResponse {
 	const statusCode = err.statusCode ?? 500;
 
 	return {
@@ -151,7 +154,9 @@ export function errorHandler(
 	} else if ((err as FastifyError).code === 'FST_ERR_VALIDATION') {
 		response = handleFastifyValidationError(err as FastifyError);
 	} else {
-		response = handleGenericError(err as Error & { code?: string | number; statusCode?: number });
+		response = handleGenericError(
+			err as Error & { code?: string | number; statusCode?: number },
+		);
 	}
 
 	// Include stack trace in development

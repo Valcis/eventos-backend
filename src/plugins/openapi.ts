@@ -10,7 +10,7 @@ import {
 export default fp(
 	async (app) => {
 		app.setValidatorCompiler(validatorCompiler);
-		 app.setSerializerCompiler(serializerCompiler);
+		app.setSerializerCompiler(serializerCompiler);
 
 		// Registrar Swagger
 		await app.register(swagger, {

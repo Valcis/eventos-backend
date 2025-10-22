@@ -56,12 +56,7 @@ export const EventReplace = z.object({
 	isActive: z.boolean().default(true).optional().describe('Estado de activación del evento'),
 	name: z.string().min(1).describe('Nombre del evento'),
 	date: DateTime.describe('Fecha y hora de celebración del evento'),
-	capacity: z
-		.number()
-		.int()
-		.nonnegative()
-		.optional()
-		.describe('Capacidad máxima de asistentes'),
+	capacity: z.number().int().nonnegative().optional().describe('Capacidad máxima de asistentes'),
 	capitalAmount: Money.optional().describe('Capital inicial invertido'),
 });
 

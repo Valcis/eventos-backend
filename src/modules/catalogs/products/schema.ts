@@ -63,29 +63,20 @@ export const ProductCreate = z.object({
 		.describe(
 			'Descripción detallada del producto. Ejemplo: "Bocadillo de jamón serrano con tomate y aceite de oliva"',
 		),
-	stock: z
-		.number()
-		.int()
-		.nonnegative()
-		.describe('Cantidad inicial en inventario. Ejemplo: 50'),
+	stock: z.number().int().nonnegative().describe('Cantidad inicial en inventario. Ejemplo: 50'),
 	promotions: z
 		.array(Id)
 		.optional()
 		.default([])
 		.describe('Array de IDs de promociones aplicables. Ejemplo: ["507f1f77bcf86cd799439011"]'),
-	nominalPrice: Money.optional().describe(
-		'Precio nominal/base del producto. Ejemplo: "5.50"',
-	),
+	nominalPrice: Money.optional().describe('Precio nominal/base del producto. Ejemplo: "5.50"'),
 	supplement: z
 		.record(Id, z.number().int())
 		.optional()
 		.describe(
 			'Suplementos por tipo de consumo. Mapa consumptionTypeId -> céntimos. Ejemplo: {"507f1f77bcf86cd799439011": 50}',
 		),
-	notes: z
-		.string()
-		.optional()
-		.describe('Notas adicionales. Ejemplo: "Contiene gluten"'),
+	notes: z.string().optional().describe('Notas adicionales. Ejemplo: "Contiene gluten"'),
 });
 
 export type ProductCreateT = z.infer<typeof ProductCreate>;
@@ -125,7 +116,12 @@ export const ProductPatch = z.object({
 	isActive: z.boolean().optional().describe('Estado de activación. Ejemplo: true'),
 	name: z.string().min(1).optional().describe('Nombre del producto. Ejemplo: "Bocadillo"'),
 	description: z.string().optional().describe('Descripción del producto'),
-	stock: z.number().int().nonnegative().optional().describe('Cantidad en inventario. Ejemplo: 25'),
+	stock: z
+		.number()
+		.int()
+		.nonnegative()
+		.optional()
+		.describe('Cantidad en inventario. Ejemplo: 25'),
 	promotions: z
 		.array(Id)
 		.optional()
