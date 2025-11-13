@@ -65,8 +65,13 @@ export const healthRoutes: FastifyPluginCallback = (app, _opts, done) => {
 			},
 		},
 		async (req, reply) => {
-			const checks = {
-				database: { status: 'ok' as const, message: undefined as string | undefined },
+			const checks: {
+				database: {
+					status: 'ok' | 'error';
+					message?: string;
+				};
+			} = {
+				database: { status: 'ok' },
 			};
 
 			let isReady = true;

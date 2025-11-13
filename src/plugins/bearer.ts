@@ -1,5 +1,5 @@
 import fp from 'fastify-plugin';
-import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import jwt from 'jsonwebtoken';
 import { getEnv } from '../config/env';
 import type { JwtPayload } from '../shared/types/jwt';
@@ -22,7 +22,7 @@ export default fp<BearerOptions>(
 		const exempt = opts?.exemptPaths ?? [];
 		const isEnabled = opts?.forceEnabled ?? env.AUTH_ENABLED;
 
-		app.addHook('preHandler', async (req: FastifyRequest, reply: FastifyReply) => {
+		app.addHook('preHandler', async (req: FastifyRequest) => {
 			if (!isEnabled) return;
 			const urlPath = req.raw.url?.split('?')[0] ?? '';
 			if (isExempt(urlPath, exempt)) return;

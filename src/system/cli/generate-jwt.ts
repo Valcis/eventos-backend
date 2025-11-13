@@ -28,7 +28,7 @@ const payload: Omit<JwtPayload, 'iat' | 'exp'> = {
 };
 
 // Generar token
-// @ts-ignore - Tipo de expiresIn tiene problemas con la versión de @types/jsonwebtoken
+// @ts-expect-error - Tipo de expiresIn tiene problemas con la versión de @types/jsonwebtoken
 const token: string = jwt.sign(payload, jwtSecret, {
 	algorithm: env.JWT_ALGORITHM || 'HS256',
 	expiresIn: env.JWT_EXPIRES_IN || '24h',
