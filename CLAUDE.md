@@ -40,10 +40,12 @@ npm run format            # Prettier
 
 # Database utilities
 npm run check:mongo       # Verify MongoDB connection
+npm run db:ensure         # Create MongoDB indexes manually
 npm run seed              # Seed database with sample data
 
-# Other checks
+# Other utilities
 npm run check:imports     # Verify import extensions
+npm run generate-jwt      # Generate JWT token for testing
 ```
 
 ## Environment Configuration
@@ -347,6 +349,7 @@ makeCrud({
 - `src/modules/controller.ts` - Generic controller factory
 - `src/infra/mongo/crud.ts` - Generic CRUD repository factory
 - `src/infra/mongo/artifacts.ts` - Index and validator definitions
+- `docs/folder-structure.md` - **⭐ Folder organization criteria** (consult before creating files)
 - `docs/architecture.md` - Detailed architecture documentation
 - `docs/api.md` - API contract documentation
 
@@ -354,6 +357,7 @@ makeCrud({
 
 Comprehensive docs in `/docs`:
 
+- `folder-structure.md` - **⭐ IMPORTANT: Folder organization and criteria** (read this before creating new files/folders)
 - `architecture.md` - Architecture patterns
 - `data-model.md` - Collection schemas
 - `api.md` - API contracts and examples
@@ -361,3 +365,5 @@ Comprehensive docs in `/docs`:
 - `env.md` - Environment variables
 - `logging.md` - Logging configuration
 - `security.md` - Security considerations
+- `error-codes.md` - Error codes and handling
+- `reservations-validation.md` - Referential integrity validation

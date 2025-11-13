@@ -1,5 +1,6 @@
 import type { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
 import { ZodError } from 'zod';
+import jwt from 'jsonwebtoken';
 import { AppError } from './errors';
 
 /**
@@ -68,13 +69,96 @@ function handleZodError(err: ZodError): ErrorResponse {
 /**
  * Handle MongoDB duplicate key errors (code 11000)
  */
-function handleMongoDBDuplicateError(): ErrorResponse {
+function handleMongoDBDuplicateError(err: unknown): ErrorResponse {
+	const mongoError = err as {
+		code?: number;
+		keyPattern?: Record<string, number>;
+		keyValue?: Record<string, unknown>;
+	};
+
+	// Extraer el campo que causó el duplicado
+	let field: string | undefined;
+	let value: unknown;
+
+	if (mongoError.keyPattern) {
+		const fields = Object.keys(mongoError.keyPattern);
+		// Si hay múltiples campos, usar el primero que no sea eventId
+		field = fields.find((f) => f !== 'eventId' && f !== 'isActive') || fields[0];
+		if (field && mongoError.keyValue) {
+			value = mongoError.keyValue[field];
+		}
+	}
+
+	const fieldMessage = field ? ` (campo: ${field})` : '';
+	const valueMessage = value ? `: "${value}"` : '';
+
 	return {
 		statusCode: 409,
 		code: 'DUPLICATE_ENTRY',
 		error: 'Conflict',
+		message: `Ya existe un registro con ese valor${fieldMessage}${valueMessage}. Por favor usa un valor diferente.`,
+		details: field
+			? {
+					field,
+					value,
+				}
+			: undefined,
+	};
+}
+
+/**
+ * Handle Invalid ObjectId errors
+ */
+function handleInvalidObjectIdError(err: Error): ErrorResponse {
+	return {
+		statusCode: 400,
+		code: 'INVALID_ID',
+		error: 'Bad Request',
 		message:
-			'Ya existe un registro con los mismos datos únicos. Por favor verifica que no estés duplicando información (nombre, fecha, etc.).',
+			'El ID proporcionado no es válido. Debe ser un ObjectId de MongoDB válido (24 caracteres hexadecimales).',
+		details: {
+			providedId: err.message.replace('Invalid ObjectId: ', ''),
+		},
+	};
+}
+
+/**
+ * Handle JWT errors
+ */
+function handleJWTError(err: Error): ErrorResponse {
+	if (err instanceof jwt.TokenExpiredError) {
+		return {
+			statusCode: 401,
+			code: 'TOKEN_EXPIRED',
+			error: 'Unauthorized',
+			message: 'Token expirado',
+		};
+	}
+
+	if (err instanceof jwt.JsonWebTokenError) {
+		return {
+			statusCode: 401,
+			code: 'INVALID_TOKEN',
+			error: 'Unauthorized',
+			message: 'Token inválido',
+		};
+	}
+
+	if (err instanceof jwt.NotBeforeError) {
+		return {
+			statusCode: 401,
+			code: 'TOKEN_NOT_ACTIVE',
+			error: 'Unauthorized',
+			message: 'Token no activo aún',
+		};
+	}
+
+	// Fallback genérico
+	return {
+		statusCode: 401,
+		code: 'UNAUTHORIZED',
+		error: 'Unauthorized',
+		message: 'Error de autenticación',
 	};
 }
 
@@ -130,6 +214,30 @@ function isMongoDBDuplicateError(err: unknown): boolean {
 }
 
 /**
+ * Check if error is a JWT-related error
+ */
+function isJWTError(err: unknown): boolean {
+	return (
+		err instanceof jwt.TokenExpiredError ||
+		err instanceof jwt.JsonWebTokenError ||
+		err instanceof jwt.NotBeforeError
+	);
+}
+
+/**
+ * Check if error is an Invalid ObjectId error
+ */
+function isInvalidObjectIdError(err: unknown): boolean {
+	const error = err as Error;
+	return (
+		error.message?.includes('Invalid ObjectId') ||
+		error.message?.includes(
+			'Argument passed in must be a string of 12 bytes or a string of 24 hex characters',
+		)
+	);
+}
+
+/**
  * Main error handler for Fastify
  * Centralized error handling logic that categorizes and formats errors
  */
@@ -149,8 +257,12 @@ export function errorHandler(
 		response = handleAppError(err);
 	} else if (err instanceof ZodError) {
 		response = handleZodError(err);
+	} else if (isJWTError(err)) {
+		response = handleJWTError(err);
+	} else if (isInvalidObjectIdError(err)) {
+		response = handleInvalidObjectIdError(err);
 	} else if (isMongoDBDuplicateError(err)) {
-		response = handleMongoDBDuplicateError();
+		response = handleMongoDBDuplicateError(err);
 	} else if ((err as FastifyError).code === 'FST_ERR_VALIDATION') {
 		response = handleFastifyValidationError(err as FastifyError);
 	} else {

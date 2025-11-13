@@ -1,5 +1,5 @@
 import { ObjectId } from 'mongodb';
-import { connectMongo, closeMongo, getDb } from '../infra/mongo/client';
+import { connectMongo, closeMongo, getDb } from '../../infra/mongo/client';
 
 async function run(): Promise<void> {
 	await connectMongo();

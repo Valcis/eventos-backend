@@ -51,13 +51,17 @@ src/
 ├── modules/                  # Módulos de negocio
 │   ├── controller.ts         # ⭐ Factory de controladores genérico
 │   ├── events/               # Eventos (routes + controller + schema)
-│   ├── reservations/         # Reservas
+│   ├── reservations/         # Reservas (validation + stock control)
 │   ├── expenses/             # Gastos
 │   └── catalogs/             # Catálogos (products, promotions, etc.)
 ├── plugins/                  # Plugins Fastify (CORS, auth, swagger)
-├── system/                   # Rutas sistema (health, swagger)
-└── scripts/                  # Scripts CLI (seed, checks)
+├── shared/                   # Código compartido (types, lib, schemas)
+└── system/                   # Sistema (rutas HTTP + CLI tools)
+    ├── cli/                  # CLI tools (seed, checks, generators)
+    └── healthCheck.ts        # Health check endpoint
 ```
+
+📖 **Ver documentación detallada**: [Folder Structure](./folder-structure.md) - Criterios de organización completos
 
 ---
 

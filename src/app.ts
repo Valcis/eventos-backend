@@ -3,7 +3,7 @@ import rateLimit from '@fastify/rate-limit';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { buildLoggerOptions } from './core/logging/logger';
 import corsPlugin from './plugins/cors';
-import { healthRoutes } from './system/health/health.routes';
+import { healthRoutes } from './system/healthCheck';
 import eventsRoutes from './modules/events/routes';
 import reservationsRoutes from './modules/reservations/routes';
 import productsRoutes from './modules/catalogs/products/routes';

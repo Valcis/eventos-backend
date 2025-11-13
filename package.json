@@ -15,10 +15,12 @@
 		"lint:fix": "eslint -c ./eslint.config.js \"src/**/*.{ts,tsx}\" --fix",
 		"lint:cache": "eslint -c ./eslint.config.js \"src/**/*.{ts,tsx}\" --cache --cache-location .eslintcache --cache-strategy content",
 		"check:lint": "npm run lint:types && npm run lint",
-		"check:mongo": "tsx src/scripts/check-mongo.ts",
-		"check:imports": "tsx src/scripts/check-import-extensions.ts",
-		"seed": "tsx src/scripts/seed.ts",
-		"format": "prettier -w ."
+		"format": "prettier -w .",
+		"check:mongo": "tsx src/system/cli/check-mongo.ts",
+		"check:imports": "tsx src/system/cli/check-import-extensions.ts",
+		"db:ensure": "tsx src/system/cli/db-ensure.ts",
+		"seed": "tsx src/system/cli/seed.ts",
+		"generate-jwt": "tsx src/system/cli/generate-jwt.ts"
 	},
 	"dependencies": {
 		"@asteasolutions/zod-to-openapi": "7.3.4",
@@ -30,6 +32,7 @@
 		"fastify": "^5.6.1",
 		"fastify-plugin": "^5.0.0",
 		"fastify-type-provider-zod": "^4.0.2",
+		"jsonwebtoken": "^9.0.2",
 		"mongodb": "^6.20.0",
 		"openapi-types": "12.1.3",
 		"pino": "^9.3.2",
@@ -37,6 +40,7 @@
 	},
 	"devDependencies": {
 		"@eslint/eslintrc": "^3.3.1",
+		"@types/jsonwebtoken": "^9.0.10",
 		"@types/node": "^22.5.4",
 		"@typescript-eslint/eslint-plugin": "^8.0.0",
 		"@typescript-eslint/parser": "^8.46.1",

@@ -37,7 +37,7 @@ export default fp(
 		// UI
 		await app.register(swaggerUI, {
 			routePrefix: '/swagger',
-			staticCSP: true,
+			staticCSP: false,
 			uiConfig: {
 				docExpansion: 'list',
 				deepLinking: true,

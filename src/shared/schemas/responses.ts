@@ -50,12 +50,11 @@ export const ValidationErrorResponse = z.object({
 	details: z
 		.array(
 			z.object({
-				path: z
-					.array(z.union([z.string(), z.number()]))
-					.describe('Ruta del campo. Ejemplo: ["name"]'),
+				path: z.string().describe('Ruta del campo. Ejemplo: "name" o "body.name"'),
 				message: z
 					.string()
 					.describe('Mensaje específico. Ejemplo: "Expected string, received number"'),
+				code: z.string().optional().describe('Código de error Zod. Ejemplo: "too_small"'),
 			}),
 		)
 		.describe('Lista de errores de validación por campo'),

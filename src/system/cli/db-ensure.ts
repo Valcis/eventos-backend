@@ -1,6 +1,6 @@
 import { MongoClient } from 'mongodb';
-import { getEnv } from '../config/env';
-import { ensureMongoArtifacts } from '../infra/mongo/artifacts';
+import { getEnv } from '../../config/env';
+import { ensureMongoArtifacts } from '../../infra/mongo/artifacts';
 
 async function main(): Promise<void> {
 	const env = getEnv();

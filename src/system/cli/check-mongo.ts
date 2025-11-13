@@ -1,5 +1,5 @@
 import { MongoClient } from 'mongodb';
-import { getEnv } from '../config/env';
+import { getEnv } from '../../config/env';
 
 const env = getEnv();
 const uri = env.MONGO_URL;

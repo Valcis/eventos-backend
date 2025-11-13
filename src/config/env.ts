@@ -10,7 +10,18 @@ const Env = z.object({
 	MONGO_URL: z.string().min(1), // requerido
 	MONGODB_DB: z.string().min(1), // requerido
 	MONGO_BOOT: z.enum(['0', '1']).default('0'),
-	AUTH_ENABLED: z.coerce.boolean().default(false),
+	AUTH_ENABLED: z
+		.string()
+		.optional()
+		.default('false')
+		.transform((val) => val === 'true' || val === '1'),
+	// JWT Configuration
+	JWT_SECRET: z.string().min(32).optional(), // Requerido si AUTH_ENABLED=true
+	JWT_ALGORITHM: z
+		.enum(['HS256', 'HS384', 'HS512', 'RS256', 'RS384', 'RS512'])
+		.optional()
+		.default('HS256'),
+	JWT_EXPIRES_IN: z.string().optional().default('24h'), // Ej: "1h", "7d", "30m"
 });
 
 export function getEnv() {
@@ -19,5 +30,13 @@ export function getEnv() {
 		console.error(parsed.error.format());
 		process.exit(1);
 	}
+
+	// Validar que JWT_SECRET esté presente si AUTH_ENABLED está activo
+	if (parsed.data.AUTH_ENABLED && !parsed.data.JWT_SECRET) {
+		console.error('ERROR: JWT_SECRET is required when AUTH_ENABLED is true');
+		console.error('Please set JWT_SECRET in your .env file (minimum 32 characters)');
+		process.exit(1);
+	}
+
 	return parsed.data;
 }

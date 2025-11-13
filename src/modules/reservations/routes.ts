@@ -114,18 +114,86 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 				tags: [TAG],
 				summary: 'Crear nueva reserva',
 				description:
-					'Registra una nueva reserva para un evento. Incluye el pedido (productos y cantidades), cálculo de precios con promociones y suplementos según el tipo de consumo, anticipo, y métodos de pago.',
+					'Registra una nueva reserva para un evento. Incluye el pedido (productos y cantidades), cálculo de precios con promociones y suplementos según el tipo de consumo, anticipo, y métodos de pago. VALIDA: existencia de productos, stock disponible, pertenencia al evento, y validez de todos los catálogos referenciados.',
 				body: ReservationCreate,
 				response: {
 					201: ReservationCreatedResponse.describe('Reserva creada exitosamente'),
-					400: ValidationErrorResponse.describe('Error de validación en el body'),
+					400: ValidationErrorResponse.describe(
+						'Error de validación: productos inexistentes, stock insuficiente, catálogos inválidos, etc.',
+					),
 					401: UnauthorizedResponse.describe('Token inválido o faltante'),
+					404: NotFoundResponse.describe('Evento no encontrado'),
 					500: InternalErrorResponse.describe('Error interno del servidor'),
 				},
 				security: [{ bearerAuth: [] }],
 			},
 		},
-		ctrl.create,
+		async (req, reply) => {
+			const db = (req.server as unknown as { db: import('mongodb').Db }).db;
+			const body = req.body as z.infer<typeof ReservationCreate>;
+
+			// Importar validaciones y control de stock
+			const {
+				validateEvent,
+				validateProducts,
+				validateReservationCatalogs,
+				validateLinkedReservations,
+			} = await import('./validation');
+			const { createReservationWithStockControl } = await import('./stock');
+			const { ObjectId } = await import('mongodb');
+
+			// 1. Validar que el evento existe y está activo
+			await validateEvent(db, body.eventId);
+
+			// 2. Validar productos: existencia, pertenencia al evento y stock
+			await validateProducts(db, body.eventId, body.order);
+
+			// 3. Validar catálogos: salesperson, consumptionType, pickupPoint, paymentMethod, cashier
+			await validateReservationCatalogs(db, body.eventId, {
+				salespersonId: body.salespersonId ?? undefined,
+				consumptionTypeId: body.consumptionTypeId,
+				pickupPointId: body.pickupPointId ?? undefined,
+				paymentMethodId: body.paymentMethodId,
+				cashierId: body.cashierId ?? undefined,
+			});
+
+			// 4. Validar reservas vinculadas (si existen)
+			await validateLinkedReservations(db, body.linkedReservations, body.eventId);
+
+			// 5. Crear reserva con control de stock atómico
+			// Preparar datos con timestamps
+			const reservationData = {
+				...body,
+				eventId: new ObjectId(body.eventId),
+				isActive: body.isActive ?? true,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			};
+
+			// Crear reserva decrementando stock atómicamente
+			const insertedId = await createReservationWithStockControl(db, reservationData);
+
+			// Obtener la reserva creada para devolverla
+			const created = await db.collection('reservations').findOne({
+				_id: new ObjectId(insertedId),
+			});
+
+			if (!created) {
+				throw new Error('Failed to retrieve created reservation');
+			}
+
+			// Transformar y devolver
+			const { _id, ...rest } = created;
+			const base = {
+				...(rest as Record<string, unknown>),
+				id: String(_id),
+				eventId: String((created.eventId as typeof ObjectId).toString()),
+			};
+			const normalized = isoifyFields(base, ['date', 'createdAt', 'updatedAt'] as const);
+			const result = Reservation.parse(normalized);
+
+			return reply.code(201).send(result);
+		},
 	);
 
 	app.put(
@@ -181,10 +249,12 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 				tags: [TAG],
 				summary: 'Eliminar reserva',
 				description:
-					'Realiza un borrado lógico de la reserva (establece isActive=false). La reserva no se elimina físicamente de la base de datos.',
+					'Realiza un borrado lógico de la reserva (establece isActive=false) y RESTAURA el stock de los productos. La reserva no se elimina físicamente de la base de datos. El stock se devuelve automáticamente a los productos.',
 				params: IdParam,
 				response: {
-					204: NoContentResponse.describe('Reserva eliminada exitosamente'),
+					204: NoContentResponse.describe(
+						'Reserva eliminada y stock restaurado exitosamente',
+					),
 					404: NotFoundResponse.describe('Reserva no encontrada'),
 					401: UnauthorizedResponse.describe('Token inválido o faltante'),
 					500: InternalErrorResponse.describe('Error interno del servidor'),
@@ -192,6 +262,17 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 				security: [{ bearerAuth: [] }],
 			},
 		},
-		ctrl.remove,
+		async (req, reply) => {
+			const db = (req.server as unknown as { db: import('mongodb').Db }).db;
+			const { id } = req.params as { id: string };
+
+			// Importar control de stock
+			const { deleteReservationWithStockRestore } = await import('./stock');
+
+			// Eliminar reserva y restaurar stock atómicamente
+			await deleteReservationWithStockRestore(db, id);
+
+			return reply.code(204).send();
+		},
 	);
 }
