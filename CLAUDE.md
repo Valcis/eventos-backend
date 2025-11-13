@@ -312,11 +312,42 @@ Uses Pino logger with:
 - Structured logging with contextual fields
 - Log sanitization (see `docs/logging.md`)
 
+## Security
+
+### Input Validation
+
+- **ObjectId validation**: All route parameters containing IDs are validated before database operations
+- **MongoDB operator injection prevention**: Query params are sanitized to block dangerous MongoDB operators ($where, $regex, $ne, etc.)
+- **Zod schema validation**: All request bodies validated against strict Zod schemas
+
+### Referential Integrity
+
+- **Reservations**: Full referential integrity validation for products, catalogs, and linked reservations
+- **Foreign key validation**: All referenced entities (eventId, salespersonId, etc.) validated to exist before create/update
+- **Cascade validation**: Products checked for existence, stock availability, and event membership
+
+Implementation in `modules/reservations/validation.ts` and `core/middleware/sanitize.ts`.
+
+### MongoDB Transactions
+
+- **Stock operations**: Create/delete reservation operations use MongoDB transactions for atomicity
+- **Fallback mode**: Graceful degradation to sequential operations if transactions unavailable (standalone MongoDB)
+- **Production requirement**: Use replica set for guaranteed atomicity
+
+Implementation in `modules/reservations/stock.ts`.
+
 ## Testing & Validation
 
-- No test framework currently configured
-- Validation uses Zod schemas in `modules/*/schema.ts`
-- Type checking via `npm run lint:types`
+- **Test framework**: Vitest configured with coverage support
+- **Test commands**:
+  - `npm test` - Run tests once
+  - `npm run test:watch` - Run tests in watch mode
+  - `npm run test:ui` - Open Vitest UI
+  - `npm run test:coverage` - Generate coverage report
+- **Validation**: Zod schemas in `modules/*/schema.ts`
+- **Type checking**: `npm run lint:types`
+
+Configuration in `vitest.config.ts`.
 
 ## Common Tasks
 

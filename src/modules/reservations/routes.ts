@@ -203,12 +203,14 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 				tags: [TAG],
 				summary: 'Reemplazar reserva completa',
 				description:
-					'Reemplaza todos los campos de una reserva existente (excepto eventId). Requiere proporcionar todos los campos obligatorios.',
+					'Reemplaza todos los campos de una reserva existente (excepto eventId). Requiere proporcionar todos los campos obligatorios. VALIDA: existencia de productos, stock disponible, y validez de todos los catálogos referenciados.',
 				params: IdParam,
 				body: ReservationReplace,
 				response: {
 					200: Reservation.describe('Reserva actualizada exitosamente'),
-					400: ValidationErrorResponse.describe('Error de validación en el body'),
+					400: ValidationErrorResponse.describe(
+						'Error de validación: productos inexistentes, stock insuficiente, catálogos inválidos, etc.',
+					),
 					404: NotFoundResponse.describe('Reserva no encontrada'),
 					401: UnauthorizedResponse.describe('Token inválido o faltante'),
 					500: InternalErrorResponse.describe('Error interno del servidor'),
@@ -216,7 +218,51 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 				security: [{ bearerAuth: [] }],
 			},
 		},
-		ctrl.replace,
+		async (req, reply) => {
+			const db = (req.server as unknown as { db: import('mongodb').Db }).db;
+			const { id } = req.params as { id: string };
+			const body = req.body as z.infer<typeof ReservationReplace>;
+
+			// Importar validaciones
+			const {
+				validateProducts,
+				validateReservationCatalogs,
+				validateLinkedReservations,
+			} = await import('./validation');
+			const { ObjectId } = await import('mongodb');
+			const { NotFoundError } = await import('../../core/http/errors');
+
+			// Obtener la reserva existente para obtener el eventId
+			const existing = await db.collection('reservations').findOne({
+				_id: new ObjectId(id),
+			});
+
+			if (!existing) {
+				throw new NotFoundError('reservations', id);
+			}
+
+			const eventId = (existing.eventId as typeof ObjectId).toString();
+
+			// Validar productos si hay cambios en el pedido
+			if (body.order) {
+				await validateProducts(db, eventId, body.order);
+			}
+
+			// Validar catálogos referenciados
+			await validateReservationCatalogs(db, eventId, {
+				salespersonId: body.salespersonId ?? undefined,
+				consumptionTypeId: body.consumptionTypeId,
+				pickupPointId: body.pickupPointId ?? undefined,
+				paymentMethodId: body.paymentMethodId,
+				cashierId: body.cashierId ?? undefined,
+			});
+
+			// Validar reservas vinculadas
+			await validateLinkedReservations(db, body.linkedReservations, eventId);
+
+			// Usar el controlador genérico para la actualización
+			return ctrl.replace(req, reply);
+		},
 	);
 
 	app.patch(
@@ -226,12 +272,14 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 				tags: [TAG],
 				summary: 'Actualizar reserva parcialmente',
 				description:
-					'Actualiza uno o más campos de una reserva existente. Útil para marcar como entregada (isDelivered), pagada (isPaid), o modificar el pedido.',
+					'Actualiza uno o más campos de una reserva existente. Útil para marcar como entregada (isDelivered), pagada (isPaid), o modificar el pedido. VALIDA: si se modifican referencias, verifica que existan y sean válidas.',
 				params: IdParam,
 				body: ReservationPatch,
 				response: {
 					200: Reservation.describe('Reserva actualizada exitosamente'),
-					400: ValidationErrorResponse.describe('Error de validación en el body'),
+					400: ValidationErrorResponse.describe(
+						'Error de validación: productos inexistentes, stock insuficiente, catálogos inválidos, etc.',
+					),
 					404: NotFoundResponse.describe('Reserva no encontrada'),
 					401: UnauthorizedResponse.describe('Token inválido o faltante'),
 					500: InternalErrorResponse.describe('Error interno del servidor'),
@@ -239,7 +287,80 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 				security: [{ bearerAuth: [] }],
 			},
 		},
-		ctrl.patch,
+		async (req, reply) => {
+			const db = (req.server as unknown as { db: import('mongodb').Db }).db;
+			const { id } = req.params as { id: string };
+			const body = req.body as z.infer<typeof ReservationPatch>;
+
+			// Importar validaciones
+			const {
+				validateProducts,
+				validateOptionalCatalog,
+				validateRequiredCatalog,
+				validateLinkedReservations,
+			} = await import('./validation');
+			const { ObjectId } = await import('mongodb');
+			const { NotFoundError } = await import('../../core/http/errors');
+
+			// Obtener la reserva existente para obtener el eventId
+			const existing = await db.collection('reservations').findOne({
+				_id: new ObjectId(id),
+			});
+
+			if (!existing) {
+				throw new NotFoundError('reservations', id);
+			}
+
+			const eventId = (existing.eventId as typeof ObjectId).toString();
+
+			// Validar productos si hay cambios en el pedido
+			if (body.order) {
+				await validateProducts(db, eventId, body.order);
+			}
+
+			// Validar catálogos solo si se están modificando
+			if (body.salespersonId !== undefined) {
+				await validateOptionalCatalog(db, 'vendedores', body.salespersonId, eventId, 'vendedor');
+			}
+			if (body.consumptionTypeId !== undefined) {
+				await validateRequiredCatalog(
+					db,
+					'tipos de consumo',
+					body.consumptionTypeId,
+					eventId,
+					'tipo de consumo',
+				);
+			}
+			if (body.pickupPointId !== undefined) {
+				await validateOptionalCatalog(
+					db,
+					'puntos de recogida',
+					body.pickupPointId,
+					eventId,
+					'punto de recogida',
+				);
+			}
+			if (body.paymentMethodId !== undefined) {
+				await validateRequiredCatalog(
+					db,
+					'métodos de pago',
+					body.paymentMethodId,
+					eventId,
+					'método de pago',
+				);
+			}
+			if (body.cashierId !== undefined) {
+				await validateOptionalCatalog(db, 'cashiers', body.cashierId, eventId, 'cajero');
+			}
+
+			// Validar reservas vinculadas si se están modificando
+			if (body.linkedReservations !== undefined) {
+				await validateLinkedReservations(db, body.linkedReservations, eventId);
+			}
+
+			// Usar el controlador genérico para la actualización
+			return ctrl.patch(req, reply);
+		},
 	);
 
 	app.delete(
