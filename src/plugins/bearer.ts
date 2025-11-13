@@ -1,8 +1,9 @@
 import fp from 'fastify-plugin';
-import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import jwt from 'jsonwebtoken';
 import { getEnv } from '../config/env';
 import type { JwtPayload } from '../shared/types/jwt';
+import { UnauthorizedError, InternalServerError } from '../core/http/errors';
 
 export interface BearerOptions {
 	/** rutas que no requieren bearer; acepta prefijos (empiezan por) */
@@ -21,7 +22,7 @@ export default fp<BearerOptions>(
 		const exempt = opts?.exemptPaths ?? [];
 		const isEnabled = opts?.forceEnabled ?? env.AUTH_ENABLED;
 
-		app.addHook('preHandler', async (req: FastifyRequest, reply: FastifyReply) => {
+		app.addHook('preHandler', async (req: FastifyRequest) => {
 			if (!isEnabled) return;
 			const urlPath = req.raw.url?.split('?')[0] ?? '';
 			if (isExempt(urlPath, exempt)) return;
@@ -31,12 +32,7 @@ export default fp<BearerOptions>(
 				typeof auth === 'string' && auth.startsWith('Bearer ') ? auth.slice(7) : null;
 
 			if (!token) {
-				return reply.code(401).send({
-					statusCode: 401,
-					code: 'UNAUTHORIZED',
-					error: 'Unauthorized',
-					message: 'Falta token Bearer',
-				});
+				throw new UnauthorizedError('Falta token Bearer');
 			}
 
 			// Verificar y decodificar JWT
@@ -44,12 +40,7 @@ export default fp<BearerOptions>(
 				const jwtSecret = env.JWT_SECRET;
 				if (!jwtSecret) {
 					req.log.error('JWT_SECRET no configurado pero AUTH_ENABLED=true');
-					return reply.code(500).send({
-						statusCode: 500,
-						code: 'INTERNAL_ERROR',
-						error: 'Internal Server Error',
-						message: 'Configuración de autenticación incorrecta',
-					});
+					throw new InternalServerError('Configuración de autenticación incorrecta');
 				}
 
 				const payload = jwt.verify(token, jwtSecret, {
@@ -58,12 +49,7 @@ export default fp<BearerOptions>(
 
 				// Validaciones adicionales del payload
 				if (!payload.userId || !payload.email || !payload.role) {
-					return reply.code(401).send({
-						statusCode: 401,
-						code: 'INVALID_TOKEN',
-						error: 'Unauthorized',
-						message: 'Token JWT inválido: faltan campos requeridos',
-					});
+					throw new UnauthorizedError('Token JWT inválido: faltan campos requeridos');
 				}
 
 				// Adjuntar usuario autenticado a la request
@@ -76,31 +62,21 @@ export default fp<BearerOptions>(
 			} catch (err) {
 				// Manejar errores específicos de JWT
 				if (err instanceof jwt.TokenExpiredError) {
-					return reply.code(401).send({
-						statusCode: 401,
-						code: 'TOKEN_EXPIRED',
-						error: 'Unauthorized',
-						message: 'Token expirado',
-					});
+					throw new UnauthorizedError('Token expirado');
 				}
 
 				if (err instanceof jwt.JsonWebTokenError) {
-					return reply.code(401).send({
-						statusCode: 401,
-						code: 'INVALID_TOKEN',
-						error: 'Unauthorized',
-						message: 'Token inválido',
-					});
+					throw new UnauthorizedError('Token inválido');
+				}
+
+				// Re-lanzar si ya es un AppError
+				if (err instanceof UnauthorizedError || err instanceof InternalServerError) {
+					throw err;
 				}
 
 				// Error genérico
 				req.log.error({ err }, 'Error al verificar JWT');
-				return reply.code(401).send({
-					statusCode: 401,
-					code: 'UNAUTHORIZED',
-					error: 'Unauthorized',
-					message: 'Error al verificar token',
-				});
+				throw new UnauthorizedError('Error al verificar token');
 			}
 		});
 	},

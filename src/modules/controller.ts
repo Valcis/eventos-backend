@@ -4,6 +4,7 @@ import { makeCrud } from '../infra/mongo/crud';
 import type { PaginationQuery } from '../shared/types/pagination';
 import type { SortBy, SortDir } from '../shared/types/sort';
 import { parsePaginationParams, extractFilters } from '../shared/lib/pagination';
+import { NotFoundError } from '../core/http/errors';
 
 export function makeController<
 	TDomain,
@@ -62,8 +63,7 @@ export function makeController<
 			const db = (req.server as unknown as { db: Db }).db;
 			const { id } = req.params as { id: string };
 			const found = await repo.getById(db, id);
-			if (!found)
-				return reply.code(404).send({ code: 'NOT_FOUND', message: 'No encontrado' });
+			if (!found) throw new NotFoundError(collection, id);
 			return reply.send(found);
 		},
 

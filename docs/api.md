@@ -1,6 +1,6 @@
 # API
 
-**Eventos API** v2.0.0
+**Eventos API** v3.0.0
 
 ## Base URL
 
@@ -139,21 +139,32 @@ Para deshabilitar auth en desarrollo: `AUTH_ENABLED=false` en `.env`
 
 ---
 
-## Paginación
+## Paginación y Sorting
 
-Todos los endpoints de listado (`GET /`) soportan paginación cursor-based:
+Todos los endpoints de listado (`GET /`) soportan paginación cursor-based y sorting dinámico:
 
 ### Query Parameters
 
+**Paginación**:
+
 - `limit` - Número de items por página (min: 1, max: 200, default: 50)
 - `after` - Cursor para la siguiente página (ObjectId del último elemento)
-- Filtros adicionales: cualquier campo de la colección (ej: `?eventId=abc&isActive=true`)
+
+**Sorting dinámico**:
+
+- `sortBy` - Campo por el cual ordenar (ej: `name`, `createdAt`, `date`)
+- `sortDir` - Dirección del ordenamiento: `asc` (ascendente) o `desc` (descendente, default)
+
+**Filtros**:
+
+- Cualquier campo de la colección (ej: `?eventId=abc&isActive=true`)
 
 ### Response Format
 
 ```json
 {
-  "items": [...],
+  "ok": true,
+  "data": [...],
   "page": {
     "limit": 50,
     "nextCursor": "6745abc123...",
@@ -162,15 +173,32 @@ Todos los endpoints de listado (`GET /`) soportan paginación cursor-based:
 }
 ```
 
-### Ejemplo
+### Ejemplos
 
 ```bash
-# Primera página
+# Primera página (default: ordenado por createdAt desc)
 curl "http://localhost:3000/api/products?limit=10"
 
 # Segunda página (usar nextCursor de la respuesta anterior)
 curl "http://localhost:3000/api/products?limit=10&after=6745abc123..."
+
+# Ordenar por nombre ascendente
+curl "http://localhost:3000/api/products?sortBy=name&sortDir=asc"
+
+# Ordenar por fecha descendente (más reciente primero)
+curl "http://localhost:3000/api/events?sortBy=date&sortDir=desc&limit=20"
+
+# Combinar sorting con filtros
+curl "http://localhost:3000/api/products?eventId=abc123&sortBy=price&sortDir=asc"
 ```
+
+**Campos ordenables comunes**:
+
+- `createdAt` - Fecha de creación (default en la mayoría de endpoints)
+- `updatedAt` - Última modificación
+- `name` - Nombre (catálogos)
+- `date` - Fecha (eventos)
+- Cualquier campo indexado de la colección
 
 ---
 
