@@ -16,6 +16,8 @@ export default fp(async function corsPlugin(app: FastifyInstance) {
 			credentials: true,
 			methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 			allowedHeaders: ['Content-Type', 'Authorization'],
+			exposedHeaders: ['Content-Length', 'X-Request-Id'],
+			maxAge: 600,
 		});
 
 		app.log.info({ corsOrigins: allowedOrigins }, 'CORS configurado con orígenes específicos');
@@ -24,27 +26,20 @@ export default fp(async function corsPlugin(app: FastifyInstance) {
 		await app.register(cors, {
 			origin: false,
 			credentials: true,
-			methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-			allowedHeaders: ['Content-Type', 'Authorization'],
 		});
 
 		app.log.warn('CORS bloqueado en producción (sin CORS_ORIGINS)');
 	} else {
-		// En desarrollo, usar función callback para aceptar localhost y 127.0.0.1
+		// En desarrollo, permitir todos los orígenes
 		await app.register(cors, {
-			origin: (origin, callback) => {
-				// Si no hay origen (same-origin) o coincide con localhost/127.0.0.1
-				if (!origin || /^https?:\/\/(localhost|127\.0\.0\.1|\[?::1\]?)(:\d+)?$/.test(origin)) {
-					callback(null, true);
-				} else {
-					callback(null, false);
-				}
-			},
+			origin: true,
 			credentials: true,
 			methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 			allowedHeaders: ['Content-Type', 'Authorization'],
+			exposedHeaders: ['Content-Length', 'X-Request-Id'],
+			maxAge: 600,
 		});
 
-		app.log.info('CORS configurado para desarrollo (localhost/127.0.0.1)');
+		app.log.info('CORS configurado para desarrollo (todos los orígenes permitidos)');
 	}
 });
