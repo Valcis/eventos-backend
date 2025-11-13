@@ -48,42 +48,47 @@ Authorization: Bearer YOUR_TOKEN_HERE
 }
 ```
 
-**Implementación**: `src/plugins/bearer.ts:22-38`
+**Implementación**: `src/plugins/bearer.ts:24-104`
 
-### ⚠️ Validación Pendiente
+### ✅ Validación JWT Implementada
 
-**IMPORTANTE**: Actualmente el plugin **solo verifica que el token exista**, NO valida su contenido.
+El plugin **valida completamente** los tokens JWT:
 
-```typescript
-// TODO en src/plugins/bearer.ts:36
-// const payload = verifyJwt(token)
-// (req as any).user = payload;
-```
+**Funcionalidades implementadas**:
 
-**Para implementar validación JWT**:
+1. **Verificación de firma** usando `JWT_SECRET`
+2. **Validación de expiración** (maneja `TokenExpiredError`)
+3. **Validación de estructura** (maneja `JsonWebTokenError`)
+4. **Validación de payload requerido** (`userId`, `email`, `role`)
+5. **Adjuntar usuario autenticado** a `req.user`
 
-1. Instalar dependencia:
-
-```bash
-npm install jsonwebtoken
-npm install -D @types/jsonwebtoken
-```
-
-2. Añadir variables de entorno:
-
-```bash
-JWT_SECRET=your-secret-key
-JWT_ALGORITHM=HS256
-```
-
-3. Implementar verificación:
+**Código de implementación** (`src/plugins/bearer.ts:55-76`):
 
 ```typescript
-import jwt from 'jsonwebtoken';
+const payload = jwt.verify(token, jwtSecret, {
+	algorithms: [env.JWT_ALGORITHM || 'HS256'],
+}) as JwtPayload;
 
-const payload = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
-(req as any).user = payload;
+// Validaciones adicionales del payload
+if (!payload.userId || !payload.email || !payload.role) {
+	return reply.code(401).send({
+		statusCode: 401,
+		code: 'INVALID_TOKEN',
+		error: 'Unauthorized',
+		message: 'Token JWT inválido: faltan campos requeridos',
+	});
+}
+
+// Adjuntar usuario autenticado a la request
+req.user = payload;
 ```
+
+**Respuestas de error específicas**:
+
+- `UNAUTHORIZED` - Falta token Bearer
+- `INVALID_TOKEN` - Token malformado o payload incompleto
+- `TOKEN_EXPIRED` - Token expirado
+- `INTERNAL_ERROR` - JWT_SECRET no configurado
 
 ---
 
@@ -174,29 +179,46 @@ env:
 
 ## Logging de Seguridad
 
-### Información Sensible
+### ✅ Sanitización Implementada
 
-El sistema de logging **debe evitar**:
+El sistema de logging **redacta automáticamente** información sensible.
 
-- ❌ Tokens completos
-- ❌ Passwords
-- ❌ Headers `Authorization` completos
-- ❌ Datos personales (PII)
-
-**Implementación actual**: Básica, sin redacción de campos sensibles.
-
-**Mejora pendiente** (ver `roadmap.md`):
+**Implementación** (`src/core/logging/logger.ts:9-17`):
 
 ```typescript
-// En src/core/logging/logger.ts
-export function buildLoggerOptions() {
-	return {
-		level: process.env.LOG_LEVEL ?? 'info',
-		redact: {
-			paths: ['req.headers.authorization', 'req.headers.cookie', '*.password', '*.token'],
-			censor: '[REDACTED]',
-		},
-	};
+redact: {
+	paths: [
+		'req.headers.authorization',
+		'req.headers.cookie',
+		'*.password',
+		'*.token',
+		'req.body.password',
+	],
+	censor: '[REDACTED]',
+}
+```
+
+**Campos protegidos**:
+
+- ✅ Headers `Authorization` (tokens Bearer)
+- ✅ Headers `Cookie`
+- ✅ Cualquier campo `password` en cualquier nivel
+- ✅ Cualquier campo `token` en cualquier nivel
+- ✅ `req.body.password` específicamente
+
+**Ejemplo de log sanitizado**:
+
+```json
+{
+	"req": {
+		"headers": {
+			"authorization": "[REDACTED]"
+		}
+	},
+	"body": {
+		"email": "user@example.com",
+		"password": "[REDACTED]"
+	}
 }
 ```
 
@@ -224,22 +246,33 @@ app.addHook('onResponse', async (req, reply) => {
 
 ## Mejoras Pendientes
 
-### 🔒 Rate Limiting
+### ✅ Rate Limiting
 
-**Estado**: No implementado
+**Estado**: Implementado
 
-**Recomendación**: Usar `@fastify/rate-limit`
+**Configuración actual** (`src/app.ts:54`):
 
 ```typescript
-import rateLimit from '@fastify/rate-limit';
-
 await app.register(rateLimit, {
 	max: 100, // 100 requests
 	timeWindow: '1 minute',
-	skipOnError: true,
-	allowList: [/^127\.0\.0\.1$/], // Excluir localhost
+	allowList: ['127.0.0.1'], // IPs excluidas del rate limiting
 });
 ```
+
+**Características**:
+
+- 100 requests por minuto por IP
+- IPs locales (`127.0.0.1`) en allowlist
+- Responde con `429 Too Many Requests` si se excede el límite
+- Headers de rate limit incluidos en respuestas:
+  - `X-RateLimit-Limit` - Límite máximo
+  - `X-RateLimit-Remaining` - Requests restantes
+  - `X-RateLimit-Reset` - Timestamp de reset
+
+**Configuración personalizada**:
+
+Para modificar límites, editar `src/app.ts:54` o exponer como variables de entorno.
 
 ### 🔒 Helmet (Headers de Seguridad)
 

@@ -22,6 +22,17 @@ const Env = z.object({
 		.optional()
 		.default('HS256'),
 	JWT_EXPIRES_IN: z.string().optional().default('24h'), // Ej: "1h", "7d", "30m"
+	// CORS Configuration
+	CORS_ORIGINS: z.string().optional(), // Lista separada por comas de orígenes permitidos
+	// Rate Limiting
+	RATE_LIMIT_MAX: z.coerce.number().int().min(1).optional().default(100),
+	RATE_LIMIT_WINDOW: z.string().optional().default('1 minute'),
+	// Swagger
+	SWAGGER_ENABLED: z
+		.string()
+		.optional()
+		.default('true')
+		.transform((val) => val === 'true' || val === '1'),
 });
 
 export function getEnv() {

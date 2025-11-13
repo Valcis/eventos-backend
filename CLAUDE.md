@@ -54,11 +54,15 @@ Required environment variables (see `docs/env.md` for full details):
 
 - `MONGO_URL` - MongoDB connection string (required)
 - `MONGODB_DB` - Database name (required)
-- `NODE_ENV` - `development` | `production` | `test`
+- `NODE_ENV` - `development` | `production` | `test` (default: `development`)
 - `PORT` - Server port (default: 3000)
 - `BASE_PATH` - API base path (default: `/api`)
 - `MONGO_BOOT` - `0` | `1` - Auto-create indexes/validators on startup
 - `AUTH_ENABLED` - Boolean - Enable/disable bearer token authentication
+- `JWT_SECRET` - Secret key for JWT signing (required when AUTH_ENABLED=true, min 32 chars)
+- `JWT_ALGORITHM` - JWT algorithm (default: `HS256`, options: HS256/HS384/HS512/RS256/RS384/RS512)
+- `JWT_EXPIRES_IN` - JWT expiration time (default: `24h`, format: "1h", "7d", "30m")
+- `LOG_LEVEL` - Logging level (default: `info`, options: debug/info/warn/error)
 
 ## Architecture Patterns
 
@@ -258,10 +262,11 @@ All responses use standardized envelopes (see `core/http/envelopes.ts`):
 
 ## OpenAPI/Swagger
 
-- Swagger UI available at `/swagger` (controlled by `SWAGGER_ENABLE` env var)
-- Uses `@fastify/swagger` + `fastify-type-provider-zod`
-- Schemas defined with Zod, auto-converted to OpenAPI
+- Swagger UI available at `/swagger`
+- Uses `@fastify/swagger` + `@fastify/swagger-ui` + `fastify-type-provider-zod`
+- Schemas defined with Zod, auto-converted to OpenAPI dynamically
 - Response schemas in `shared/schemas/responses.ts`
+- OpenAPI spec generated from Zod schemas (not static YAML)
 
 ## Authentication
 
@@ -269,8 +274,20 @@ Bearer token authentication plugin (`plugins/bearer.ts`):
 
 - Controlled by `AUTH_ENABLED` env var (default: `false`)
 - Exempt paths configured per-plugin (e.g., `/health`, `/swagger`)
-- Token validation is a **TODO** - currently just checks presence
-- Add JWT/HMAC verification as needed
+- **JWT verification is IMPLEMENTED** - validates token signature, expiration, and required payload fields
+- Uses `jsonwebtoken` library for token verification
+- Validates payload contains `userId`, `email`, and `role`
+- Handles token expiration errors (`TokenExpiredError`) and invalid tokens (`JsonWebTokenError`)
+- Authenticated user payload attached to `req.user` for downstream use
+
+## Rate Limiting
+
+The application includes rate limiting configured in `src/app.ts`:
+
+- Uses `@fastify/rate-limit` plugin
+- Default: 100 requests per minute per IP
+- Localhost IPs (`127.0.0.1`) are allowlisted
+- Can be configured via environment variables (see `docs/security.md`)
 
 ## MongoDB Connection
 

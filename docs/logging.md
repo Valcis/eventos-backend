@@ -206,56 +206,37 @@ app.log.error({ err }, 'Database error');
 
 ---
 
-## Mejoras Pendientes
+## Características Implementadas
 
-### 🔄 Rotación de Logs
+### ✅ Redacción de Datos Sensibles
 
-**Estado**: No implementado
+**Estado**: Implementado
 
-**Problema**: El archivo de log crece indefinidamente
+El logger **redacta automáticamente** información sensible.
 
-**Solución**: Usar `pino-rotating-file` o similar:
-
-```typescript
-import pino from 'pino';
-import { createStream } from 'rotating-file-stream';
-
-const stream = createStream('app.log', {
-	interval: '1d', // Rotar diariamente
-	maxFiles: 7, // Mantener 7 días
-	path: './logs',
-});
-
-const logger = pino(stream);
-```
-
-### 🔒 Redacción de Datos Sensibles
-
-**Estado**: No implementado
-
-**Problema**: Tokens y passwords pueden aparecer en logs
-
-**Solución**: Configurar `redact` en Pino:
+**Implementación** (`src/core/logging/logger.ts:9-17`):
 
 ```typescript
-export function buildLoggerOptions() {
-	return {
-		level: process.env.LOG_LEVEL ?? 'info',
-		redact: {
-			paths: [
-				'req.headers.authorization',
-				'req.headers.cookie',
-				'*.password',
-				'*.token',
-				'*.secret',
-			],
-			censor: '[REDACTED]',
-		},
-	};
+redact: {
+	paths: [
+		'req.headers.authorization',
+		'req.headers.cookie',
+		'*.password',
+		'*.token',
+		'req.body.password',
+	],
+	censor: '[REDACTED]',
 }
 ```
 
-**Ejemplo**:
+**Campos protegidos**:
+
+- Headers `Authorization` (Bearer tokens)
+- Headers `Cookie`
+- Todos los campos `password` y `token`
+- `req.body.password` específicamente
+
+**Ejemplo de salida**:
 
 ```json
 {
@@ -267,26 +248,92 @@ export function buildLoggerOptions() {
 }
 ```
 
-### 📊 Serializers Personalizados
+### ✅ Serializers Personalizados
+
+**Estado**: Implementado
+
+Formateo automático de objetos request (`src/core/logging/logger.ts:19-36`):
+
+```typescript
+serializers: {
+	req: (req: unknown) => {
+		const r = req as { method?: string; url?: string; hostname?: string; ip?: string; socket?: { remotePort?: number } };
+		return {
+			method: r.method ?? 'UNKNOWN',
+			url: r.url ?? 'UNKNOWN',
+			hostname: r.hostname ?? 'UNKNOWN',
+			remoteAddress: r.ip ?? 'UNKNOWN',
+			remotePort: r.socket?.remotePort ?? 0,
+		};
+	},
+}
+```
+
+**Beneficios**:
+
+- Estructura consistente en logs de request
+- Elimina información innecesaria
+- Reduce tamaño de logs
+
+### ✅ Transport a Archivo
+
+**Estado**: Implementado
+
+Logs se escriben tanto a consola como a archivos (`src/core/logging/logger.ts:38-78`):
+
+**Archivos generados**:
+
+- `logs/app.log` - Todos los logs (nivel `info` y superior)
+- `logs/error.log` - Solo errores (nivel `error`)
+
+**Configuración**:
+
+```typescript
+transport: {
+	targets: [
+		// Consola (pretty print en desarrollo)
+		{
+			target: 'pino-pretty',
+			level: 'info',
+			options: { colorize: true, translateTime: 'HH:MM:ss' },
+		},
+		// Archivo general
+		{
+			target: 'pino/file',
+			level: 'info',
+			options: { destination: join(process.cwd(), 'logs', 'app.log'), mkdir: true },
+		},
+		// Archivo de errores
+		{
+			target: 'pino/file',
+			level: 'error',
+			options: { destination: join(process.cwd(), 'logs', 'error.log'), mkdir: true },
+		},
+	],
+}
+```
+
+**Creación automática**: El directorio `logs/` se crea automáticamente si no existe (`mkdir: true`).
+
+## Mejoras Pendientes
+
+### 🔄 Rotación de Logs
 
 **Estado**: No implementado
 
-**Mejora**: Formatear objetos automáticamente:
+**Problema**: Archivos de log crecen indefinidamente
 
-```typescript
-export function buildLoggerOptions() {
-	return {
-		level: process.env.LOG_LEVEL ?? 'info',
-		serializers: {
-			req: (req) => ({
-				id: req.id,
-				method: req.method,
-				url: req.url,
-				// Omitir headers por defecto
-			}),
-			err: pino.stdSerializers.err,
-		},
-	};
+**Solución recomendada**: Usar `pino-rotating-file` o logrotate del sistema operativo.
+
+```bash
+# logrotate config
+/ruta/al/proyecto/logs/*.log {
+  daily
+  rotate 7
+  compress
+  delaycompress
+  missingok
+  notifempty
 }
 ```
 

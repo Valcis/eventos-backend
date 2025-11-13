@@ -51,9 +51,15 @@ export async function buildApp() {
 
 	await app.register(requestId);
 	await app.register(corsPlugin);
-	await app.register(rateLimit, { max: 100, timeWindow: '1 minute', allowList: ['127.0.0.1'] });
+	await app.register(rateLimit, {
+		max: env.RATE_LIMIT_MAX,
+		timeWindow: env.RATE_LIMIT_WINDOW,
+		allowList: ['127.0.0.1', '::1', 'localhost'],
+	});
 
-	await app.register(openApiPlugin);
+	if (env.SWAGGER_ENABLED) {
+		await app.register(openApiPlugin);
+	}
 	await app.register(healthRoutes, { prefix: '/health' });
 	await app.register(bearerAuth, { exemptPaths: ['/health', '/swagger'] });
 
