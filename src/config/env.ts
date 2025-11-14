@@ -33,6 +33,15 @@ const Env = z.object({
 		.optional()
 		.default('true')
 		.transform((val) => val === 'true' || val === '1'),
+	// Auth0 Configuration (OAuth)
+	AUTH0_ENABLED: z
+		.string()
+		.optional()
+		.default('false')
+		.transform((val) => val === 'true' || val === '1'),
+	AUTH0_DOMAIN: z.string().optional(), // Ej: "tu-tenant.auth0.com"
+	AUTH0_AUDIENCE: z.string().optional(), // Ej: "https://api.tu-aplicacion.com"
+	LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).optional().default('info'),
 });
 
 export function getEnv() {
@@ -47,6 +56,15 @@ export function getEnv() {
 		console.error('ERROR: JWT_SECRET is required when AUTH_ENABLED is true');
 		console.error('Please set JWT_SECRET in your .env file (minimum 32 characters)');
 		process.exit(1);
+	}
+
+	// Validar que AUTH0_DOMAIN y AUTH0_AUDIENCE estén presentes si AUTH0_ENABLED está activo
+	if (parsed.data.AUTH0_ENABLED) {
+		if (!parsed.data.AUTH0_DOMAIN || !parsed.data.AUTH0_AUDIENCE) {
+			console.error('ERROR: AUTH0_DOMAIN and AUTH0_AUDIENCE are required when AUTH0_ENABLED is true');
+			console.error('Please set AUTH0_DOMAIN and AUTH0_AUDIENCE in your .env file');
+			process.exit(1);
+		}
 	}
 
 	return parsed.data;

@@ -2,16 +2,37 @@
 
 ## Autenticación
 
-### Bearer Token (Actual)
+El sistema ofrece **dos estrategias de autenticación mutuamente exclusivas**:
+
+1. **Autenticación Local (JWT)** - Login/registro con email y contraseña
+2. **Auth0 OAuth** - Login social con Google, Instagram, Facebook, etc.
+
+### Estrategia 1: Autenticación Local con JWT
 
 El proyecto usa autenticación **Bearer Token** implementada en `src/plugins/bearer.ts`.
 
-**Configuración**: Variable de entorno `AUTH_ENABLED`
+**Configuración**: Variables de entorno
 
 ```bash
-AUTH_ENABLED=true   # Requiere token en todas las rutas
-AUTH_ENABLED=false  # Deshabilitado (desarrollo)
+AUTH_ENABLED=true   # Requiere token JWT en todas las rutas
+AUTH0_ENABLED=false # Desactivar Auth0
+JWT_SECRET=your-secret-key-min-32-chars
 ```
+
+### Estrategia 2: Auth0 OAuth Social
+
+Autenticación mediante proveedores sociales usando Auth0.
+
+**Configuración**: Variables de entorno
+
+```bash
+AUTH_ENABLED=false  # Desactivar JWT local
+AUTH0_ENABLED=true  # Activar Auth0
+AUTH0_DOMAIN=tu-tenant.auth0.com
+AUTH0_AUDIENCE=https://api.tu-aplicacion.com
+```
+
+**Ver**: [Auth0 Plugin](../src/plugins/auth0.ts) - Implementación de Auth0
 
 ### Rutas Protegidas
 
@@ -49,6 +70,180 @@ Authorization: Bearer YOUR_TOKEN_HERE
 ```
 
 **Implementación**: `src/plugins/bearer.ts:24-104`
+
+---
+
+## Sistema de Usuarios y Roles
+
+### Colección de Usuarios (`usuarios`)
+
+El sistema gestiona usuarios con tres roles:
+
+- **`user`** (default) - Usuario estándar
+- **`admin`** - Administrador con permisos elevados
+- **`owner`** - Propietario del sistema
+
+**Schema de Usuario** (`src/modules/users/schema.ts`):
+
+```typescript
+{
+  id: string,
+  email: string,           // Único, case-insensitive
+  passwordHash?: string,   // Solo para provider='local'
+  name: string,
+  role: 'user' | 'admin' | 'owner',
+  provider: 'local' | 'auth0',
+  providerId?: string,     // ID de Auth0 (para OAuth)
+  eventIds?: string[],     // Eventos a los que tiene acceso
+  avatar?: string,
+  emailVerified: boolean,
+  lastLoginAt?: Date,
+  isActive: boolean,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### Endpoints de Autenticación
+
+**POST `/api/auth/register`** - Registrar nuevo usuario
+
+```http
+POST /api/auth/register
+Content-Type: application/json
+
+{
+  "email": "usuario@ejemplo.com",
+  "password": "contraseña-segura",
+  "name": "Juan Pérez"
+}
+```
+
+**Respuesta (201)**:
+
+```json
+{
+  "ok": true,
+  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+  "refreshToken": "eyJhbGciOiJIUzI1NiIs...",
+  "user": {
+    "id": "6745abc123...",
+    "email": "usuario@ejemplo.com",
+    "name": "Juan Pérez",
+    "role": "user",
+    "provider": "local",
+    "isActive": true,
+    "emailVerified": false
+  },
+  "expiresIn": "24h"
+}
+```
+
+**POST `/api/auth/login`** - Iniciar sesión
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "usuario@ejemplo.com",
+  "password": "contraseña-segura"
+}
+```
+
+**Respuesta**: Igual que `/register`
+
+**POST `/api/auth/refresh`** - Renovar access token
+
+```http
+POST /api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
+}
+```
+
+**GET `/api/auth/me`** - Obtener usuario actual
+
+```http
+GET /api/auth/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+```
+
+**POST `/api/auth/change-password`** - Cambiar contraseña
+
+```http
+POST /api/auth/change-password
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+Content-Type: application/json
+
+{
+  "currentPassword": "contraseña-actual",
+  "newPassword": "nueva-contraseña"
+}
+```
+
+**Ver**: `src/modules/auth/routes.ts` - Implementación completa
+
+### Endpoints de Gestión de Usuarios
+
+**CRUD completo en `/api/users`** (requiere autenticación):
+
+- `GET /users` - Listar usuarios
+- `GET /users/:id` - Obtener usuario
+- `POST /users` - Crear usuario
+- `PUT /users/:id` - Actualizar usuario
+- `PATCH /users/:id` - Actualización parcial
+- `DELETE /users/:id` - Soft delete (isActive=false)
+
+**Ver**: `src/modules/users/routes.ts` - Implementación completa
+
+### Seguridad de Contraseñas
+
+**Hashing con bcrypt** (`src/modules/auth/routes.ts`):
+
+```typescript
+const passwordHash = await bcrypt.hash(password, 10); // 10 salt rounds
+```
+
+**Validación**:
+
+- Mínimo 8 caracteres
+- Máximo 100 caracteres
+- Nunca se expone `passwordHash` en las respuestas (uso de `UserPublic` schema)
+
+### Tokens JWT
+
+**Access Token** (24h por defecto):
+
+- Contiene: `userId`, `email`, `role`, `eventIds`
+- Firmado con `JWT_SECRET`
+- Validado en cada request
+
+**Refresh Token** (30 días):
+
+- Solo contiene: `userId`, `type: 'refresh'`
+- Usado únicamente en `/auth/refresh`
+- No tiene acceso directo a la API
+
+### Auto-Creación de Usuarios (Auth0)
+
+Cuando un usuario hace login con Auth0 por primera vez:
+
+1. El plugin Auth0 valida el token con Auth0
+2. Busca el usuario en la base de datos por `providerId`
+3. Si no existe, lo crea automáticamente:
+   - `provider: 'auth0'`
+   - `role: 'user'` (default)
+   - `email` del perfil de Auth0
+   - `name` del perfil de Auth0
+   - `avatar` del perfil de Auth0
+4. Adjunta el usuario a `req.user` para uso posterior
+
+**Implementación**: `src/plugins/auth0.ts:60-100`
+
+---
 
 ### ✅ Validación JWT Implementada
 
