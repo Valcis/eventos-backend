@@ -1,16 +1,12 @@
 import fp from 'fastify-plugin';
 import swagger from '@fastify/swagger';
 import swaggerUI from '@fastify/swagger-ui';
-import {
-	validatorCompiler,
-	serializerCompiler,
-	jsonSchemaTransform,
-} from 'fastify-type-provider-zod';
+import { jsonSchemaTransform } from 'fastify-type-provider-zod';
 
 export default fp(
 	async (app) => {
-		app.setValidatorCompiler(validatorCompiler);
-		app.setSerializerCompiler(serializerCompiler);
+		// NOTA: validatorCompiler y serializerCompiler se registran en app.ts
+		// para asegurar que siempre estén activos, incluso si Swagger está deshabilitado
 
 		// Registrar Swagger
 		await app.register(swagger, {

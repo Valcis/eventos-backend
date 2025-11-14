@@ -29,6 +29,10 @@ import auth0Plugin from './plugins/auth0';
 import openApiPlugin from './plugins/openapi';
 import { createErrorHandler } from './core/http/errorHandler';
 import { sanitizeQueryParams } from './core/middleware/sanitize';
+import {
+	validatorCompiler,
+	serializerCompiler,
+} from 'fastify-type-provider-zod';
 
 const env = getEnv();
 
@@ -42,6 +46,12 @@ export async function buildApp() {
 	}).withTypeProvider<ZodTypeProvider>();
 
 	app.decorate('db', db);
+
+	// CRÍTICO: Registrar validador y serializador de Zod SIEMPRE (no solo si Swagger está habilitado)
+	// Esto asegura que todas las rutas validen automáticamente el request/response con Zod
+	// y devuelvan errores 400 con detalles en lugar de 500 genéricos
+	app.setValidatorCompiler(validatorCompiler);
+	app.setSerializerCompiler(serializerCompiler);
 
 	if (env.MONGO_BOOT === '1') {
 		try {
