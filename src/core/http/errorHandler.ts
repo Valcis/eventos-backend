@@ -270,6 +270,7 @@ export function errorHandler(
 	console.error('Error code:', errCode);
 	console.error('Error message:', err.message);
 	console.error('Is ZodError:', err instanceof ZodError);
+	console.error('Error cause:', (err as any).cause);
 
 	req.log.error(
 		{
@@ -287,9 +288,15 @@ export function errorHandler(
 	let response: ErrorResponse;
 
 	// Handle different error types
-	if (err instanceof AppError) {
+	// IMPORTANTE: Revisar si el error tiene un cause que sea ZodError
+	const zodCause = (err as any).cause;
+	if (zodCause && zodCause instanceof ZodError) {
+		console.error('=== HANDLING ZodError FROM CAUSE ===');
+		response = handleZodError(zodCause);
+	} else if (err instanceof AppError) {
 		response = handleAppError(err);
 	} else if (err instanceof ZodError) {
+		console.error('=== HANDLING ZodError DIRECTLY ===');
 		response = handleZodError(err);
 	} else if (isJWTError(err)) {
 		response = handleJWTError(err);
