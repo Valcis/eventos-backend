@@ -46,23 +46,17 @@ export async function buildApp() {
 			console.error('Errors:', JSON.stringify(errors, null, 2));
 			console.error('DataVar:', dataVar);
 
-			// Extraer el primer error de Zod
-			const firstError = errors[0];
-			if (firstError) {
-				return new Error(
-					JSON.stringify({
-						statusCode: 400,
-						code: 'VALIDATION_ERROR',
-						error: 'Bad Request',
-						message: 'Error de validación en los datos enviados',
-						details: errors.map((e) => ({
-							path: e.instancePath || dataVar,
-							message: e.message || 'Error de validación',
-						})),
-					}),
-				);
-			}
-			return new Error('Validation error');
+			// Crear un error con la estructura correcta para el errorHandler
+			const validationError: any = new Error('Error de validación en los datos enviados');
+			validationError.statusCode = 400;
+			validationError.code = 'VALIDATION_ERROR';
+			validationError.validation = errors.map((e: any) => ({
+				path: e.instancePath?.replace(/^\//, '') || dataVar,
+				message: e.message || 'Error de validación',
+				code: e.params?.issue?.code || e.keyword,
+			}));
+
+			return validationError;
 		},
 	}).withTypeProvider<ZodTypeProvider>();
 
