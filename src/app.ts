@@ -1,6 +1,5 @@
 import Fastify from 'fastify';
 import rateLimit from '@fastify/rate-limit';
-import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { buildLoggerOptions } from './core/logging/logger';
 import corsPlugin from './plugins/cors';
 import { healthRoutes } from './system/healthCheck';
@@ -29,7 +28,7 @@ import auth0Plugin from './plugins/auth0';
 import openApiPlugin from './plugins/openapi';
 import { createErrorHandler } from './core/http/errorHandler';
 import { sanitizeQueryParams } from './core/middleware/sanitize';
-import { validatorCompiler, serializerCompiler } from 'fastify-type-provider-zod';
+import { ZodTypeProvider, validatorCompiler, serializerCompiler } from 'fastify-type-provider-zod';
 import type { ZodSchema } from 'zod';
 
 const env = getEnv();
@@ -118,6 +117,8 @@ export async function buildApp() {
 		await app.register(bearerAuth, { exemptPaths });
 	}
 
+	await app.register(authRoutes, { prefix: base + '/auth' });
+	await app.register(usersRoutes, { prefix: base + '/users' });
 	await app.register(eventsRoutes, { prefix: base + '/events' });
 	await app.register(reservationsRoutes, { prefix: base + '/reservations' });
 	await app.register(productsRoutes, { prefix: base + '/products' });
@@ -132,8 +133,6 @@ export async function buildApp() {
 	await app.register(payersRoutes, { prefix: base + '/payers' });
 	await app.register(pickupPointsRoutes, { prefix: base + '/pickup-points' });
 	await app.register(partnersRoutes, { prefix: base + '/partners' });
-	await app.register(usersRoutes, { prefix: base + '/users' });
-	await app.register(authRoutes, { prefix: base + '/auth' });
 
 	app.addHook('onResponse', async (req, reply) => {
 		req.log.info(

@@ -1,21 +1,28 @@
 import { join } from 'node:path';
 import type { FastifyServerOptions } from 'fastify';
+import pino from 'pino';
+
+const isDev = process.env.NODE_ENV !== 'production';
+const logLevel = process.env.LOG_LEVEL ?? 'info';
 
 export function buildLoggerOptions(): FastifyServerOptions['logger'] {
-	const isDev = process.env.NODE_ENV !== 'production';
-
-	return {
-		level: process.env.LOG_LEVEL ?? 'info',
+	const baseOptions = {
+		level: logLevel,
+		// Redactar datos sensibles
 		redact: {
 			paths: [
 				'req.headers.authorization',
 				'req.headers.cookie',
 				'*.password',
 				'*.token',
+				'*.passwordHash',
 				'req.body.password',
+				'req.body.currentPassword',
+				'req.body.newPassword',
 			],
 			censor: '[REDACTED]',
 		},
+		// Serializers personalizados
 		serializers: {
 			req: (req: unknown) => {
 				const r = req as {
@@ -23,41 +30,81 @@ export function buildLoggerOptions(): FastifyServerOptions['logger'] {
 					url?: string;
 					hostname?: string;
 					ip?: string;
-					socket?: { remotePort?: number };
+					headers?: Record<string, unknown>;
+					body?: unknown;
+					query?: unknown;
+					params?: unknown;
 				};
 				return {
 					method: r.method ?? 'UNKNOWN',
 					url: r.url ?? 'UNKNOWN',
 					hostname: r.hostname ?? 'UNKNOWN',
-					remoteAddress: r.ip ?? 'UNKNOWN',
-					remotePort: r.socket?.remotePort ?? 0,
+					ip: r.ip ?? 'UNKNOWN',
+					userAgent: (r.headers as Record<string, string>)?.['user-agent'] ?? 'UNKNOWN',
+					body: r.body,
+					query: r.query,
+					params: r.params,
 				};
 			},
+			res: (res: unknown) => {
+				const r = res as {
+					statusCode?: number;
+					headers?: Record<string, unknown>;
+				};
+				return {
+					statusCode: r.statusCode ?? 0,
+					headers: r.headers,
+				};
+			},
+			err: pino.stdSerializers.err,
 		},
-		// Transport para escribir en archivo Y consola
+	};
+
+	// En desarrollo: usar pino-pretty via transport
+	if (isDev) {
+		return {
+			...baseOptions,
+			transport: {
+				targets: [
+					{
+						target: 'pino-pretty',
+						level: logLevel,
+						options: {
+							colorize: true,
+							translateTime: 'HH:MM:ss',
+							ignore: 'pid,hostname',
+						},
+					},
+					{
+						target: 'pino-roll',
+						level: 'info',
+						options: {
+							file: join(process.cwd(), 'logs', 'app'),
+							frequency: 'daily',
+							size: '10m',
+							mkdir: true,
+						},
+					},
+					{
+						target: 'pino-roll',
+						level: 'error',
+						options: {
+							file: join(process.cwd(), 'logs', 'error'),
+							frequency: 'daily',
+							size: '10m',
+							mkdir: true,
+						},
+					},
+				],
+			},
+		};
+	}
+
+	// En producción: solo archivos con pino-roll
+	return {
+		...baseOptions,
 		transport: {
 			targets: [
-				// Consola con pretty print en desarrollo
-				...(isDev
-					? [
-							{
-								target: 'pino-pretty',
-								level: 'info',
-								options: {
-									colorize: true,
-									translateTime: 'HH:MM:ss',
-									ignore: 'pid,hostname',
-								},
-							},
-						]
-					: [
-							{
-								target: 'pino/file',
-								level: 'info',
-								options: { destination: 1 }, // stdout
-							},
-						]),
-				// Archivo siempre (desarrollo y producción) con rotación diaria
 				{
 					target: 'pino-roll',
 					level: 'info',
@@ -68,7 +115,6 @@ export function buildLoggerOptions(): FastifyServerOptions['logger'] {
 						mkdir: true,
 					},
 				},
-				// Archivo de errores con rotación diaria
 				{
 					target: 'pino-roll',
 					level: 'error',
