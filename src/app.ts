@@ -48,11 +48,20 @@ export async function buildApp() {
 	// Esto asegura que los errores pasen por errorHandler
 	app.setValidatorCompiler(({ schema }) => {
 		return (data) => {
+			console.error('=== VALIDATOR CALLED ===');
+			console.error('Data:', JSON.stringify(data, null, 2));
+
 			try {
 				const zodSchema = schema as ZodSchema;
+				console.error('=== VALIDATOR: Parsing with Zod ===');
 				const result = zodSchema.parse(data);
+				console.error('=== VALIDATOR: Parse successful ===');
 				return { value: result };
 			} catch (error) {
+				console.error('=== VALIDATOR: Parse failed ===');
+				console.error('Error type:', error?.constructor?.name);
+				console.error('Is ZodError:', error instanceof ZodError);
+
 				// Si es ZodError, LANZARLO para que llegue a errorHandler
 				if (error instanceof ZodError) {
 					console.error('=== VALIDATOR THROWING ZodError ===');
@@ -61,6 +70,7 @@ export async function buildApp() {
 					throw error;
 				}
 				// Si es otro tipo de error, lanzarlo
+				console.error('=== VALIDATOR: Throwing non-Zod error ===');
 				throw error;
 			}
 		};
