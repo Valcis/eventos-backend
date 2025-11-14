@@ -124,6 +124,33 @@ export async function buildApp() {
 	// Sanitizar query params para prevenir operator injection
 	app.addHook('preHandler', sanitizeQueryParams);
 
+	// Hook para interceptar errores de validación ANTES de serializar
+	app.addHook('preSerialization', async (req, reply, payload) => {
+		// Si es un error de validación (statusCode 400 con validation)
+		if (reply.statusCode === 400 && payload && typeof payload === 'object') {
+			const errorPayload = payload as any;
+			// Detectar si es un error de validación de Fastify
+			if (errorPayload.validation || errorPayload.message?.includes('validation')) {
+				console.error('=== INTERCEPTING VALIDATION ERROR IN preSerialization ===');
+				console.error('Payload:', JSON.stringify(errorPayload, null, 2));
+
+				// Reformatear al formato esperado
+				return {
+					statusCode: 400,
+					code: 'VALIDATION_ERROR',
+					error: 'Bad Request',
+					message: 'Error de validación en los datos enviados',
+					details: (errorPayload.validation || []).map((e: any) => ({
+						path: e.instancePath?.replace(/^\//, '').replace(/\//g, '.') || 'unknown',
+						message: e.message || 'Error de validación',
+						code: e.params?.issue?.code || e.keyword,
+					})),
+				};
+			}
+		}
+		return payload;
+	});
+
 	await app.register(rateLimit, {
 		max: env.RATE_LIMIT_MAX,
 		timeWindow: env.RATE_LIMIT_WINDOW,
