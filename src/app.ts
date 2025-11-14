@@ -44,9 +44,29 @@ export async function buildApp() {
 
 	app.decorate('db', db);
 
-	// CRÍTICO: Registrar validador Y serializer de Zod SIEMPRE (no solo si Swagger está habilitado)
+	// CRÍTICO: Registrar validador de Zod SIEMPRE (no solo si Swagger está habilitado)
 	app.setValidatorCompiler(validatorCompiler);
-	app.setSerializerCompiler(serializerCompiler);
+
+	// Serializer custom: NO serializar errores, solo respuestas exitosas
+	// Evita error 500 cuando hay errores de validación
+	app.setSerializerCompiler(({ schema }) => {
+		const zodSchema = schema as ZodSchema;
+		return (data) => {
+			// NO serializar errores - dejar que Fastify los maneje
+			// Los errores tienen statusCode >= 400
+			if (data && typeof data === 'object' && 'statusCode' in data) {
+				const statusCode = (data as { statusCode: number }).statusCode;
+				if (statusCode >= 400) {
+					// Es un error, NO validar con Zod
+					// Fastify se encargará de serializarlo correctamente
+					return JSON.stringify(data);
+				}
+			}
+
+			// Para respuestas exitosas, validar con Zod
+			return JSON.stringify(zodSchema.parse(data));
+		};
+	});
 
 	if (env.MONGO_BOOT === '1') {
 		try {
