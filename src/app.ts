@@ -29,10 +29,7 @@ import auth0Plugin from './plugins/auth0';
 import openApiPlugin from './plugins/openapi';
 import { createErrorHandler } from './core/http/errorHandler';
 import { sanitizeQueryParams } from './core/middleware/sanitize';
-import {
-	validatorCompiler,
-	serializerCompiler,
-} from 'fastify-type-provider-zod';
+import { validatorCompiler } from 'fastify-type-provider-zod';
 
 const env = getEnv();
 
@@ -47,11 +44,15 @@ export async function buildApp() {
 
 	app.decorate('db', db);
 
-	// CRÍTICO: Registrar validador y serializador de Zod SIEMPRE (no solo si Swagger está habilitado)
-	// Esto asegura que todas las rutas validen automáticamente el request/response con Zod
+	// CRÍTICO: Registrar validador de Zod SIEMPRE (no solo si Swagger está habilitado)
+	// Esto asegura que todas las rutas validen automáticamente el request con Zod
 	// y devuelvan errores 400 con detalles en lugar de 500 genéricos
 	app.setValidatorCompiler(validatorCompiler);
-	app.setSerializerCompiler(serializerCompiler);
+
+	// NOTA: NO registramos serializerCompiler porque valida las respuestas de error automáticas
+	// generadas por Fastify, lo cual causa FST_ERR_FAILED_ERROR_SERIALIZATION (error 500)
+	// cuando la validación falla. Solo necesitamos validar el REQUEST, no la RESPONSE de error.
+	// Si necesitamos validar respuestas exitosas, lo haremos manualmente en cada handler.
 
 	if (env.MONGO_BOOT === '1') {
 		try {
