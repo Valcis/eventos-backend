@@ -40,6 +40,30 @@ export async function buildApp() {
 		logger: loggerOptions ?? true,
 		disableRequestLogging: true,
 		requestTimeout: 15000,
+		// Schema error formatter para manejar errores de validación de Zod
+		schemaErrorFormatter: (errors, dataVar) => {
+			console.error('=== SCHEMA VALIDATION ERROR ===');
+			console.error('Errors:', JSON.stringify(errors, null, 2));
+			console.error('DataVar:', dataVar);
+
+			// Extraer el primer error de Zod
+			const firstError = errors[0];
+			if (firstError) {
+				return new Error(
+					JSON.stringify({
+						statusCode: 400,
+						code: 'VALIDATION_ERROR',
+						error: 'Bad Request',
+						message: 'Error de validación en los datos enviados',
+						details: errors.map((e) => ({
+							path: e.instancePath || dataVar,
+							message: e.message || 'Error de validación',
+						})),
+					}),
+				);
+			}
+			return new Error('Validation error');
+		},
 	}).withTypeProvider<ZodTypeProvider>();
 
 	app.decorate('db', db);
