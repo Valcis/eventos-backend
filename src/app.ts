@@ -44,8 +44,20 @@ export async function buildApp() {
 
 	app.decorate('db', db);
 
-	// CRÍTICO: Registrar validador de Zod SIEMPRE (no solo si Swagger está habilitado)
-	app.setValidatorCompiler(validatorCompiler);
+	// CRÍTICO: Registrar validador de Zod que LANCE el error al errorHandler
+	app.setValidatorCompiler(({ schema }) => {
+		return (data) => {
+			try {
+				const zodSchema = schema as ZodSchema;
+				zodSchema.parse(data);
+				return { value: data };
+			} catch (error) {
+				// LANZAR el error de Zod para que lo capture el errorHandler
+				console.error('=== VALIDATOR THROWING ZodError ===');
+				throw error;
+			}
+		};
+	});
 
 	// Serializer custom: NO serializar errores, solo respuestas exitosas
 	// Evita error 500 cuando hay errores de validación
