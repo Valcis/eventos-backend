@@ -44,13 +44,9 @@ export async function buildApp() {
 
 	app.decorate('db', db);
 
-	// CRÍTICO: Registrar validador de Zod SIEMPRE (no solo si Swagger está habilitado)
+	// CRÍTICO: Registrar validador Y serializer de Zod SIEMPRE (no solo si Swagger está habilitado)
 	app.setValidatorCompiler(validatorCompiler);
-
-	// NO usar serializerCompiler - permite que los errores se serialicen correctamente
-	// El serializerCompiler de Zod puede causar problemas con errores de validación
-	// dejando que Fastify maneje la serialización por defecto
-	// Si se necesita validación de respuestas en el futuro, usar solo para rutas específicas
+	app.setSerializerCompiler(serializerCompiler);
 
 	if (env.MONGO_BOOT === '1') {
 		try {
