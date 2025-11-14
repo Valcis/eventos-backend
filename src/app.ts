@@ -187,7 +187,9 @@ export async function buildApp() {
 	});
 
 	// Centralized error handler
+	console.log('=== CONFIGURING ERROR HANDLER ===');
 	app.setErrorHandler(createErrorHandler(env.NODE_ENV !== 'production'));
+	console.log('=== ERROR HANDLER CONFIGURED ===');
 
 	app.ready((e) => {
 		if (e) app.log.error(e);
