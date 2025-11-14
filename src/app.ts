@@ -44,7 +44,8 @@ export async function buildApp() {
 
 	app.decorate('db', db);
 
-	// CRÍTICO: Registrar validador de Zod que devuelva errores formateados
+	// CRÍTICO: Registrar validador de Zod que LANCE errores
+	// Esto asegura que los errores pasen por errorHandler
 	app.setValidatorCompiler(({ schema }) => {
 		return (data) => {
 			try {
@@ -52,18 +53,12 @@ export async function buildApp() {
 				const result = zodSchema.parse(data);
 				return { value: result };
 			} catch (error) {
-				// Si es ZodError, devolver como error de validación de Fastify
+				// Si es ZodError, LANZARLO para que llegue a errorHandler
 				if (error instanceof ZodError) {
-					console.error('=== VALIDATOR RETURNING ZodError ===');
-					return {
-						error: error.issues.map((issue: any) => ({
-							keyword: issue.code,
-							instancePath: '/' + issue.path.join('/'),
-							schemaPath: `#/${issue.path.join('/')}/${issue.code}`,
-							message: issue.message,
-							params: { issue },
-						})),
-					};
+					console.error('=== VALIDATOR THROWING ZodError ===');
+					console.error('ZodError issues:', JSON.stringify(error.issues, null, 2));
+					// Lanzar el error directamente - Fastify lo capturará y llamará errorHandler
+					throw error;
 				}
 				// Si es otro tipo de error, lanzarlo
 				throw error;
@@ -129,42 +124,42 @@ export async function buildApp() {
 	// Sanitizar query params para prevenir operator injection
 	app.addHook('preHandler', sanitizeQueryParams);
 
-	// Hook para interceptar errores de validación ANTES de serializar
-	app.addHook('preSerialization', async (req, reply, payload) => {
-		// DEBUG: Log EVERYTHING that comes through preSerialization
-		console.error('=== preSerialization CALLED ===');
+	// Hook onSend: ÚLTIMO hook antes de enviar respuesta al cliente
+	// Aquí interceptamos respuestas vacías de errores de validación
+	app.addHook('onSend', async (req, reply, payload) => {
+		console.error('=== onSend CALLED ===');
 		console.error('StatusCode:', reply.statusCode);
 		console.error('Payload type:', typeof payload);
-		console.error(
-			'Payload keys:',
-			payload && typeof payload === 'object' ? Object.keys(payload) : 'N/A',
-		);
-		console.error('Payload:', JSON.stringify(payload, null, 2));
+		console.error('Payload length:', typeof payload === 'string' ? payload.length : 'N/A');
+		console.error('Payload:', payload);
 
-		// Si es un error de validación (statusCode 400 con validation)
-		if (reply.statusCode === 400 && payload && typeof payload === 'object') {
-			const errorPayload = payload as any;
-			// Detectar si es un error de validación de Fastify
-			if (errorPayload.validation || errorPayload.message?.includes('validation')) {
-				console.error('=== INTERCEPTING VALIDATION ERROR IN preSerialization ===');
-				console.error('Validation errors:', JSON.stringify(errorPayload.validation, null, 2));
+		// Si es un error 400 (validación) y el payload está vacío o es "{}"
+		if (reply.statusCode === 400) {
+			const payloadStr = typeof payload === 'string' ? payload : String(payload);
 
-				// Reformatear al formato esperado
-				const reformatted = {
+			console.error('=== Detected 400 error ===');
+			console.error('Payload string:', payloadStr);
+			console.error('Is empty or {}:', payloadStr === '{}' || payloadStr.trim() === '');
+
+			// Si el payload está vacío o es un objeto vacío
+			if (payloadStr === '{}' || payloadStr.trim() === '' || payloadStr === 'null') {
+				console.error('=== FIXING EMPTY VALIDATION ERROR RESPONSE ===');
+
+				// Crear respuesta de error formateada
+				const errorResponse = {
 					statusCode: 400,
 					code: 'VALIDATION_ERROR',
 					error: 'Bad Request',
 					message: 'Error de validación en los datos enviados',
-					details: (errorPayload.validation || []).map((e: any) => ({
-						path: e.instancePath?.replace(/^\//, '').replace(/\//g, '.') || 'unknown',
-						message: e.message || 'Error de validación',
-						code: e.params?.issue?.code || e.keyword,
-					})),
+					details: [],
 				};
-				console.error('=== Returning reformatted payload:', JSON.stringify(reformatted, null, 2));
-				return reformatted;
+
+				const fixedPayload = JSON.stringify(errorResponse);
+				console.error('=== Fixed payload:', fixedPayload);
+				return fixedPayload;
 			}
 		}
+
 		return payload;
 	});
 
