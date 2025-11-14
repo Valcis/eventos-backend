@@ -159,8 +159,14 @@ export async function buildApp() {
 			console.error('=== Sending formatted error response ===');
 			console.error('Response:', JSON.stringify(errorResponse, null, 2));
 
-			// Enviar respuesta y prevenir que Fastify maneje el error
-			reply.code(400).send(errorResponse);
+			// CRÍTICO: Usar reply.hijack() para tomar control total de la respuesta
+			// Esto evita que Fastify pase la respuesta por el serializer
+			reply.hijack();
+			reply.raw.statusCode = 400;
+			reply.raw.setHeader('Content-Type', 'application/json; charset=utf-8');
+			reply.raw.end(JSON.stringify(errorResponse));
+
+			console.error('=== Response sent via reply.raw, bypassing serializer ===');
 		}
 	});
 
