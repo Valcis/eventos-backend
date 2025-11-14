@@ -53,13 +53,27 @@ export async function buildApp() {
 	// Esto permite que los schemas se conviertan para Swagger pero evita FST_ERR_FAILED_ERROR_SERIALIZATION
 	app.setSerializerCompiler(({ schema }) => {
 		return (data) => {
-			// Intentar parsear con Zod, pero si falla (ej: errores automáticos), devolver sin validar
+			// Si el dato parece un error de Fastify (tiene statusCode/error), no validar con Zod
+			// Los errores automáticos no coinciden con nuestros schemas de respuesta
+			if (
+				data &&
+				typeof data === 'object' &&
+				('statusCode' in data || 'error' in data || 'code' in data)
+			) {
+				// Es un error, devolver sin validar contra schema
+				return JSON.stringify(data);
+			}
+
+			// Para respuestas exitosas, intentar validar con Zod
 			try {
 				const zodSchema = schema as ZodSchema;
 				return JSON.stringify(zodSchema.parse(data));
-			} catch {
-				// En caso de error de validación (errores automáticos de Fastify),
-				// devolver dato original sin validar para evitar error 500
+			} catch (err) {
+				// Si falla la validación, loguear y devolver sin validar
+				app.log.warn(
+					{ schema: schema.constructor.name, error: err },
+					'SerializerCompiler: Failed to validate response with schema',
+				);
 				return JSON.stringify(data);
 			}
 		};
