@@ -167,25 +167,38 @@ function handleJWTError(err: Error): ErrorResponse {
  */
 function handleFastifyValidationError(err: FastifyError): ErrorResponse {
 	const validation = err as FastifyError & {
-		validation?: Array<{ instancePath?: string; message?: string }>;
+		validation?: Array<{
+			instancePath?: string;
+			message?: string;
+			path?: string;
+			code?: string;
+		}>;
 	};
 
-	let message = err.message || 'Error de validación';
+	console.error('=== FASTIFY VALIDATION ERROR ===');
+	console.error('Validation:', JSON.stringify(validation.validation, null, 2));
 
+	// Si tenemos detalles de validación, devolverlos estructurados
 	if (validation.validation && validation.validation.length > 0) {
-		const first = validation.validation[0];
-		if (first) {
-			const field =
-				first.instancePath?.replace(/^\//, '').replace(/\//g, '.') || 'campo desconocido';
-			message = `Error de validación en "${field}": ${first.message || 'formato inválido'}. Revisa el formato esperado en la documentación.`;
-		}
+		return {
+			statusCode: 400,
+			code: 'VALIDATION_ERROR',
+			error: 'Bad Request',
+			message: 'Error de validación en los datos enviados',
+			details: validation.validation.map((e: any) => ({
+				path: e.path || e.instancePath?.replace(/^\//, '').replace(/\//g, '.') || 'unknown',
+				message: e.message || 'Error de validación',
+				code: e.code,
+			})),
+		};
 	}
 
+	// Fallback si no hay detalles
 	return {
 		statusCode: 400,
-		code: 'FST_ERR_VALIDATION',
+		code: 'VALIDATION_ERROR',
 		error: 'Bad Request',
-		message,
+		message: err.message || 'Error de validación',
 	};
 }
 
