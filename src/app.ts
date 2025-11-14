@@ -29,7 +29,7 @@ import openApiPlugin from './plugins/openapi';
 import { createErrorHandler } from './core/http/errorHandler';
 import { sanitizeQueryParams } from './core/middleware/sanitize';
 import { ZodTypeProvider, validatorCompiler, serializerCompiler } from 'fastify-type-provider-zod';
-import type { ZodSchema } from 'zod';
+import { ZodError, type ZodSchema } from 'zod';
 
 const env = getEnv();
 
@@ -44,16 +44,28 @@ export async function buildApp() {
 
 	app.decorate('db', db);
 
-	// CRÍTICO: Registrar validador de Zod que LANCE el error al errorHandler
+	// CRÍTICO: Registrar validador de Zod que devuelva errores formateados
 	app.setValidatorCompiler(({ schema }) => {
 		return (data) => {
 			try {
 				const zodSchema = schema as ZodSchema;
-				zodSchema.parse(data);
-				return { value: data };
+				const result = zodSchema.parse(data);
+				return { value: result };
 			} catch (error) {
-				// LANZAR el error de Zod para que lo capture el errorHandler
-				console.error('=== VALIDATOR THROWING ZodError ===');
+				// Si es ZodError, devolver como error de validación de Fastify
+				if (error instanceof ZodError) {
+					console.error('=== VALIDATOR RETURNING ZodError ===');
+					return {
+						error: error.issues.map((issue: any) => ({
+							keyword: issue.code,
+							instancePath: '/' + issue.path.join('/'),
+							schemaPath: `#/${issue.path.join('/')}/${issue.code}`,
+							message: issue.message,
+							params: { issue },
+						})),
+					};
+				}
+				// Si es otro tipo de error, lanzarlo
 				throw error;
 			}
 		};
