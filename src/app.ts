@@ -58,13 +58,29 @@ export async function buildApp() {
 				const statusCode = (data as { statusCode: number }).statusCode;
 				if (statusCode >= 400) {
 					// Es un error, NO validar con Zod
-					// Fastify se encargará de serializarlo correctamente
+					app.log.debug(
+						{ statusCode, dataKeys: Object.keys(data) },
+						'SerializerCompiler: Skipping validation for error response',
+					);
 					return JSON.stringify(data);
 				}
 			}
 
 			// Para respuestas exitosas, validar con Zod
-			return JSON.stringify(zodSchema.parse(data));
+			try {
+				return JSON.stringify(zodSchema.parse(data));
+			} catch (err) {
+				// Si falla la validación, loguear el error y devolver sin validar
+				app.log.error(
+					{
+						error: err instanceof Error ? err.message : String(err),
+						dataKeys: data && typeof data === 'object' ? Object.keys(data) : undefined,
+					},
+					'SerializerCompiler: Failed to validate successful response',
+				);
+				// Devolver sin validar para no romper la respuesta
+				return JSON.stringify(data);
+			}
 		};
 	});
 
