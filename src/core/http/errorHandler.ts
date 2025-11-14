@@ -250,6 +250,14 @@ export function errorHandler(
 	// Log the error with more details for debugging
 	const errCode = (err as FastifyError).code;
 	const errValidation = (err as FastifyError).validation;
+
+	// LOGGING CRÍTICO: Siempre loguear a nivel error para debug
+	console.error('=== ERROR HANDLER CALLED ===');
+	console.error('Error name:', err.name);
+	console.error('Error code:', errCode);
+	console.error('Error message:', err.message);
+	console.error('Is ZodError:', err instanceof ZodError);
+
 	req.log.error(
 		{
 			err,
@@ -288,6 +296,9 @@ export function errorHandler(
 	if (includeStack && err.stack) {
 		response.stack = err.stack;
 	}
+
+	console.error('=== SENDING ERROR RESPONSE ===');
+	console.error('Response:', JSON.stringify(response, null, 2));
 
 	reply.code(response.statusCode).send(response);
 }
