@@ -76,32 +76,37 @@ export async function buildApp() {
 	app.setSerializerCompiler(({ schema }) => {
 		const zodSchema = schema as ZodSchema;
 		return (data) => {
+			// DEBUG: Log EVERYTHING that comes through serializer
+			console.error('=== SERIALIZER CALLED ===');
+			console.error('Data type:', typeof data);
+			console.error('Data:', JSON.stringify(data, null, 2));
+			console.error(
+				'Data keys:',
+				data && typeof data === 'object' ? Object.keys(data) : 'N/A',
+			);
+
 			// NO serializar errores - dejar que Fastify los maneje
 			// Los errores tienen statusCode >= 400
 			if (data && typeof data === 'object' && 'statusCode' in data) {
 				const statusCode = (data as { statusCode: number }).statusCode;
+				console.error('=== SERIALIZER: Detected error response, statusCode:', statusCode);
 				if (statusCode >= 400) {
 					// Es un error, NO validar con Zod
-					app.log.debug(
-						{ statusCode, dataKeys: Object.keys(data) },
-						'SerializerCompiler: Skipping validation for error response',
-					);
-					return JSON.stringify(data);
+					const result = JSON.stringify(data);
+					console.error('=== SERIALIZER: Returning error JSON:', result);
+					return result;
 				}
 			}
 
 			// Para respuestas exitosas, validar con Zod
 			try {
-				return JSON.stringify(zodSchema.parse(data));
+				const result = JSON.stringify(zodSchema.parse(data));
+				console.error('=== SERIALIZER: Returning success JSON (length):', result.length);
+				return result;
 			} catch (err) {
 				// Si falla la validación, loguear el error y devolver sin validar
-				app.log.error(
-					{
-						error: err instanceof Error ? err.message : String(err),
-						dataKeys: data && typeof data === 'object' ? Object.keys(data) : undefined,
-					},
-					'SerializerCompiler: Failed to validate successful response',
-				);
+				console.error('=== SERIALIZER: Zod validation failed, returning raw ===');
+				console.error('Error:', err instanceof Error ? err.message : String(err));
 				// Devolver sin validar para no romper la respuesta
 				return JSON.stringify(data);
 			}
@@ -126,16 +131,26 @@ export async function buildApp() {
 
 	// Hook para interceptar errores de validación ANTES de serializar
 	app.addHook('preSerialization', async (req, reply, payload) => {
+		// DEBUG: Log EVERYTHING that comes through preSerialization
+		console.error('=== preSerialization CALLED ===');
+		console.error('StatusCode:', reply.statusCode);
+		console.error('Payload type:', typeof payload);
+		console.error(
+			'Payload keys:',
+			payload && typeof payload === 'object' ? Object.keys(payload) : 'N/A',
+		);
+		console.error('Payload:', JSON.stringify(payload, null, 2));
+
 		// Si es un error de validación (statusCode 400 con validation)
 		if (reply.statusCode === 400 && payload && typeof payload === 'object') {
 			const errorPayload = payload as any;
 			// Detectar si es un error de validación de Fastify
 			if (errorPayload.validation || errorPayload.message?.includes('validation')) {
 				console.error('=== INTERCEPTING VALIDATION ERROR IN preSerialization ===');
-				console.error('Payload:', JSON.stringify(errorPayload, null, 2));
+				console.error('Validation errors:', JSON.stringify(errorPayload.validation, null, 2));
 
 				// Reformatear al formato esperado
-				return {
+				const reformatted = {
 					statusCode: 400,
 					code: 'VALIDATION_ERROR',
 					error: 'Bad Request',
@@ -146,6 +161,8 @@ export async function buildApp() {
 						code: e.params?.issue?.code || e.keyword,
 					})),
 				};
+				console.error('=== Returning reformatted payload:', JSON.stringify(reformatted, null, 2));
+				return reformatted;
 			}
 		}
 		return payload;
