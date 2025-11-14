@@ -247,8 +247,21 @@ export function errorHandler(
 	reply: FastifyReply,
 	includeStack = false,
 ): void {
-	// Log the error
-	req.log.error({ err, url: req.url, method: req.method }, 'Request error');
+	// Log the error with more details for debugging
+	const errCode = (err as FastifyError).code;
+	const errValidation = (err as FastifyError).validation;
+	req.log.error(
+		{
+			err,
+			url: req.url,
+			method: req.method,
+			errorCode: errCode,
+			errorName: err.name,
+			hasValidation: !!errValidation,
+			isZodError: err instanceof ZodError,
+		},
+		'Request error',
+	);
 
 	let response: ErrorResponse;
 

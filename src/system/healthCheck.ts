@@ -98,5 +98,36 @@ export const healthRoutes: FastifyPluginCallback = (app, _opts, done) => {
 		},
 	);
 
+	// TEST: Endpoint para verificar validación automática de Zod
+	const TestValidationRequest = z.object({
+		password: z.string().min(8).describe('Password mínimo 8 caracteres'),
+		email: z.string().email().describe('Email válido'),
+	});
+
+	app.post(
+		'/test-validation',
+		{
+			schema: {
+				tags: [TAG],
+				summary: 'Test de validación Zod',
+				description:
+					'Endpoint de prueba para verificar que la validación automática de Zod funciona. Requiere password >= 8 chars y email válido.',
+				body: TestValidationRequest,
+				response: {
+					200: z.object({
+						ok: z.literal(true),
+						message: z.string(),
+					}),
+				},
+			},
+		},
+		async (req, reply) => {
+			return reply.send({
+				ok: true,
+				message: 'Validación pasó correctamente',
+			});
+		},
+	);
+
 	done();
 };
