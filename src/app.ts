@@ -52,12 +52,12 @@ export async function buildApp() {
 	// Esto permite que los schemas se conviertan para Swagger pero evita FST_ERR_FAILED_ERROR_SERIALIZATION
 	app.setSerializerCompiler(({ schema }) => {
 		return (data) => {
-			// Si el dato parece un error de Fastify (tiene statusCode/error), no validar con Zod
+			// Si el dato parece un error de Fastify (tiene statusCode/error/message), no validar con Zod
 			// Los errores automáticos no coinciden con nuestros schemas de respuesta
 			if (
 				data &&
 				typeof data === 'object' &&
-				('statusCode' in data || 'error' in data || 'code' in data)
+				('statusCode' in data || 'error' in data || 'code' in data || 'message' in data)
 			) {
 				// Es un error, devolver sin validar contra schema
 				return JSON.stringify(data);
@@ -68,9 +68,14 @@ export async function buildApp() {
 				const zodSchema = schema as ZodSchema;
 				return JSON.stringify(zodSchema.parse(data));
 			} catch (err) {
-				// Si falla la validación, loguear y devolver sin validar
+				// Si falla la validación, loguear con más contexto y devolver sin validar
+				const errorMessage = err instanceof Error ? err.message : String(err);
 				app.log.warn(
-					{ schema: schema.constructor.name, error: err },
+					{
+						schemaType: schema.constructor.name,
+						error: errorMessage,
+						dataKeys: data && typeof data === 'object' ? Object.keys(data) : undefined,
+					},
 					'SerializerCompiler: Failed to validate response with schema',
 				);
 				return JSON.stringify(data);
@@ -134,16 +139,38 @@ export async function buildApp() {
 	await app.register(pickupPointsRoutes, { prefix: base + '/pickup-points' });
 	await app.register(partnersRoutes, { prefix: base + '/partners' });
 
-	app.addHook('onResponse', async (req, reply) => {
+	// Hook para loguear el INICIO de cada request (útil para debugging y correlación)
+	app.addHook('onRequest', async (req) => {
 		req.log.info(
 			{
-				statusCode: reply.statusCode,
 				method: req.method,
 				url: req.url,
-				responseTime: reply.elapsedTime,
+				query: req.query,
+				userAgent: req.headers['user-agent'],
+				ip: req.ip,
+				userId: req.user?.userId, // Si está autenticado
 			},
-			'request completed',
+			'request started',
 		);
+	});
+
+	// Hook para loguear el FIN de cada request (con métricas de respuesta)
+	app.addHook('onResponse', async (req, reply) => {
+		const logData = {
+			statusCode: reply.statusCode,
+			method: req.method,
+			url: req.url,
+			responseTime: reply.elapsedTime,
+			userId: req.user?.userId,
+			userEmail: req.user?.email,
+		};
+
+		// Loguear como error si statusCode >= 400, info si es exitoso
+		if (reply.statusCode >= 400) {
+			req.log.error(logData, 'request completed with error');
+		} else {
+			req.log.info(logData, 'request completed');
+		}
 	});
 
 	app.addHook('onRoute', (r) => {

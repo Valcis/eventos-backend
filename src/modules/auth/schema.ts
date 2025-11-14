@@ -5,13 +5,21 @@ import { UserPublic } from '../users/schema';
  * Schema para registro de nuevo usuario (POST /api/auth/register)
  */
 export const RegisterRequest = z.object({
-	email: z.string().email().toLowerCase().describe('Email del usuario'),
+	email: z
+		.string({ required_error: 'El email es obligatorio' })
+		.email({ message: 'El email no es válido. Debe tener el formato: usuario@ejemplo.com' })
+		.toLowerCase()
+		.describe('Email del usuario'),
 	password: z
-		.string()
-		.min(8)
-		.max(100)
+		.string({ required_error: 'La contraseña es obligatoria' })
+		.min(8, { message: 'La contraseña debe tener al menos 8 caracteres' })
+		.max(100, { message: 'La contraseña no puede exceder 100 caracteres' })
 		.describe('Contraseña (mínimo 8 caracteres)'),
-	name: z.string().min(1).max(100).describe('Nombre completo del usuario'),
+	name: z
+		.string({ required_error: 'El nombre es obligatorio' })
+		.min(1, { message: 'El nombre no puede estar vacío' })
+		.max(100, { message: 'El nombre no puede exceder 100 caracteres' })
+		.describe('Nombre completo del usuario'),
 });
 
 export type RegisterRequestT = z.infer<typeof RegisterRequest>;
@@ -20,8 +28,15 @@ export type RegisterRequestT = z.infer<typeof RegisterRequest>;
  * Schema para login (POST /api/auth/login)
  */
 export const LoginRequest = z.object({
-	email: z.string().email().toLowerCase().describe('Email del usuario'),
-	password: z.string().min(1).describe('Contraseña'),
+	email: z
+		.string({ required_error: 'El email es obligatorio' })
+		.email({ message: 'El email no es válido' })
+		.toLowerCase()
+		.describe('Email del usuario'),
+	password: z
+		.string({ required_error: 'La contraseña es obligatoria' })
+		.min(1, { message: 'La contraseña no puede estar vacía' })
+		.describe('Contraseña'),
 });
 
 export type LoginRequestT = z.infer<typeof LoginRequest>;
@@ -43,7 +58,9 @@ export type AuthResponseT = z.infer<typeof AuthResponse>;
  * Schema para refresh token (POST /api/auth/refresh)
  */
 export const RefreshTokenRequest = z.object({
-	refreshToken: z.string().describe('Refresh token JWT'),
+	refreshToken: z
+		.string({ required_error: 'El refresh token es obligatorio' })
+		.describe('Refresh token JWT'),
 });
 
 export type RefreshTokenRequestT = z.infer<typeof RefreshTokenRequest>;
@@ -52,8 +69,15 @@ export type RefreshTokenRequestT = z.infer<typeof RefreshTokenRequest>;
  * Schema para cambio de contraseña (POST /api/auth/change-password)
  */
 export const ChangePasswordRequest = z.object({
-	currentPassword: z.string().min(1).describe('Contraseña actual'),
-	newPassword: z.string().min(8).max(100).describe('Nueva contraseña (mínimo 8 caracteres)'),
+	currentPassword: z
+		.string({ required_error: 'La contraseña actual es obligatoria' })
+		.min(1, { message: 'La contraseña actual no puede estar vacía' })
+		.describe('Contraseña actual'),
+	newPassword: z
+		.string({ required_error: 'La nueva contraseña es obligatoria' })
+		.min(8, { message: 'La nueva contraseña debe tener al menos 8 caracteres' })
+		.max(100, { message: 'La nueva contraseña no puede exceder 100 caracteres' })
+		.describe('Nueva contraseña (mínimo 8 caracteres)'),
 });
 
 export type ChangePasswordRequestT = z.infer<typeof ChangePasswordRequest>;
