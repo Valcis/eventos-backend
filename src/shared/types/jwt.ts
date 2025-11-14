@@ -12,7 +12,7 @@ export interface JwtPayload extends BaseJwtPayload {
 	email: string;
 
 	/** Rol del usuario en el sistema */
-	role: 'admin' | 'salesperson' | 'cashier' | 'viewer';
+	role: 'user' | 'admin' | 'owner';
 
 	/** Eventos a los que el usuario tiene acceso (opcional, para multi-tenancy) */
 	eventIds?: string[];

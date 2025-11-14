@@ -19,6 +19,9 @@
 | `JWT_SECRET`     | string  | -             | **REQUERIDO si AUTH_ENABLED=true**. Secret para firmar JWT (mínimo 32 caracteres) |
 | `JWT_ALGORITHM`  | enum    | `HS256`       | Algoritmo JWT: `HS256`, `HS384`, `HS512`, `RS256`, `RS384`, `RS512`            |
 | `JWT_EXPIRES_IN` | string  | `24h`         | Tiempo de expiración del token (ej: `1h`, `7d`, `30m`)                         |
+| `AUTH0_ENABLED`  | boolean | `false`       | `true` = usar Auth0 para OAuth social (Google, Instagram, etc.)                |
+| `AUTH0_DOMAIN`   | string  | -             | **REQUERIDO si AUTH0_ENABLED=true**. Dominio de Auth0 (ej: `tu-tenant.auth0.com`) |
+| `AUTH0_AUDIENCE` | string  | -             | **REQUERIDO si AUTH0_ENABLED=true**. Audience de Auth0 (ej: `https://api.tu-app.com`) |
 | `LOG_LEVEL`      | string  | `info`        | Nivel de log: `debug`, `info`, `warn`, `error`                                  |
 
 ## Configuración con Zod
@@ -40,6 +43,10 @@ const Env = z.object({
 	JWT_SECRET: z.string().min(32).optional(), // Requerido si AUTH_ENABLED=true
 	JWT_ALGORITHM: z.enum(['HS256', 'HS384', 'HS512', 'RS256', 'RS384', 'RS512']).optional().default('HS256'),
 	JWT_EXPIRES_IN: z.string().optional().default('24h'),
+	// Auth0 Configuration
+	AUTH0_ENABLED: z.string().optional().default('false').transform((val) => val === 'true' || val === '1'),
+	AUTH0_DOMAIN: z.string().optional(), // Requerido si AUTH0_ENABLED=true
+	AUTH0_AUDIENCE: z.string().optional(), // Requerido si AUTH0_ENABLED=true
 });
 ```
 
@@ -69,6 +76,11 @@ AUTH_ENABLED=false
 # JWT_SECRET=tu-secret-super-seguro-de-al-menos-32-caracteres
 # JWT_ALGORITHM=HS256
 # JWT_EXPIRES_IN=24h
+
+# Auth0 OAuth (OPCIONAL - para login social Google/Instagram/etc)
+# AUTH0_ENABLED=true
+# AUTH0_DOMAIN=tu-tenant.auth0.com
+# AUTH0_AUDIENCE=https://api.tu-aplicacion.com
 
 # Logging
 LOG_LEVEL=debug
@@ -155,6 +167,39 @@ Tiempo de expiración del token. Formato:
 - `30m` - 30 minutos
 
 **Recomendado**: `24h` para sesiones web, `1h` para APIs críticas.
+
+### `AUTH0_ENABLED` y OAuth Social
+
+Cuando `AUTH0_ENABLED=true`:
+
+- El sistema usa Auth0 para autenticación OAuth (Google, Instagram, Facebook, etc.)
+- Reemplaza la autenticación JWT local por Auth0 JWT
+- Los usuarios se autentican con proveedores sociales externos
+- Los usuarios se crean automáticamente en la base de datos al primer login
+- **Mutualmente exclusivo** con `AUTH_ENABLED`: solo uno puede estar activo
+
+**Uso recomendado**:
+
+- `AUTH0_ENABLED=false` + `AUTH_ENABLED=true` para autenticación local (email/password)
+- `AUTH0_ENABLED=true` + `AUTH0_ENABLED=false` para OAuth social
+- Nunca activar ambos simultáneamente
+
+### `AUTH0_DOMAIN` y `AUTH0_AUDIENCE`
+
+**REQUERIDOS** cuando `AUTH0_ENABLED=true`.
+
+- `AUTH0_DOMAIN`: Dominio de tu tenant de Auth0 (ej: `mi-app.auth0.com`, `mi-app.eu.auth0.com`)
+- `AUTH0_AUDIENCE`: Identificador de tu API en Auth0 (ej: `https://api.mi-aplicacion.com`)
+
+**Configuración en Auth0**:
+
+1. Crear cuenta en [auth0.com](https://auth0.com)
+2. Crear una nueva Application (tipo: Single Page Application)
+3. Crear una nueva API y copiar el Audience
+4. Configurar Allowed Callback URLs y Allowed Web Origins
+5. Copiar el dominio del tenant
+
+**Ver**: [Auth0 Documentation](https://auth0.com/docs)
 
 ### `BASE_PATH`
 

@@ -18,11 +18,14 @@ import consumptionTypesRoutes from './modules/catalogs/consumption-types/routes'
 import payersRoutes from './modules/catalogs/payers/routes';
 import pickupPointsRoutes from './modules/catalogs/pickup-points/routes';
 import partnersRoutes from './modules/catalogs/partners/routes';
+import usersRoutes from './modules/users/routes';
+import authRoutes from './modules/auth/routes';
 import { getEnv } from './config/env';
 import { ensureMongoArtifacts } from './infra/mongo/artifacts';
 import { connectMongo } from './infra/mongo/client';
 import requestId from './core/logging/requestId';
 import bearerAuth from './plugins/bearer';
+import auth0Plugin from './plugins/auth0';
 import openApiPlugin from './plugins/openapi';
 import { createErrorHandler } from './core/http/errorHandler';
 import { sanitizeQueryParams } from './core/middleware/sanitize';
@@ -62,13 +65,22 @@ export async function buildApp() {
 		allowList: ['127.0.0.1', '::1', 'localhost'],
 	});
 
+	const base = env.BASE_PATH.endsWith('/') ? env.BASE_PATH.slice(0, -1) : env.BASE_PATH;
+
 	if (env.SWAGGER_ENABLED) {
 		await app.register(openApiPlugin);
 	}
 	await app.register(healthRoutes, { prefix: '/health' });
-	await app.register(bearerAuth, { exemptPaths: ['/health', '/swagger'] });
 
-	const base = env.BASE_PATH.endsWith('/') ? env.BASE_PATH.slice(0, -1) : env.BASE_PATH;
+	// Registrar autenticación según configuración
+	// Si AUTH0 está habilitado, usar Auth0; si no, usar Bearer JWT local
+	const exemptPaths = ['/health', '/swagger', base + '/auth/register', base + '/auth/login'];
+
+	if (env.AUTH0_ENABLED) {
+		await app.register(auth0Plugin, { exemptPaths });
+	} else if (env.AUTH_ENABLED) {
+		await app.register(bearerAuth, { exemptPaths });
+	}
 
 	await app.register(eventsRoutes, { prefix: base + '/events' });
 	await app.register(reservationsRoutes, { prefix: base + '/reservations' });
@@ -84,6 +96,8 @@ export async function buildApp() {
 	await app.register(payersRoutes, { prefix: base + '/payers' });
 	await app.register(pickupPointsRoutes, { prefix: base + '/pickup-points' });
 	await app.register(partnersRoutes, { prefix: base + '/partners' });
+	await app.register(usersRoutes, { prefix: base + '/users' });
+	await app.register(authRoutes, { prefix: base + '/auth' });
 
 	app.addHook('onResponse', async (req, reply) => {
 		req.log.info(

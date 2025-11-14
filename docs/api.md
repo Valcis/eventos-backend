@@ -10,17 +10,68 @@ http://localhost:3000/api
 
 ## Autenticación
 
-Todas las rutas (excepto `/health` y `/swagger`) requieren autenticación Bearer Token:
+El sistema soporta **dos métodos de autenticación** (mutuamente exclusivos):
+
+### Autenticación Local (JWT)
+
+Todas las rutas requieren header `Authorization` con JWT token:
 
 ```http
-Authorization: Bearer YOUR_TOKEN_HERE
+Authorization: Bearer YOUR_ACCESS_TOKEN
 ```
 
-Para deshabilitar auth en desarrollo: `AUTH_ENABLED=false` en `.env`
+**Obtener token**: Usar endpoints `/api/auth/register` o `/api/auth/login` (ver abajo)
+
+**Configuración**:
+
+```bash
+AUTH_ENABLED=true
+AUTH0_ENABLED=false
+JWT_SECRET=your-secret-key-min-32-chars
+```
+
+### Autenticación OAuth (Auth0)
+
+Usar tokens de Auth0 para login social (Google, Instagram, etc.):
+
+```http
+Authorization: Bearer YOUR_AUTH0_TOKEN
+```
+
+**Configuración**:
+
+```bash
+AUTH_ENABLED=false
+AUTH0_ENABLED=true
+AUTH0_DOMAIN=tu-tenant.auth0.com
+AUTH0_AUDIENCE=https://api.tu-app.com
+```
+
+**Rutas sin autenticación**: `/health`, `/swagger`, `/api/auth/register`, `/api/auth/login`
+
+**Desarrollo**: Deshabilitar auth con `AUTH_ENABLED=false` y `AUTH0_ENABLED=false` en `.env`
 
 ---
 
 ## Endpoints Disponibles
+
+### Authentication & Users
+
+| Método           | Ruta                       | Descripción                          | Auth |
+| ---------------- | -------------------------- | ------------------------------------ | ---- |
+| **Auth**         |                            |                                      |      |
+| POST             | `/auth/register`           | Registrar nuevo usuario              | No   |
+| POST             | `/auth/login`              | Iniciar sesión                       | No   |
+| POST             | `/auth/refresh`            | Renovar access token                 | No   |
+| GET              | `/auth/me`                 | Obtener usuario actual               | Sí   |
+| POST             | `/auth/change-password`    | Cambiar contraseña                   | Sí   |
+| **Users**        |                            |                                      |      |
+| GET              | `/users`                   | Listar usuarios                      | Sí   |
+| POST             | `/users`                   | Crear usuario                        | Sí   |
+| GET              | `/users/{id}`              | Obtener usuario por ID               | Sí   |
+| PUT              | `/users/{id}`              | Reemplazar usuario completo          | Sí   |
+| PATCH            | `/users/{id}`              | Actualización parcial                | Sí   |
+| DELETE           | `/users/{id}`              | Soft delete (isActive=false)         | Sí   |
 
 ### Core Resources
 
@@ -203,6 +254,134 @@ curl "http://localhost:3000/api/products?eventId=abc123&sortBy=price&sortDir=asc
 ---
 
 ## Ejemplos de Uso
+
+### Registrar Usuario
+
+```http
+POST /api/auth/register
+Content-Type: application/json
+
+{
+  "email": "usuario@ejemplo.com",
+  "password": "contraseña-segura-123",
+  "name": "Juan Pérez"
+}
+```
+
+**Response (201 Created)**:
+
+```json
+{
+  "ok": true,
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": "6745abc123def456...",
+    "email": "usuario@ejemplo.com",
+    "name": "Juan Pérez",
+    "role": "user",
+    "provider": "local",
+    "isActive": true,
+    "emailVerified": false,
+    "createdAt": "2025-01-15T10:00:00.000Z",
+    "updatedAt": "2025-01-15T10:00:00.000Z"
+  },
+  "expiresIn": "24h"
+}
+```
+
+---
+
+### Iniciar Sesión
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "usuario@ejemplo.com",
+  "password": "contraseña-segura-123"
+}
+```
+
+**Response (200 OK)**: Igual que `/auth/register`
+
+---
+
+### Renovar Access Token
+
+```http
+POST /api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+**Response (200 OK)**:
+
+```json
+{
+  "ok": true,
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": { ... },
+  "expiresIn": "24h"
+}
+```
+
+---
+
+### Obtener Usuario Actual
+
+```http
+GET /api/auth/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Response (200 OK)**:
+
+```json
+{
+  "id": "6745abc123def456...",
+  "email": "usuario@ejemplo.com",
+  "name": "Juan Pérez",
+  "role": "user",
+  "provider": "local",
+  "isActive": true,
+  "emailVerified": false,
+  "createdAt": "2025-01-15T10:00:00.000Z",
+  "updatedAt": "2025-01-15T10:00:00.000Z",
+  "lastLoginAt": "2025-01-15T14:30:00.000Z"
+}
+```
+
+---
+
+### Cambiar Contraseña
+
+```http
+POST /api/auth/change-password
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+
+{
+  "currentPassword": "contraseña-actual",
+  "newPassword": "nueva-contraseña-segura-456"
+}
+```
+
+**Response (200 OK)**:
+
+```json
+{
+  "ok": true,
+  "message": "Contraseña actualizada exitosamente"
+}
+```
+
+---
 
 ### Crear un Evento
 

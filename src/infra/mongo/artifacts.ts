@@ -70,6 +70,38 @@ export async function ensureMongoArtifacts(db: Db): Promise<void> {
 	]);
 
 	// ============================================================
+	// ==================== USUARIOS (USERS) ======================
+	// ============================================================
+	await ensure(db, 'usuarios', [
+		// Email único (case-insensitive) - para login y registro
+		{ key: { email: 1 }, name: 'uniq_usuarios_email', unique: true, collation: ci },
+
+		// Soft delete flag (acceso rápido por estado)
+		{ key: { isActive: 1 }, name: 'idx_usuarios_isActive' },
+
+		// Provider + providerId único (para Auth0/OAuth)
+		// Solo se aplica cuando providerId existe
+		{
+			key: { provider: 1, providerId: 1 },
+			name: 'uniq_usuarios_provider_providerId',
+			unique: true,
+			partialFilterExpression: { providerId: { $exists: true } },
+		},
+
+		// Búsqueda por rol
+		{ key: { role: 1, isActive: 1 }, name: 'idx_usuarios_role_isActive' },
+
+		// Paginación estable
+		{ key: { isActive: 1, _id: 1 }, name: 'idx_usuarios_isActive__id' },
+
+		// Recientes primero
+		{ key: { createdAt: -1 }, name: 'idx_usuarios_createdAt_desc' },
+
+		// Último login
+		{ key: { lastLoginAt: -1 }, name: 'idx_usuarios_lastLoginAt_desc' },
+	]);
+
+	// ============================================================
 	// ======================== RESERVATIONS ======================
 	// ============================================================
 	await ensure(db, 'reservations', [

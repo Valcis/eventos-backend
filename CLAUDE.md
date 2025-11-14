@@ -58,10 +58,13 @@ Required environment variables (see `docs/env.md` for full details):
 - `PORT` - Server port (default: 3000)
 - `BASE_PATH` - API base path (default: `/api`)
 - `MONGO_BOOT` - `0` | `1` - Auto-create indexes/validators on startup
-- `AUTH_ENABLED` - Boolean - Enable/disable bearer token authentication
+- `AUTH_ENABLED` - Boolean - Enable/disable JWT bearer token authentication
 - `JWT_SECRET` - Secret key for JWT signing (required when AUTH_ENABLED=true, min 32 chars)
 - `JWT_ALGORITHM` - JWT algorithm (default: `HS256`, options: HS256/HS384/HS512/RS256/RS384/RS512)
 - `JWT_EXPIRES_IN` - JWT expiration time (default: `24h`, format: "1h", "7d", "30m")
+- `AUTH0_ENABLED` - Boolean - Enable/disable Auth0 OAuth (mutually exclusive with AUTH_ENABLED)
+- `AUTH0_DOMAIN` - Auth0 tenant domain (required when AUTH0_ENABLED=true)
+- `AUTH0_AUDIENCE` - Auth0 API audience (required when AUTH0_ENABLED=true)
 - `LOG_LEVEL` - Logging level (default: `info`, options: debug/info/warn/error)
 
 ## Architecture Patterns
@@ -270,15 +273,102 @@ All responses use standardized envelopes (see `core/http/envelopes.ts`):
 
 ## Authentication
 
-Bearer token authentication plugin (`plugins/bearer.ts`):
+The system supports **two authentication strategies** (mutually exclusive):
 
-- Controlled by `AUTH_ENABLED` env var (default: `false`)
-- Exempt paths configured per-plugin (e.g., `/health`, `/swagger`)
-- **JWT verification is IMPLEMENTED** - validates token signature, expiration, and required payload fields
-- Uses `jsonwebtoken` library for token verification
+### 1. Local JWT Authentication (`plugins/bearer.ts`)
+
+**When to use**: Email/password authentication for traditional login
+
+**Configuration**:
+```bash
+AUTH_ENABLED=true
+AUTH0_ENABLED=false
+JWT_SECRET=your-secret-key-min-32-chars
+```
+
+**Features**:
+- JWT verification with signature, expiration, and payload validation
+- Access tokens (24h) + Refresh tokens (30d)
 - Validates payload contains `userId`, `email`, and `role`
-- Handles token expiration errors (`TokenExpiredError`) and invalid tokens (`JsonWebTokenError`)
-- Authenticated user payload attached to `req.user` for downstream use
+- Handles `TokenExpiredError` and `JsonWebTokenError`
+- User payload attached to `req.user`
+
+**Endpoints**:
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - Login with email/password
+- `POST /api/auth/refresh` - Refresh access token
+- `GET /api/auth/me` - Get current user
+- `POST /api/auth/change-password` - Change password
+
+### 2. Auth0 OAuth (`plugins/auth0.ts`)
+
+**When to use**: Social login with Google, Instagram, Facebook, etc.
+
+**Configuration**:
+```bash
+AUTH_ENABLED=false
+AUTH0_ENABLED=true
+AUTH0_DOMAIN=tu-tenant.auth0.com
+AUTH0_AUDIENCE=https://api.tu-aplicacion.com
+```
+
+**Features**:
+- OAuth 2.0 social login via Auth0
+- Auto-creates users in database on first login
+- Validates Auth0 JWT tokens (RS256)
+- Maps Auth0 profile to local user format
+- User payload attached to `req.user` (compatible with local JWT)
+
+**Setup**:
+1. Create Auth0 account at [auth0.com](https://auth0.com)
+2. Create Application (Single Page Application)
+3. Create API and copy Audience
+4. Configure Allowed Callback URLs
+5. Add environment variables
+
+### User Roles and Permissions
+
+Users have three roles:
+- **`user`** (default) - Standard user
+- **`admin`** - Administrator with elevated permissions
+- **`owner`** - System owner
+
+**User schema** (`modules/users/schema.ts`):
+```typescript
+{
+  id: string,
+  email: string,           // Unique, case-insensitive
+  passwordHash?: string,   // Only for provider='local'
+  name: string,
+  role: 'user' | 'admin' | 'owner',
+  provider: 'local' | 'auth0',
+  providerId?: string,     // Auth0 user ID
+  eventIds?: string[],     // Events user has access to
+  avatar?: string,
+  emailVerified: boolean,
+  lastLoginAt?: Date,
+  isActive: boolean,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+**User management endpoints** (`/api/users`):
+- `GET /users` - List users (with pagination)
+- `GET /users/:id` - Get user by ID
+- `POST /users` - Create user
+- `PUT /users/:id` - Update user
+- `PATCH /users/:id` - Partial update
+- `DELETE /users/:id` - Soft delete
+
+**Security**:
+- Passwords hashed with bcrypt (10 salt rounds)
+- `passwordHash` never exposed in API responses
+- Email uniqueness enforced (case-insensitive)
+- MongoDB indexes on email, provider+providerId, role
+
+**Exempt paths** (no auth required):
+- `/health`, `/swagger`, `/api/auth/register`, `/api/auth/login`
 
 ## Rate Limiting
 
