@@ -131,6 +131,39 @@ export async function buildApp() {
 	await app.register(requestId);
 	await app.register(corsPlugin);
 
+	// Hook onError: Intercepta TODOS los errores, incluyendo los de validación
+	// Este hook se ejecuta ANTES del errorHandler, permitiéndonos formatear correctamente
+	app.addHook('onError', async (req, reply, error) => {
+		console.error('=== onError HOOK CALLED ===');
+		console.error('Error type:', error?.constructor?.name);
+		console.error('Is ZodError:', error instanceof ZodError);
+
+		// Si es un ZodError lanzado por el validator
+		if (error instanceof ZodError) {
+			console.error('=== INTERCEPTING ZodError in onError ===');
+			console.error('ZodError issues:', JSON.stringify(error.issues, null, 2));
+
+			// Formatear respuesta de error con mensajes personalizados
+			const errorResponse = {
+				statusCode: 400,
+				code: 'VALIDATION_ERROR',
+				error: 'Bad Request',
+				message: 'Error de validación en los datos enviados',
+				details: error.issues.map((issue) => ({
+					path: issue.path.join('.'),
+					message: issue.message,
+					code: issue.code,
+				})),
+			};
+
+			console.error('=== Sending formatted error response ===');
+			console.error('Response:', JSON.stringify(errorResponse, null, 2));
+
+			// Enviar respuesta y prevenir que Fastify maneje el error
+			reply.code(400).send(errorResponse);
+		}
+	});
+
 	// Sanitizar query params para prevenir operator injection
 	app.addHook('preHandler', sanitizeQueryParams);
 
