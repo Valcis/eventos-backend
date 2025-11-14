@@ -283,8 +283,8 @@ Logs se escriben tanto a consola como a archivos (`src/core/logging/logger.ts:38
 
 **Archivos generados**:
 
-- `logs/app.log` - Todos los logs (nivel `info` y superior)
-- `logs/error.log` - Solo errores (nivel `error`)
+- `logs/app-YYYY-MM-DD.log` - Todos los logs (nivel `info` y superior) con rotación diaria
+- `logs/error-YYYY-MM-DD.log` - Solo errores (nivel `error`) con rotación diaria
 
 **Configuración**:
 
@@ -297,17 +297,27 @@ transport: {
 			level: 'info',
 			options: { colorize: true, translateTime: 'HH:MM:ss' },
 		},
-		// Archivo general
+		// Archivo general con rotación
 		{
-			target: 'pino/file',
+			target: 'pino-roll',
 			level: 'info',
-			options: { destination: join(process.cwd(), 'logs', 'app.log'), mkdir: true },
+			options: {
+				file: join(process.cwd(), 'logs', 'app'),
+				frequency: 'daily',
+				size: '10m',
+				mkdir: true,
+			},
 		},
-		// Archivo de errores
+		// Archivo de errores con rotación
 		{
-			target: 'pino/file',
+			target: 'pino-roll',
 			level: 'error',
-			options: { destination: join(process.cwd(), 'logs', 'error.log'), mkdir: true },
+			options: {
+				file: join(process.cwd(), 'logs', 'error'),
+				frequency: 'daily',
+				size: '10m',
+				mkdir: true,
+			},
 		},
 	],
 }
@@ -315,27 +325,24 @@ transport: {
 
 **Creación automática**: El directorio `logs/` se crea automáticamente si no existe (`mkdir: true`).
 
-## Mejoras Pendientes
+### ✅ Rotación de Logs
 
-### 🔄 Rotación de Logs
+**Estado**: Implementado
 
-**Estado**: No implementado
+**Estrategia**: Rotación diaria o al alcanzar 10MB usando `pino-roll`
 
-**Problema**: Archivos de log crecen indefinidamente
+**Configuración**:
 
-**Solución recomendada**: Usar `pino-rotating-file` o logrotate del sistema operativo.
+- **Frecuencia**: Daily (diaria) - archivos nuevos cada día
+- **Tamaño máximo**: 10MB - si un archivo supera 10MB, se rota automáticamente
+- **Formato de nombre**: `app-YYYY-MM-DD.log` y `error-YYYY-MM-DD.log`
 
-```bash
-# logrotate config
-/ruta/al/proyecto/logs/*.log {
-  daily
-  rotate 7
-  compress
-  delaycompress
-  missingok
-  notifempty
-}
-```
+**Ventajas**:
+
+- Previene crecimiento ilimitado de archivos
+- Facilita análisis histórico
+- Archivos de tamaño manejable
+- Integración nativa con Pino (sin herramientas externas)
 
 ---
 

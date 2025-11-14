@@ -18,6 +18,11 @@ export interface ProductValidationResult {
  * Valida que un evento existe y está activo
  */
 export async function validateEvent(db: Db, eventId: string): Promise<void> {
+	// Validar que el ID es un ObjectId válido
+	if (!ObjectId.isValid(eventId)) {
+		throw new AppError('VALIDATION_ERROR', `El eventId "${eventId}" no es un ObjectId válido.`, 400);
+	}
+
 	const event = await db.collection('events').findOne({
 		_id: new ObjectId(eventId),
 		isActive: true,
@@ -124,6 +129,15 @@ export async function validateOptionalCatalog(
 ): Promise<void> {
 	if (!catalogId) return; // Es opcional, no validar si no existe
 
+	// Validar que el ID es un ObjectId válido
+	if (!ObjectId.isValid(catalogId)) {
+		throw new AppError(
+			'VALIDATION_ERROR',
+			`El ${catalogLabel} ID "${catalogId}" no es un ObjectId válido.`,
+			400,
+		);
+	}
+
 	const item = await db.collection(collectionName).findOne({
 		_id: new ObjectId(catalogId),
 		eventId: new ObjectId(eventId),
@@ -149,6 +163,15 @@ export async function validateRequiredCatalog(
 	eventId: string,
 	catalogLabel: string,
 ): Promise<void> {
+	// Validar que el ID es un ObjectId válido
+	if (!ObjectId.isValid(catalogId)) {
+		throw new AppError(
+			'VALIDATION_ERROR',
+			`El ${catalogLabel} ID "${catalogId}" no es un ObjectId válido.`,
+			400,
+		);
+	}
+
 	const item = await db.collection(collectionName).findOne({
 		_id: new ObjectId(catalogId),
 		eventId: new ObjectId(eventId),
@@ -179,29 +202,24 @@ export async function validateReservationCatalogs(
 	},
 ): Promise<void> {
 	// Validar en paralelo para mejor performance
+	// IMPORTANTE: Usar nombres de colección correctos (según definidos en routes)
 	await Promise.all([
-		validateOptionalCatalog(db, 'salespeople', data.salespersonId, eventId, 'vendedor'),
+		validateOptionalCatalog(db, 'vendedores', data.salespersonId, eventId, 'vendedor'),
 		validateRequiredCatalog(
 			db,
-			'consumptiontypes',
+			'tipos de consumo',
 			data.consumptionTypeId,
 			eventId,
 			'tipo de consumo',
 		),
 		validateOptionalCatalog(
 			db,
-			'pickuppoints',
+			'puntos de recogida',
 			data.pickupPointId,
 			eventId,
 			'punto de recogida',
 		),
-		validateRequiredCatalog(
-			db,
-			'paymentmethods',
-			data.paymentMethodId,
-			eventId,
-			'método de pago',
-		),
+		validateRequiredCatalog(db, 'métodos de pago', data.paymentMethodId, eventId, 'método de pago'),
 		validateOptionalCatalog(db, 'cashiers', data.cashierId, eventId, 'cajero'),
 	]);
 }

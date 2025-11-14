@@ -57,21 +57,25 @@ export function buildLoggerOptions(): FastifyServerOptions['logger'] {
 								options: { destination: 1 }, // stdout
 							},
 						]),
-				// Archivo siempre (desarrollo y producción)
+				// Archivo siempre (desarrollo y producción) con rotación diaria
 				{
-					target: 'pino/file',
+					target: 'pino-roll',
 					level: 'info',
 					options: {
-						destination: join(process.cwd(), 'logs', 'app.log'),
+						file: join(process.cwd(), 'logs', 'app'),
+						frequency: 'daily',
+						size: '10m',
 						mkdir: true,
 					},
 				},
-				// Archivo de errores
+				// Archivo de errores con rotación diaria
 				{
-					target: 'pino/file',
+					target: 'pino-roll',
 					level: 'error',
 					options: {
-						destination: join(process.cwd(), 'logs', 'error.log'),
+						file: join(process.cwd(), 'logs', 'error'),
+						frequency: 'daily',
+						size: '10m',
 						mkdir: true,
 					},
 				},

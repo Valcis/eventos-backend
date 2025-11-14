@@ -25,6 +25,7 @@ import requestId from './core/logging/requestId';
 import bearerAuth from './plugins/bearer';
 import openApiPlugin from './plugins/openapi';
 import { createErrorHandler } from './core/http/errorHandler';
+import { sanitizeQueryParams } from './core/middleware/sanitize';
 
 const env = getEnv();
 
@@ -51,6 +52,10 @@ export async function buildApp() {
 
 	await app.register(requestId);
 	await app.register(corsPlugin);
+
+	// Sanitizar query params para prevenir operator injection
+	app.addHook('preHandler', sanitizeQueryParams);
+
 	await app.register(rateLimit, {
 		max: env.RATE_LIMIT_MAX,
 		timeWindow: env.RATE_LIMIT_WINDOW,

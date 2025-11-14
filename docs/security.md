@@ -293,38 +293,132 @@ await app.register(helmet, {
 });
 ```
 
-### 🔒 Input Validation
+### ✅ Input Validation
 
-**Estado**: Parcialmente implementado (Zod en config)
+**Estado**: Implementado completamente
 
-**Mejora**: Validar todos los inputs con Zod schemas:
+**Validaciones activas**:
 
-```typescript
-import { z } from 'zod';
+1. **Zod schemas en todos los endpoints** - Validación de request body
+2. **ObjectId validation** - Validación de IDs en route params
+3. **Referential integrity** - Validación de foreign keys en reservas
 
-const CreateProductSchema = z.object({
-	eventId: z.string().min(1),
-	name: z.string().min(1).max(100),
-	price: z.string().regex(/^\d+\.\d{2}$/),
-});
-
-// En route handler
-const data = CreateProductSchema.parse(req.body);
-```
-
-### 🔒 SQL/NoSQL Injection
-
-**Estado**: Protegido (uso de driver nativo MongoDB)
-
-MongoDB driver maneja automáticamente la sanitización, pero **evitar**:
+**Implementación de ObjectId validation** (`src/shared/schemas/params.ts`):
 
 ```typescript
-// ❌ MAL - inyección potencial
-const query = { $where: req.query.filter };
-
-// ✅ BIEN - usar operadores seguros
-const query = { eventId: req.query.eventId };
+export const ObjectIdSchema = z
+	.string()
+	.min(24)
+	.max(24)
+	.regex(/^[a-f0-9]{24}$/i, 'Debe ser un ObjectId válido de MongoDB')
+	.refine((val) => ObjectId.isValid(val), {
+		message: 'ObjectId inválido',
+	});
 ```
+
+**Aplicado en todos los controladores CRUD** (`src/modules/controller.ts`):
+
+```typescript
+function validateObjectId(id: string): void {
+	if (!ObjectId.isValid(id)) {
+		throw new BadRequestError(
+			`ID inválido: "${id}" no es un ObjectId válido de MongoDB`,
+		);
+	}
+}
+```
+
+**Validación referencial en reservas** (`src/modules/reservations/validation.ts`):
+
+- Valida que eventId existe y está activo
+- Valida que productos existen, tienen stock y pertenecen al evento
+- Valida que catálogos referenciados (salesperson, paymentMethod, etc.) existen
+- Valida que reservas vinculadas existen y pertenecen al mismo evento
+
+### ✅ MongoDB Operator Injection
+
+**Estado**: Protegido con middleware activo
+
+**Problema**: Query params con operadores MongoDB pueden causar inyección
+
+```typescript
+// ❌ PELIGROSO - Sin sanitización
+GET /api/products?price[$ne]=0
+// Devuelve todos los productos con precio distinto de 0
+```
+
+**Solución implementada** (`src/core/middleware/sanitize.ts`):
+
+```typescript
+const MONGODB_OPERATORS = [
+	'$where',
+	'$regex',
+	'$ne',
+	'$gt',
+	'$gte',
+	'$lt',
+	'$lte',
+	'$in',
+	'$nin',
+	'$exists',
+	'$type',
+	/* ... y más */
+];
+
+export function sanitizeQueryParams(req, _reply, done) {
+	const query = req.query as Record<string, unknown>;
+	if (containsDangerousOperators(query)) {
+		req.log.warn(
+			{ query, url: req.url, ip: req.ip },
+			'Intento de MongoDB operator injection bloqueado',
+		);
+		// Remover operadores peligrosos
+	}
+	done();
+}
+```
+
+**Integrado globalmente** (`src/app.ts`):
+
+```typescript
+app.addHook('preHandler', sanitizeQueryParams);
+```
+
+**Operadores bloqueados**: $where, $regex, $ne, $gt, $gte, $lt, $lte, $in, $nin, $exists, $type, $mod, $text, $expr, $jsonSchema, $all, $elemMatch, $size, y otros.
+
+### ✅ MongoDB Transactions
+
+**Estado**: Implementado
+
+**Operaciones atómicas con transacciones**:
+
+- Crear reserva + decrementar stock (atómico)
+- Eliminar reserva + restaurar stock (atómico)
+
+**Implementación** (`src/modules/reservations/stock.ts`):
+
+```typescript
+export async function createReservationWithStockControl(db: Db, reservationData) {
+	const session = db.client?.startSession();
+
+	try {
+		await session.withTransaction(async () => {
+			// 1. Decrementar stock
+			await decrementStock(db, order, session);
+			// 2. Insertar reserva
+			const result = await db.collection('reservations').insertOne(reservationData, { session });
+			insertedId = result.insertedId.toString();
+		});
+		return insertedId;
+	} finally {
+		await session.endSession();
+	}
+}
+```
+
+**Fallback**: Si MongoDB está en modo standalone (sin replica set), degrada gracefully a operaciones secuenciales.
+
+**Producción**: Usar MongoDB replica set para garantizar atomicidad.
 
 ---
 
@@ -332,21 +426,26 @@ const query = { eventId: req.query.eventId };
 
 ### Desarrollo
 
-- [ ] Variables sensibles en `.env` (no en código)
-- [ ] `.env` en `.gitignore`
-- [ ] Validación de inputs con Zod
-- [ ] No loguear secretos
+- [x] Variables sensibles en `.env` (no en código)
+- [x] `.env` en `.gitignore`
+- [x] Validación de inputs con Zod
+- [x] No loguear secretos (redacción implementada)
+- [x] ObjectId validation en todos los endpoints
+- [x] Sanitización de query params (MongoDB operator injection)
+- [x] Validación de integridad referencial
 
 ### Staging/Producción
 
-- [ ] `AUTH_ENABLED=true`
-- [ ] Validación JWT implementada
-- [ ] CORS restringido a dominios específicos
-- [ ] Rate limiting activo
+- [x] `AUTH_ENABLED=true`
+- [x] Validación JWT implementada
+- [x] CORS configurado dinámicamente (CORS_ORIGINS)
+- [x] Rate limiting activo (configurable)
 - [ ] Helmet configurado
-- [ ] HTTPS obligatorio
+- [ ] HTTPS obligatorio (configurar en reverse proxy)
 - [ ] Variables de entorno desde secrets manager
-- [ ] Logging con redacción de datos sensibles
+- [x] Logging con redacción de datos sensibles
+- [x] MongoDB transactions para operaciones críticas
+- [x] Rotación de logs configurada
 - [ ] Monitoring de intentos de acceso fallidos
 
 ---
