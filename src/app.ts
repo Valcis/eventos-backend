@@ -47,41 +47,10 @@ export async function buildApp() {
 	// CRÍTICO: Registrar validador de Zod SIEMPRE (no solo si Swagger está habilitado)
 	app.setValidatorCompiler(validatorCompiler);
 
-	// Usar serializerCompiler custom que NO valida errores automáticos de Fastify
-	// Solo serializa con Zod, sin validar estrictamente en runtime
-	// Esto permite que los schemas se conviertan para Swagger pero evita FST_ERR_FAILED_ERROR_SERIALIZATION
-	app.setSerializerCompiler(({ schema }) => {
-		return (data) => {
-			// Si el dato parece un error de Fastify (tiene statusCode/error/message), no validar con Zod
-			// Los errores automáticos no coinciden con nuestros schemas de respuesta
-			if (
-				data &&
-				typeof data === 'object' &&
-				('statusCode' in data || 'error' in data || 'code' in data || 'message' in data)
-			) {
-				// Es un error, devolver sin validar contra schema
-				return JSON.stringify(data);
-			}
-
-			// Para respuestas exitosas, intentar validar con Zod
-			try {
-				const zodSchema = schema as ZodSchema;
-				return JSON.stringify(zodSchema.parse(data));
-			} catch (err) {
-				// Si falla la validación, loguear con más contexto y devolver sin validar
-				const errorMessage = err instanceof Error ? err.message : String(err);
-				app.log.warn(
-					{
-						schemaType: schema.constructor.name,
-						error: errorMessage,
-						dataKeys: data && typeof data === 'object' ? Object.keys(data) : undefined,
-					},
-					'SerializerCompiler: Failed to validate response with schema',
-				);
-				return JSON.stringify(data);
-			}
-		};
-	});
+	// NO usar serializerCompiler - permite que los errores se serialicen correctamente
+	// El serializerCompiler de Zod puede causar problemas con errores de validación
+	// dejando que Fastify maneje la serialización por defecto
+	// Si se necesita validación de respuestas en el futuro, usar solo para rutas específicas
 
 	if (env.MONGO_BOOT === '1') {
 		try {
