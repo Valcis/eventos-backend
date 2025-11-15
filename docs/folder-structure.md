@@ -23,7 +23,6 @@ Toda la documentación técnica del proyecto en formato Markdown.
 
 ```
 docs/
-├── architecture.md           # Arquitectura en capas
 ├── api.md                   # Contratos API y ejemplos
 ├── data-model.md            # Modelo de datos MongoDB
 ├── data_model.puml          # Diagrama UML de relaciones
@@ -34,6 +33,7 @@ docs/
 ├── logging.md               # Configuración de logging
 ├── overview.md              # Visión general del proyecto
 ├── pagination.md            # Estrategia de paginación
+├── pricing-logic.md         # Lógica de negocio de precios y promociones (pendiente)
 ├── reservations-validation.md # Validación de reservas
 ├── runbook.md               # Troubleshooting, operaciones y tareas pendientes
 └── security.md              # Consideraciones de seguridad
@@ -389,9 +389,8 @@ Antes de crear archivos/carpetas, pregúntate:
 
 ## 🔗 Ver También
 
-- [Architecture](./architecture.md) - Arquitectura en capas del sistema
-- [Overview](./overview.md) - Visión general del proyecto
-- [Operations](./operations.md) - Guía de operaciones y mantenimiento
+- [Overview](./overview.md) - Visión general del proyecto con arquitectura
+- [Runbook](./runbook.md) - Guía de operaciones, troubleshooting y tareas pendientes
 
 ---
 

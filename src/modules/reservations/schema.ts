@@ -2,6 +2,37 @@ import { z } from 'zod';
 import { Id, DateTime, Money } from '../catalogs/zod.schemas';
 
 /**
+ * Schema de snapshot de promoción aplicada
+ * Guarda un registro inmutable de cada promoción aplicada a un producto
+ */
+export const AppliedPromotionSnapshot = z.object({
+	promotionId: Id.describe('ID de la promoción aplicada'),
+	promotionName: z.string().describe('Nombre de la promoción al momento de aplicarla'),
+	rule: z.string().describe('Tipo de regla de la promoción (XForY, DiscountPerUnit, etc.)'),
+	discountPerUnit: Money.describe('Descuento aplicado por unidad. Ejemplo: "2.50"'),
+});
+
+export type AppliedPromotionSnapshotT = z.infer<typeof AppliedPromotionSnapshot>;
+
+/**
+ * Schema de snapshot de producto con promociones
+ * Guarda un registro inmutable de cada línea de pedido con sus promociones aplicadas
+ */
+export const ProductPromotionSnapshot = z.object({
+	productId: Id.describe('ID del producto'),
+	productName: z.string().describe('Nombre del producto al momento de la reserva'),
+	quantity: z.number().int().positive().describe('Cantidad pedida'),
+	unitPriceOriginal: Money.describe('Precio unitario original sin promociones. Ejemplo: "10.00"'),
+	unitPriceFinal: Money.describe('Precio unitario final con promociones aplicadas. Ejemplo: "7.50"'),
+	subtotal: Money.describe('Subtotal de la línea (unitPriceFinal * quantity). Ejemplo: "22.50"'),
+	promotionsApplied: z
+		.array(AppliedPromotionSnapshot)
+		.describe('Listado de promociones aplicadas a este producto'),
+});
+
+export type ProductPromotionSnapshotT = z.infer<typeof ProductPromotionSnapshot>;
+
+/**
  * Schema completo de Reserva
  * Representa una reserva/pedido realizado por un cliente para un evento
  */
@@ -64,6 +95,12 @@ export const Reservation = z.object({
 		.describe(
 			'Notas adicionales sobre la reserva. Ejemplo: "Cliente habitual", "Sin gluten", "Pedido urgente"',
 		),
+	appliedPromotionsSnapshot: z
+		.array(ProductPromotionSnapshot)
+		.optional()
+		.describe(
+			'Snapshot inmutable de productos, precios y promociones aplicadas al momento de crear/modificar la reserva. Se guarda cuando isPaid=true o isDelivered=true para auditoría.',
+		),
 	createdAt: DateTime.optional().describe('Fecha de creación de la reserva'),
 	updatedAt: DateTime.optional().describe('Fecha de última actualización'),
 });
@@ -93,6 +130,10 @@ export const ReservationCreate = z.object({
 	paymentMethodId: Id.describe('ID del método de pago'),
 	cashierId: Id.optional().describe('ID del cajero (opcional)'),
 	notes: z.string().optional().describe('Notas adicionales'),
+	appliedPromotionsSnapshot: z
+		.array(ProductPromotionSnapshot)
+		.optional()
+		.describe('Snapshot de promociones aplicadas (opcional, generado automáticamente)'),
 });
 
 export type ReservationCreateT = z.infer<typeof ReservationCreate>;
@@ -117,6 +158,10 @@ export const ReservationReplace = z.object({
 	paymentMethodId: Id.describe('ID del método de pago'),
 	cashierId: Id.optional().describe('ID del cajero'),
 	notes: z.string().optional().describe('Notas adicionales'),
+	appliedPromotionsSnapshot: z
+		.array(ProductPromotionSnapshot)
+		.optional()
+		.describe('Snapshot de promociones aplicadas (opcional)'),
 });
 
 export type ReservationReplaceT = z.infer<typeof ReservationReplace>;
@@ -144,6 +189,10 @@ export const ReservationPatch = z.object({
 	paymentMethodId: Id.optional().describe('ID del método de pago'),
 	cashierId: Id.optional().describe('ID del cajero'),
 	notes: z.string().optional().describe('Notas adicionales'),
+	appliedPromotionsSnapshot: z
+		.array(ProductPromotionSnapshot)
+		.optional()
+		.describe('Snapshot de promociones aplicadas (opcional)'),
 });
 
 export type ReservationPatchT = z.infer<typeof ReservationPatch>;

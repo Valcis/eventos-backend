@@ -45,6 +45,7 @@ class Reservations COLLECTION {
   isPaid: boolean
   paymentMethodId: string
   cashierId?: string
+  appliedPromotionsSnapshot?: array [ProductPromotionSnapshot..]
 }
 
 class Products COLLECTION {
@@ -260,7 +261,26 @@ Expenses --> "0..1" Stores : storeId
 Rules --o Promotions
 Conditions --o Promotions
 
+' ===== Snapshot Structures =====
+class ProductPromotionSnapshot {
+  +productId: string
+  +productName: string
+  +quantity: int
+  +unitPriceOriginal: Decimal (7,2)
+  +unitPriceFinal: Decimal (7,2)
+  +subtotal: Decimal (7,2)
+  +promotionsApplied: AppliedPromotionSnapshot[*]
+}
 
+class AppliedPromotionSnapshot {
+  +promotionId: string
+  +promotionName: string
+  +rule: string
+  +discountPerUnit: Decimal (7,2)
+}
+
+ProductPromotionSnapshot *-- AppliedPromotionSnapshot
+Reservations ..> ProductPromotionSnapshot : appliedPromotionsSnapshot
 
 
 

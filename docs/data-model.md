@@ -97,6 +97,10 @@ Reservas de productos para un evento.
 - `hasPromoApplied` (boolean) - Calculado por backend
 - `deposit` (string, opcional), `isDelivered` (boolean), `isPaid` (boolean)
 - `linkedReservations` (array[string], opcional)
+- `appliedPromotionsSnapshot` (array[object], opcional) - Snapshot inmutable de productos, precios y promociones aplicadas. Se guarda cuando `isPaid=true` o `isDelivered=true` para auditoría y facturación. Cada elemento contiene:
+  - `productId`, `productName`, `quantity`
+  - `unitPriceOriginal`, `unitPriceFinal`, `subtotal` (formato Money)
+  - `promotionsApplied[]` - Array de promociones con `promotionId`, `promotionName`, `rule`, `discountPerUnit`
 - `notes` (string, opcional), `isActive` (boolean), `createdAt`, `updatedAt` (Date)
 
 **Índices principales**:
