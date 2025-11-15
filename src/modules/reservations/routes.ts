@@ -19,6 +19,7 @@ import {
 	InternalErrorResponse,
 	NoContentResponse,
 } from '../../shared/schemas/responses';
+import { InvoiceData } from './invoice-schema';
 
 const TAG = 'Reservas';
 
@@ -140,6 +141,7 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 				validateLinkedReservations,
 			} = await import('./validation');
 			const { createReservationWithStockControl } = await import('./stock');
+			const { calculateReservationTotal } = await import('./pricing');
 			const { ObjectId } = await import('mongodb');
 
 			// 1. Validar que el evento existe y está activo
@@ -160,12 +162,34 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 			// 4. Validar reservas vinculadas (si existen)
 			await validateLinkedReservations(db, body.linkedReservations, body.eventId);
 
-			// 5. Crear reserva con control de stock atómico
-			// Preparar datos con timestamps
+			// 5. Calcular precio automáticamente (el cliente NO puede enviar totalAmount)
+			const isPaid = body.isPaid ?? false;
+			const isDelivered = body.isDelivered ?? false;
+			const generateSnapshot = isPaid || isDelivered;
+
+			const pricingResult = await calculateReservationTotal(
+				db,
+				body.eventId,
+				body.order,
+				body.consumptionTypeId,
+				new Date(),
+				isPaid,
+				isDelivered,
+				generateSnapshot,
+				true, // Saltar validación de congelación en creación
+			);
+
+			// 6. Crear reserva con control de stock atómico
+			// Preparar datos con timestamps y pricing calculado
 			const reservationData = {
 				...body,
+				totalAmount: pricingResult.totalAmount, // Sobrescribir con precio calculado
+				hasPromoApplied: pricingResult.hasPromoApplied,
+				appliedPromotionsSnapshot: pricingResult.appliedPromotionsSnapshot,
 				eventId: new ObjectId(body.eventId),
 				isActive: body.isActive ?? true,
+				isPaid: isPaid,
+				isDelivered: isDelivered,
 				createdAt: new Date(),
 				updatedAt: new Date(),
 			};
@@ -229,6 +253,7 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 				validateReservationCatalogs,
 				validateLinkedReservations,
 			} = await import('./validation');
+			const { recalculateReservationIfNeeded } = await import('./pricing');
 			const { ObjectId } = await import('mongodb');
 			const { NotFoundError } = await import('../../core/http/errors');
 
@@ -259,6 +284,27 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 
 			// Validar reservas vinculadas
 			await validateLinkedReservations(db, body.linkedReservations, eventId);
+
+			// Recalcular precio si es necesario
+			const pricingResult = await recalculateReservationIfNeeded(db, id, {
+				order: body.order,
+				consumptionTypeId: body.consumptionTypeId,
+				isPaid: body.isPaid,
+				isDelivered: body.isDelivered,
+			});
+
+			// Aplicar pricing calculado si existe
+			const updatedBody = pricingResult
+				? {
+						...body,
+						totalAmount: pricingResult.totalAmount,
+						hasPromoApplied: pricingResult.hasPromoApplied,
+						appliedPromotionsSnapshot: pricingResult.appliedPromotionsSnapshot,
+				  }
+				: body;
+
+			// Actualizar el request body con los valores calculados
+			req.body = updatedBody;
 
 			// Usar el controlador genérico para la actualización
 			return ctrl.replace(req, reply);
@@ -299,6 +345,7 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 				validateRequiredCatalog,
 				validateLinkedReservations,
 			} = await import('./validation');
+			const { recalculateReservationIfNeeded } = await import('./pricing');
 			const { ObjectId } = await import('mongodb');
 			const { NotFoundError } = await import('../../core/http/errors');
 
@@ -358,6 +405,27 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 				await validateLinkedReservations(db, body.linkedReservations, eventId);
 			}
 
+			// Recalcular precio si es necesario
+			const pricingResult = await recalculateReservationIfNeeded(db, id, {
+				order: body.order,
+				consumptionTypeId: body.consumptionTypeId,
+				isPaid: body.isPaid,
+				isDelivered: body.isDelivered,
+			});
+
+			// Aplicar pricing calculado si existe
+			const updatedBody = pricingResult
+				? {
+						...body,
+						totalAmount: pricingResult.totalAmount,
+						hasPromoApplied: pricingResult.hasPromoApplied,
+						appliedPromotionsSnapshot: pricingResult.appliedPromotionsSnapshot,
+				  }
+				: body;
+
+			// Actualizar el request body con los valores calculados
+			req.body = updatedBody;
+
 			// Usar el controlador genérico para la actualización
 			return ctrl.patch(req, reply);
 		},
@@ -394,6 +462,46 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 			await deleteReservationWithStockRestore(db, id);
 
 			return reply.code(204).send();
+		},
+	);
+
+	// GET /reservations/:id/invoice-data - Obtener datos de facturación
+	app.get(
+		'/:id/invoice-data',
+		{
+			schema: {
+				tags: [TAG],
+				summary: 'Obtener datos de facturación',
+				description:
+					'Devuelve información detallada de facturación de una reserva incluyendo:\n\n' +
+					'- Información básica de la reserva (cliente, importes, estado)\n' +
+					'- Detalle de productos con precios originales y finales\n' +
+					'- Promociones aplicadas a cada producto (con descuentos)\n' +
+					'- Suplementos aplicados (por tipo de consumo)\n' +
+					'- Reservas vinculadas (para grupos o pedidos múltiples)\n' +
+					'- Total final\n\n' +
+					'**Nota**: Si la reserva tiene `isPaid=true` o `isDelivered=true`, los datos provienen del snapshot inmutable guardado en el momento del congelamiento. Si no, se calculan dinámicamente desde los productos actuales.',
+				params: IdParam,
+				response: {
+					200: InvoiceData.describe('Datos de facturación de la reserva'),
+					404: NotFoundResponse.describe('Reserva no encontrada'),
+					401: UnauthorizedResponse.describe('Token inválido o faltante'),
+					500: InternalErrorResponse.describe('Error interno del servidor'),
+				},
+				security: [{ bearerAuth: [] }],
+			},
+		},
+		async (req, reply) => {
+			const db = (req.server as unknown as { db: import('mongodb').Db }).db;
+			const { id } = req.params as { id: string };
+
+			// Importar función de generación de factura
+			const { generateInvoiceData } = await import('./invoice');
+
+			// Generar datos de facturación
+			const invoiceData = await generateInvoiceData(db, id);
+
+			return reply.send(invoiceData);
 		},
 	);
 }

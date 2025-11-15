@@ -110,7 +110,7 @@ export default async function expensesRoutes(app: FastifyInstance) {
 				tags: [TAG],
 				summary: 'Crear nuevo gasto',
 				description:
-					'Registra un nuevo gasto para un evento. Incluye cálculos de IVA, precios base y netos, y gestión de paquetes.',
+					'Registra un nuevo gasto para un evento. Calcula automáticamente IVA (vatAmount y netPrice) desde basePrice, o basePrice desde netPrice. Incluye gestión de paquetes.',
 				body: ExpenseCreate,
 				response: {
 					201: ExpenseCreatedResponse.describe('Gasto creado exitosamente'),
@@ -121,7 +121,30 @@ export default async function expensesRoutes(app: FastifyInstance) {
 				security: [{ bearerAuth: [] }],
 			},
 		},
-		ctrl.create,
+		async (req, reply) => {
+			const body = req.body as z.infer<typeof ExpenseCreate>;
+
+			// Calcular IVA automáticamente
+			const { processVAT } = await import('./vat-calculator');
+
+			const vatResult = processVAT({
+				basePrice: body.basePrice,
+				vatPct: body.vatPct,
+				vatAmount: body.vatAmount,
+				netPrice: body.netPrice,
+			});
+
+			// Actualizar body con valores calculados
+			req.body = {
+				...body,
+				basePrice: vatResult.basePrice,
+				vatAmount: vatResult.vatAmount,
+				netPrice: vatResult.netPrice,
+			};
+
+			// Usar el controlador genérico para la creación
+			return ctrl.create(req, reply);
+		},
 	);
 
 	app.put(
@@ -131,7 +154,7 @@ export default async function expensesRoutes(app: FastifyInstance) {
 				tags: [TAG],
 				summary: 'Reemplazar gasto completo',
 				description:
-					'Reemplaza todos los campos de un gasto existente (excepto eventId). Requiere proporcionar todos los campos obligatorios.',
+					'Reemplaza todos los campos de un gasto existente (excepto eventId). Recalcula IVA automáticamente. Requiere proporcionar todos los campos obligatorios.',
 				params: IdParam,
 				body: ExpenseReplace,
 				response: {
@@ -144,7 +167,30 @@ export default async function expensesRoutes(app: FastifyInstance) {
 				security: [{ bearerAuth: [] }],
 			},
 		},
-		ctrl.replace,
+		async (req, reply) => {
+			const body = req.body as z.infer<typeof ExpenseReplace>;
+
+			// Calcular IVA automáticamente
+			const { processVAT } = await import('./vat-calculator');
+
+			const vatResult = processVAT({
+				basePrice: body.basePrice,
+				vatPct: body.vatPct,
+				vatAmount: body.vatAmount,
+				netPrice: body.netPrice,
+			});
+
+			// Actualizar body con valores calculados
+			req.body = {
+				...body,
+				basePrice: vatResult.basePrice,
+				vatAmount: vatResult.vatAmount,
+				netPrice: vatResult.netPrice,
+			};
+
+			// Usar el controlador genérico para la actualización
+			return ctrl.replace(req, reply);
+		},
 	);
 
 	app.patch(
@@ -154,7 +200,7 @@ export default async function expensesRoutes(app: FastifyInstance) {
 				tags: [TAG],
 				summary: 'Actualizar gasto parcialmente',
 				description:
-					'Actualiza uno o más campos de un gasto existente. Solo los campos proporcionados serán modificados.',
+					'Actualiza uno o más campos de un gasto existente. Si se modifica basePrice, vatPct o netPrice, recalcula IVA automáticamente. Solo los campos proporcionados serán modificados.',
 				params: IdParam,
 				body: ExpensePatch,
 				response: {
@@ -167,7 +213,50 @@ export default async function expensesRoutes(app: FastifyInstance) {
 				security: [{ bearerAuth: [] }],
 			},
 		},
-		ctrl.patch,
+		async (req, reply) => {
+			const db = (req.server as unknown as { db: import('mongodb').Db }).db;
+			const { id } = req.params as { id: string };
+			const body = req.body as z.infer<typeof ExpensePatch>;
+
+			// Si se modifican campos de IVA, recalcular
+			const { ObjectId } = await import('mongodb');
+			const { NotFoundError } = await import('../../core/http/errors');
+
+			const vatFieldsModified =
+				body.basePrice !== undefined || body.vatPct !== undefined || body.netPrice !== undefined;
+
+			if (vatFieldsModified) {
+				// Obtener gasto existente para los valores actuales
+				const existing = await db.collection('expenses').findOne({
+					_id: new ObjectId(id),
+				});
+
+				if (!existing) {
+					throw new NotFoundError('expenses', id);
+				}
+
+				// Calcular IVA con valores actualizados
+				const { processVAT } = await import('./vat-calculator');
+
+				const vatResult = processVAT({
+					basePrice: body.basePrice ?? (existing.basePrice as string),
+					vatPct: body.vatPct ?? (existing.vatPct as number),
+					vatAmount: body.vatAmount ?? (existing.vatAmount as string),
+					netPrice: body.netPrice ?? (existing.netPrice as string),
+				});
+
+				// Actualizar body con valores calculados
+				req.body = {
+					...body,
+					basePrice: vatResult.basePrice,
+					vatAmount: vatResult.vatAmount,
+					netPrice: vatResult.netPrice,
+				};
+			}
+
+			// Usar el controlador genérico para la actualización
+			return ctrl.patch(req, reply);
+		},
 	);
 
 	app.delete(
