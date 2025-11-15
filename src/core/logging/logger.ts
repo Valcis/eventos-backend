@@ -72,7 +72,9 @@ export function buildLoggerOptions(): FastifyServerOptions['logger'] {
 						options: {
 							colorize: true,
 							translateTime: 'HH:MM:ss',
-							ignore: 'pid,hostname',
+							// Ignorar campos verbose para consola limpia (los archivos sí los reciben)
+						ignore:
+							'pid,hostname,err,errorType,errorCode,errorMessage,query,headers,ip,userId,hasValidation,validationErrors,responseStatusCode,responseCode,responseMessage,req,res,userAgent,userEmail,responseTime',
 						},
 					},
 					{
