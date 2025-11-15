@@ -8,12 +8,6 @@ const logLevel = process.env.LOG_LEVEL ?? 'info';
 export function buildLoggerOptions(): FastifyServerOptions['logger'] {
 	const baseOptions = {
 		level: logLevel,
-		// Formatear level como texto en lugar de número (30 -> "info")
-		formatters: {
-			level: (label: string) => {
-				return { level: label };
-			},
-		},
 		// Redactar datos sensibles
 		redact: {
 			paths: [
