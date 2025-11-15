@@ -68,6 +68,7 @@ export default async function usersRoutes(app: FastifyInstance) {
 			const base = {
 				...(rest as Record<string, unknown>),
 				id: String(_id),
+				isActive: rest.isActive !== undefined ? rest.isActive : true,
 			};
 			const normalized = isoifyFields(base, [
 				'lastLoginAt',

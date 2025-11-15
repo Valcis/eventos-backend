@@ -85,6 +85,8 @@ export default async function eventsRoutes(app: FastifyInstance) {
 			const base = {
 				...(rest as Record<string, unknown>),
 				id: String(_id),
+				// Asegurar que isActive siempre esté presente (default true si falta)
+				isActive: rest.isActive !== undefined ? rest.isActive : true,
 			};
 			const normalized = isoifyFields(base, ['date', 'createdAt', 'updatedAt'] as const);
 			return Event.parse(normalized);
