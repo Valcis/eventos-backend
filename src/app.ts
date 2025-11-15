@@ -75,11 +75,18 @@ export async function buildApp() {
 	app.setSerializerCompiler(({ schema }) => {
 		const zodSchema = schema as ZodSchema;
 		return (data) => {
+			console.error('=== SERIALIZER DEBUG ===');
+			console.error('Data:', JSON.stringify(data, null, 2));
+			console.error('Has statusCode:', data && typeof data === 'object' && 'statusCode' in data);
+
 			// Si es una respuesta de error (statusCode >= 400), no validar con Zod
 			if (data && typeof data === 'object' && 'statusCode' in data) {
 				const statusCode = (data as { statusCode: number }).statusCode;
+				console.error('StatusCode:', statusCode);
 				if (statusCode >= 400) {
-					return JSON.stringify(data);
+					const result = JSON.stringify(data);
+					console.error('=== Returning error JSON:', result);
+					return result;
 				}
 			}
 
