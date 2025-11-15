@@ -8,6 +8,12 @@ const logLevel = process.env.LOG_LEVEL ?? 'info';
 export function buildLoggerOptions(): FastifyServerOptions['logger'] {
 	const baseOptions = {
 		level: logLevel,
+		// Formatear level como texto en lugar de número (30 -> "info")
+		formatters: {
+			level: (label: string) => {
+				return { level: label };
+			},
+		},
 		// Redactar datos sensibles
 		redact: {
 			paths: [
@@ -79,19 +85,9 @@ export function buildLoggerOptions(): FastifyServerOptions['logger'] {
 					},
 					{
 						target: 'pino-roll',
-						level: 'info',
+						level: logLevel, // Captura todos los logs según LOG_LEVEL
 						options: {
 							file: join(process.cwd(), 'logs', 'app'),
-							frequency: 'daily',
-							size: '10m',
-							mkdir: true,
-						},
-					},
-					{
-						target: 'pino-roll',
-						level: 'error',
-						options: {
-							file: join(process.cwd(), 'logs', 'error'),
 							frequency: 'daily',
 							size: '10m',
 							mkdir: true,
@@ -109,19 +105,9 @@ export function buildLoggerOptions(): FastifyServerOptions['logger'] {
 			targets: [
 				{
 					target: 'pino-roll',
-					level: 'info',
+					level: logLevel, // Captura todos los logs según LOG_LEVEL
 					options: {
 						file: join(process.cwd(), 'logs', 'app'),
-						frequency: 'daily',
-						size: '10m',
-						mkdir: true,
-					},
-				},
-				{
-					target: 'pino-roll',
-					level: 'error',
-					options: {
-						file: join(process.cwd(), 'logs', 'error'),
 						frequency: 'daily',
 						size: '10m',
 						mkdir: true,
