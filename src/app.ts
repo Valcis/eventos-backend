@@ -44,7 +44,7 @@ export async function buildApp() {
 
 	app.decorate('db', db);
 
-	// Validador de Zod que lanza errores para que sean manejados por errorHandler
+	// Validador de Zod que retorna errores en formato Fastify
 	app.setValidatorCompiler(({ schema }) => {
 		return (data) => {
 			try {
@@ -52,8 +52,20 @@ export async function buildApp() {
 				const result = zodSchema.parse(data);
 				return { value: result };
 			} catch (error) {
-				// Lanzar el error para que sea manejado por errorHandler
-				// El errorHandler formateará correctamente el ZodError con mensajes en español
+				// Si es ZodError, convertirlo al formato de error de Fastify
+				if (error instanceof ZodError) {
+					return {
+						error: error.issues.map((issue) => ({
+							instancePath: '/' + issue.path.join('/'),
+							message: issue.message, // Mensaje personalizado en español
+							params: {
+								code: issue.code,
+								path: issue.path.join('.'),
+							},
+						})),
+					};
+				}
+				// Si es otro tipo de error, lanzarlo
 				throw error;
 			}
 		};

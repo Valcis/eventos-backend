@@ -183,9 +183,9 @@ function handleFastifyValidationError(err: FastifyError): ErrorResponse {
 			error: 'Bad Request',
 			message: 'Error de validación en los datos enviados',
 			details: validation.validation.map((e: any) => ({
-				path: e.path || e.instancePath?.replace(/^\//, '').replace(/\//g, '.') || 'unknown',
+				path: e.params?.path || e.path || e.instancePath?.replace(/^\//, '').replace(/\//g, '.') || 'unknown',
 				message: e.message || 'Error de validación',
-				code: e.code,
+				code: e.params?.code || e.code,
 			})),
 		};
 	}
