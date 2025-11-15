@@ -40,6 +40,28 @@ export async function buildApp() {
 		logger: loggerOptions ?? true,
 		disableRequestLogging: true,
 		requestTimeout: 15000,
+		// Formateador de errores de validación personalizado
+		schemaErrorFormatter: (errors, dataVar) => {
+			console.error('=== SCHEMA ERROR FORMATTER CALLED ===');
+			console.error('Errors:', JSON.stringify(errors, null, 2));
+
+			// Crear error personalizado con nuestro formato
+			const formattedError = new Error('Error de validación en los datos enviados') as Error & {
+				statusCode: number;
+				code: string;
+				validation: any[];
+			};
+			formattedError.statusCode = 400;
+			formattedError.code = 'VALIDATION_ERROR';
+			formattedError.validation = errors.map((err) => ({
+				instancePath: err.instancePath,
+				message: err.message,
+				params: err.params,
+			}));
+
+			console.error('=== FORMATTED ERROR:', JSON.stringify(formattedError, null, 2));
+			return formattedError;
+		},
 	}).withTypeProvider<ZodTypeProvider>();
 
 	app.decorate('db', db);
