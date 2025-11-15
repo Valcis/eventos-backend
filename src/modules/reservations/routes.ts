@@ -140,6 +140,7 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 				validateLinkedReservations,
 			} = await import('./validation');
 			const { createReservationWithStockControl } = await import('./stock');
+			const { calculateReservationTotal } = await import('./pricing');
 			const { ObjectId } = await import('mongodb');
 
 			// 1. Validar que el evento existe y está activo
@@ -160,12 +161,34 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 			// 4. Validar reservas vinculadas (si existen)
 			await validateLinkedReservations(db, body.linkedReservations, body.eventId);
 
-			// 5. Crear reserva con control de stock atómico
-			// Preparar datos con timestamps
+			// 5. Calcular precio automáticamente (el cliente NO puede enviar totalAmount)
+			const isPaid = body.isPaid ?? false;
+			const isDelivered = body.isDelivered ?? false;
+			const generateSnapshot = isPaid || isDelivered;
+
+			const pricingResult = await calculateReservationTotal(
+				db,
+				body.eventId,
+				body.order,
+				body.consumptionTypeId,
+				new Date(),
+				isPaid,
+				isDelivered,
+				generateSnapshot,
+				true, // Saltar validación de congelación en creación
+			);
+
+			// 6. Crear reserva con control de stock atómico
+			// Preparar datos con timestamps y pricing calculado
 			const reservationData = {
 				...body,
+				totalAmount: pricingResult.totalAmount, // Sobrescribir con precio calculado
+				hasPromoApplied: pricingResult.hasPromoApplied,
+				appliedPromotionsSnapshot: pricingResult.appliedPromotionsSnapshot,
 				eventId: new ObjectId(body.eventId),
 				isActive: body.isActive ?? true,
+				isPaid: isPaid,
+				isDelivered: isDelivered,
 				createdAt: new Date(),
 				updatedAt: new Date(),
 			};
@@ -229,6 +252,7 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 				validateReservationCatalogs,
 				validateLinkedReservations,
 			} = await import('./validation');
+			const { recalculateReservationIfNeeded } = await import('./pricing');
 			const { ObjectId } = await import('mongodb');
 			const { NotFoundError } = await import('../../core/http/errors');
 
@@ -259,6 +283,27 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 
 			// Validar reservas vinculadas
 			await validateLinkedReservations(db, body.linkedReservations, eventId);
+
+			// Recalcular precio si es necesario
+			const pricingResult = await recalculateReservationIfNeeded(db, id, {
+				order: body.order,
+				consumptionTypeId: body.consumptionTypeId,
+				isPaid: body.isPaid,
+				isDelivered: body.isDelivered,
+			});
+
+			// Aplicar pricing calculado si existe
+			const updatedBody = pricingResult
+				? {
+						...body,
+						totalAmount: pricingResult.totalAmount,
+						hasPromoApplied: pricingResult.hasPromoApplied,
+						appliedPromotionsSnapshot: pricingResult.appliedPromotionsSnapshot,
+				  }
+				: body;
+
+			// Actualizar el request body con los valores calculados
+			req.body = updatedBody;
 
 			// Usar el controlador genérico para la actualización
 			return ctrl.replace(req, reply);
@@ -299,6 +344,7 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 				validateRequiredCatalog,
 				validateLinkedReservations,
 			} = await import('./validation');
+			const { recalculateReservationIfNeeded } = await import('./pricing');
 			const { ObjectId } = await import('mongodb');
 			const { NotFoundError } = await import('../../core/http/errors');
 
@@ -357,6 +403,27 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 			if (body.linkedReservations !== undefined) {
 				await validateLinkedReservations(db, body.linkedReservations, eventId);
 			}
+
+			// Recalcular precio si es necesario
+			const pricingResult = await recalculateReservationIfNeeded(db, id, {
+				order: body.order,
+				consumptionTypeId: body.consumptionTypeId,
+				isPaid: body.isPaid,
+				isDelivered: body.isDelivered,
+			});
+
+			// Aplicar pricing calculado si existe
+			const updatedBody = pricingResult
+				? {
+						...body,
+						totalAmount: pricingResult.totalAmount,
+						hasPromoApplied: pricingResult.hasPromoApplied,
+						appliedPromotionsSnapshot: pricingResult.appliedPromotionsSnapshot,
+				  }
+				: body;
+
+			// Actualizar el request body con los valores calculados
+			req.body = updatedBody;
 
 			// Usar el controlador genérico para la actualización
 			return ctrl.patch(req, reply);

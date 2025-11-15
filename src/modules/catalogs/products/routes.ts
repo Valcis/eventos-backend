@@ -107,7 +107,7 @@ export default async function productsRoutes(app: FastifyInstance) {
 				tags: ['Productos'],
 				summary: 'Crear nuevo producto',
 				description:
-					'Crea un nuevo producto en el sistema. El stock inicial debe ser >= 0. Los campos id, createdAt y updatedAt son generados automáticamente.',
+					'Crea un nuevo producto en el sistema. Valida que todas las promociones referenciadas existan y pertenezcan al mismo evento. El stock inicial debe ser >= 0.',
 				body: ProductCreate,
 				response: {
 					201: ProductCreatedResponse.describe('Producto creado exitosamente'),
@@ -118,7 +118,41 @@ export default async function productsRoutes(app: FastifyInstance) {
 				security: [{ bearerAuth: [] }],
 			},
 		},
-		ctrl.create,
+		async (req, reply) => {
+			const db = (req.server as unknown as { db: import('mongodb').Db }).db;
+			const body = req.body as z.infer<typeof ProductCreate>;
+
+			// Validar promociones si existen
+			if (body.promotions && body.promotions.length > 0) {
+				const { ObjectId } = await import('mongodb');
+				const { AppError } = await import('../../../core/http/errors');
+
+				// Buscar todas las promociones
+				const promotions = await db
+					.collection('promotions')
+					.find({
+						_id: { $in: body.promotions.map((id) => new ObjectId(id)) },
+						eventId: new ObjectId(body.eventId),
+						isActive: true,
+					})
+					.toArray();
+
+				// Verificar que todas existen
+				if (promotions.length !== body.promotions.length) {
+					const foundIds = promotions.map((p) => p._id.toString());
+					const missing = body.promotions.filter((id) => !foundIds.includes(id));
+
+					throw new AppError(
+						'VALIDATION_ERROR',
+						`Las siguientes promociones no existen o no pertenecen al evento: ${missing.join(', ')}`,
+						400,
+					);
+				}
+			}
+
+			// Usar el controlador genérico para la creación
+			return ctrl.create(req, reply);
+		},
 	);
 
 	// PUT /products/:id - Reemplazar producto completo
@@ -129,7 +163,7 @@ export default async function productsRoutes(app: FastifyInstance) {
 				tags: ['Productos'],
 				summary: 'Reemplazar producto completo',
 				description:
-					'Reemplaza todos los campos del producto (excepto id, eventId y timestamps). Los campos no enviados se establecerán a sus valores por defecto.',
+					'Reemplaza todos los campos del producto (excepto id, eventId y timestamps). Valida que todas las promociones referenciadas existan y pertenezcan al mismo evento.',
 				params: IdParam,
 				body: ProductReplace,
 				response: {
@@ -142,7 +176,53 @@ export default async function productsRoutes(app: FastifyInstance) {
 				security: [{ bearerAuth: [] }],
 			},
 		},
-		ctrl.replace,
+		async (req, reply) => {
+			const db = (req.server as unknown as { db: import('mongodb').Db }).db;
+			const { id } = req.params as { id: string };
+			const body = req.body as z.infer<typeof ProductReplace>;
+
+			const { ObjectId } = await import('mongodb');
+			const { NotFoundError, AppError } = await import('../../../core/http/errors');
+
+			// Obtener producto existente para obtener el eventId
+			const existing = await db.collection('products').findOne({
+				_id: new ObjectId(id),
+			});
+
+			if (!existing) {
+				throw new NotFoundError('products', id);
+			}
+
+			const eventId = (existing.eventId as typeof ObjectId).toString();
+
+			// Validar promociones si existen
+			if (body.promotions && body.promotions.length > 0) {
+				// Buscar todas las promociones
+				const promotions = await db
+					.collection('promotions')
+					.find({
+						_id: { $in: body.promotions.map((pid) => new ObjectId(pid)) },
+						eventId: new ObjectId(eventId),
+						isActive: true,
+					})
+					.toArray();
+
+				// Verificar que todas existen
+				if (promotions.length !== body.promotions.length) {
+					const foundIds = promotions.map((p) => p._id.toString());
+					const missing = body.promotions.filter((pid) => !foundIds.includes(pid));
+
+					throw new AppError(
+						'VALIDATION_ERROR',
+						`Las siguientes promociones no existen o no pertenecen al evento: ${missing.join(', ')}`,
+						400,
+					);
+				}
+			}
+
+			// Usar el controlador genérico para la actualización
+			return ctrl.replace(req, reply);
+		},
 	);
 
 	// PATCH /products/:id - Actualización parcial
@@ -153,7 +233,7 @@ export default async function productsRoutes(app: FastifyInstance) {
 				tags: ['Productos'],
 				summary: 'Actualización parcial de producto',
 				description:
-					'Actualiza solo los campos especificados del producto. Los campos no enviados mantienen su valor actual.',
+					'Actualiza solo los campos especificados del producto. Si se modifican las promociones, valida que todas existan y pertenezcan al mismo evento.',
 				params: IdParam,
 				body: ProductPatch,
 				response: {
@@ -166,7 +246,53 @@ export default async function productsRoutes(app: FastifyInstance) {
 				security: [{ bearerAuth: [] }],
 			},
 		},
-		ctrl.patch,
+		async (req, reply) => {
+			const db = (req.server as unknown as { db: import('mongodb').Db }).db;
+			const { id } = req.params as { id: string };
+			const body = req.body as z.infer<typeof ProductPatch>;
+
+			const { ObjectId } = await import('mongodb');
+			const { NotFoundError, AppError } = await import('../../../core/http/errors');
+
+			// Obtener producto existente para obtener el eventId
+			const existing = await db.collection('products').findOne({
+				_id: new ObjectId(id),
+			});
+
+			if (!existing) {
+				throw new NotFoundError('products', id);
+			}
+
+			const eventId = (existing.eventId as typeof ObjectId).toString();
+
+			// Validar promociones solo si se están modificando
+			if (body.promotions && body.promotions.length > 0) {
+				// Buscar todas las promociones
+				const promotions = await db
+					.collection('promotions')
+					.find({
+						_id: { $in: body.promotions.map((pid) => new ObjectId(pid)) },
+						eventId: new ObjectId(eventId),
+						isActive: true,
+					})
+					.toArray();
+
+				// Verificar que todas existen
+				if (promotions.length !== body.promotions.length) {
+					const foundIds = promotions.map((p) => p._id.toString());
+					const missing = body.promotions.filter((pid) => !foundIds.includes(pid));
+
+					throw new AppError(
+						'VALIDATION_ERROR',
+						`Las siguientes promociones no existen o no pertenecen al evento: ${missing.join(', ')}`,
+						400,
+					);
+				}
+			}
+
+			// Usar el controlador genérico para la actualización
+			return ctrl.patch(req, reply);
+		},
 	);
 
 	// DELETE /products/:id - Borrado lógico
