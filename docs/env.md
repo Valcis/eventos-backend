@@ -9,20 +9,24 @@
 
 ## Variables Opcionales
 
-| Variable         | Tipo    | Default       | Descripción                                                                     |
-| ---------------- | ------- | ------------- | ------------------------------------------------------------------------------- |
-| `NODE_ENV`       | enum    | `development` | Entorno de ejecución: `development`, `production`, `test`                       |
-| `PORT`           | number  | `3000`        | Puerto HTTP del servidor                                                        |
-| `BASE_PATH`      | string  | `/api`        | Prefijo base para las rutas (ej: `/api`)                                        |
-| `MONGO_BOOT`     | enum    | `0`           | `1` = crear índices en arranque, `0` = no crear                                 |
-| `AUTH_ENABLED`   | boolean | `false`       | `true` = requiere Bearer token en todas las rutas (excepto /health y /swagger)  |
-| `JWT_SECRET`     | string  | -             | **REQUERIDO si AUTH_ENABLED=true**. Secret para firmar JWT (mínimo 32 caracteres) |
-| `JWT_ALGORITHM`  | enum    | `HS256`       | Algoritmo JWT: `HS256`, `HS384`, `HS512`, `RS256`, `RS384`, `RS512`            |
-| `JWT_EXPIRES_IN` | string  | `24h`         | Tiempo de expiración del token (ej: `1h`, `7d`, `30m`)                         |
-| `AUTH0_ENABLED`  | boolean | `false`       | `true` = usar Auth0 para OAuth social (Google, Instagram, etc.)                |
-| `AUTH0_DOMAIN`   | string  | -             | **REQUERIDO si AUTH0_ENABLED=true**. Dominio de Auth0 (ej: `tu-tenant.auth0.com`) |
-| `AUTH0_AUDIENCE` | string  | -             | **REQUERIDO si AUTH0_ENABLED=true**. Audience de Auth0 (ej: `https://api.tu-app.com`) |
-| `LOG_LEVEL`      | string  | `info`        | Nivel de log: `debug`, `info`, `warn`, `error`                                  |
+| Variable             | Tipo    | Default       | Descripción                                                                     |
+| -------------------- | ------- | ------------- | ------------------------------------------------------------------------------- |
+| `NODE_ENV`           | enum    | `development` | Entorno de ejecución: `development`, `production`, `test`                       |
+| `PORT`               | number  | `3000`        | Puerto HTTP del servidor                                                        |
+| `BASE_PATH`          | string  | `/api`        | Prefijo base para las rutas (ej: `/api`)                                        |
+| `MONGO_BOOT`         | enum    | `0`           | `1` = crear índices en arranque, `0` = no crear                                 |
+| `AUTH_ENABLED`       | boolean | `false`       | `true` = requiere Bearer token en todas las rutas (excepto /health y /swagger)  |
+| `JWT_SECRET`         | string  | -             | **REQUERIDO si AUTH_ENABLED=true**. Secret para firmar JWT (mínimo 32 caracteres) |
+| `JWT_ALGORITHM`      | enum    | `HS256`       | Algoritmo JWT: `HS256`, `HS384`, `HS512`, `RS256`, `RS384`, `RS512`            |
+| `JWT_EXPIRES_IN`     | string  | `24h`         | Tiempo de expiración del token (ej: `1h`, `7d`, `30m`)                         |
+| `AUTH0_ENABLED`      | boolean | `false`       | `true` = usar Auth0 para OAuth social (Google, Instagram, etc.)                |
+| `AUTH0_DOMAIN`       | string  | -             | **REQUERIDO si AUTH0_ENABLED=true**. Dominio de Auth0 (ej: `tu-tenant.auth0.com`) |
+| `AUTH0_AUDIENCE`     | string  | -             | **REQUERIDO si AUTH0_ENABLED=true**. Audience de Auth0 (ej: `https://api.tu-app.com`) |
+| `CORS_ORIGINS`       | string  | -             | Lista de orígenes permitidos separados por comas (ej: `https://app.com,https://admin.com`) |
+| `RATE_LIMIT_MAX`     | number  | `100`         | Número máximo de requests por ventana de tiempo                                |
+| `RATE_LIMIT_WINDOW`  | string  | `1 minute`    | Ventana de tiempo para rate limiting (ej: `1 minute`, `30 seconds`, `1 hour`)   |
+| `SWAGGER_ENABLED`    | boolean | `true`        | `true` = habilitar documentación Swagger en `/swagger`                         |
+| `LOG_LEVEL`          | string  | `info`        | Nivel de log: `debug`, `info`, `warn`, `error`                                  |
 
 ## Configuración con Zod
 

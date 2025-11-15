@@ -72,24 +72,16 @@ export function buildLoggerOptions(): FastifyServerOptions['logger'] {
 						options: {
 							colorize: true,
 							translateTime: 'HH:MM:ss',
-							ignore: 'pid,hostname',
+							// Ignorar campos verbose para consola limpia (los archivos sí los reciben)
+						ignore:
+							'pid,hostname,err,errorType,errorCode,errorMessage,query,headers,ip,userId,hasValidation,validationErrors,responseStatusCode,responseCode,responseMessage,req,res,userAgent,userEmail,responseTime',
 						},
 					},
 					{
 						target: 'pino-roll',
-						level: 'info',
+						level: logLevel, // Captura todos los logs según LOG_LEVEL
 						options: {
 							file: join(process.cwd(), 'logs', 'app'),
-							frequency: 'daily',
-							size: '10m',
-							mkdir: true,
-						},
-					},
-					{
-						target: 'pino-roll',
-						level: 'error',
-						options: {
-							file: join(process.cwd(), 'logs', 'error'),
 							frequency: 'daily',
 							size: '10m',
 							mkdir: true,
@@ -107,19 +99,9 @@ export function buildLoggerOptions(): FastifyServerOptions['logger'] {
 			targets: [
 				{
 					target: 'pino-roll',
-					level: 'info',
+					level: logLevel, // Captura todos los logs según LOG_LEVEL
 					options: {
 						file: join(process.cwd(), 'logs', 'app'),
-						frequency: 'daily',
-						size: '10m',
-						mkdir: true,
-					},
-				},
-				{
-					target: 'pino-roll',
-					level: 'error',
-					options: {
-						file: join(process.cwd(), 'logs', 'error'),
 						frequency: 'daily',
 						size: '10m',
 						mkdir: true,

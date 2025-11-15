@@ -27,14 +27,18 @@ export const User = z.object({
 	id: Id.optional().describe('Identificador único del usuario'),
 	email: z
 		.string()
-		.email()
+		.email({ message: 'El email no es válido' })
 		.toLowerCase()
 		.describe('Email del usuario (único). Ejemplo: "usuario@ejemplo.com"'),
 	passwordHash: z
 		.string()
 		.optional()
 		.describe('Hash bcrypt de la contraseña (solo para provider=local)'),
-	name: z.string().min(1).max(100).describe('Nombre completo del usuario. Ejemplo: "Juan Pérez"'),
+	name: z
+		.string()
+		.min(1, { message: 'El nombre no puede estar vacío' })
+		.max(100, { message: 'El nombre no puede exceder 100 caracteres' })
+		.describe('Nombre completo del usuario. Ejemplo: "Juan Pérez"'),
 	role: UserRole.default('user').describe('Rol del usuario en el sistema'),
 	provider: AuthProvider.default('local').describe('Proveedor de autenticación'),
 	providerId: z
@@ -47,7 +51,11 @@ export const User = z.object({
 		.describe(
 			'IDs de eventos a los que el usuario tiene acceso. Si vacío/null, acceso a todos.',
 		),
-	avatar: z.string().url().optional().describe('URL del avatar del usuario'),
+	avatar: z
+		.string()
+		.url({ message: 'El avatar debe ser una URL válida' })
+		.optional()
+		.describe('URL del avatar del usuario'),
 	emailVerified: z
 		.boolean()
 		.default(false)
@@ -66,19 +74,31 @@ export type UserT = z.infer<typeof User>;
  */
 export const UserCreate = z.object({
 	isActive: z.boolean().default(true).optional().describe('Estado de activación'),
-	email: z.string().email().toLowerCase().describe('Email del usuario'),
+	email: z
+		.string({ required_error: 'El email es obligatorio' })
+		.email({ message: 'El email no es válido. Debe tener el formato: usuario@ejemplo.com' })
+		.toLowerCase()
+		.describe('Email del usuario'),
 	password: z
 		.string()
-		.min(8)
-		.max(100)
+		.min(8, { message: 'La contraseña debe tener al menos 8 caracteres' })
+		.max(100, { message: 'La contraseña no puede exceder 100 caracteres' })
 		.optional()
 		.describe('Contraseña (mínimo 8 caracteres, solo para provider=local)'),
-	name: z.string().min(1).max(100).describe('Nombre completo'),
+	name: z
+		.string({ required_error: 'El nombre es obligatorio' })
+		.min(1, { message: 'El nombre no puede estar vacío' })
+		.max(100, { message: 'El nombre no puede exceder 100 caracteres' })
+		.describe('Nombre completo'),
 	role: UserRole.default('user').optional().describe('Rol del usuario'),
 	provider: AuthProvider.default('local').optional().describe('Proveedor de autenticación'),
 	providerId: z.string().optional().describe('ID del proveedor externo'),
 	eventIds: z.array(Id).optional().describe('IDs de eventos permitidos'),
-	avatar: z.string().url().optional().describe('URL del avatar'),
+	avatar: z
+		.string()
+		.url({ message: 'El avatar debe ser una URL válida' })
+		.optional()
+		.describe('URL del avatar'),
 	emailVerified: z.boolean().default(false).optional().describe('Email verificado'),
 });
 
@@ -89,13 +109,25 @@ export type UserCreateT = z.infer<typeof UserCreate>;
  */
 export const UserReplace = z.object({
 	isActive: z.boolean().default(true).optional().describe('Estado de activación'),
-	email: z.string().email().toLowerCase().describe('Email del usuario'),
-	name: z.string().min(1).max(100).describe('Nombre completo'),
+	email: z
+		.string({ required_error: 'El email es obligatorio' })
+		.email({ message: 'El email no es válido' })
+		.toLowerCase()
+		.describe('Email del usuario'),
+	name: z
+		.string({ required_error: 'El nombre es obligatorio' })
+		.min(1, { message: 'El nombre no puede estar vacío' })
+		.max(100, { message: 'El nombre no puede exceder 100 caracteres' })
+		.describe('Nombre completo'),
 	role: UserRole.default('user').optional().describe('Rol del usuario'),
 	provider: AuthProvider.default('local').optional().describe('Proveedor de autenticación'),
 	providerId: z.string().optional().describe('ID del proveedor externo'),
 	eventIds: z.array(Id).optional().describe('IDs de eventos permitidos'),
-	avatar: z.string().url().optional().describe('URL del avatar'),
+	avatar: z
+		.string()
+		.url({ message: 'El avatar debe ser una URL válida' })
+		.optional()
+		.describe('URL del avatar'),
 	emailVerified: z.boolean().optional().describe('Email verificado'),
 });
 
@@ -107,13 +139,27 @@ export type UserReplaceT = z.infer<typeof UserReplace>;
  */
 export const UserPatch = z.object({
 	isActive: z.boolean().optional().describe('Estado de activación'),
-	email: z.string().email().toLowerCase().optional().describe('Email del usuario'),
-	name: z.string().min(1).max(100).optional().describe('Nombre completo'),
+	email: z
+		.string()
+		.email({ message: 'El email no es válido' })
+		.toLowerCase()
+		.optional()
+		.describe('Email del usuario'),
+	name: z
+		.string()
+		.min(1, { message: 'El nombre no puede estar vacío' })
+		.max(100, { message: 'El nombre no puede exceder 100 caracteres' })
+		.optional()
+		.describe('Nombre completo'),
 	role: UserRole.optional().describe('Rol del usuario'),
 	provider: AuthProvider.optional().describe('Proveedor de autenticación'),
 	providerId: z.string().optional().describe('ID del proveedor externo'),
 	eventIds: z.array(Id).optional().describe('IDs de eventos permitidos'),
-	avatar: z.string().url().optional().describe('URL del avatar'),
+	avatar: z
+		.string()
+		.url({ message: 'El avatar debe ser una URL válida' })
+		.optional()
+		.describe('URL del avatar'),
 	emailVerified: z.boolean().optional().describe('Email verificado'),
 	lastLoginAt: DateTime.optional().describe('Fecha del último login'),
 });

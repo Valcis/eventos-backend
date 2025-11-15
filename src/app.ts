@@ -29,13 +29,15 @@ import openApiPlugin from './plugins/openapi';
 import { createErrorHandler } from './core/http/errorHandler';
 import { sanitizeQueryParams } from './core/middleware/sanitize';
 import { ZodTypeProvider, validatorCompiler, serializerCompiler } from 'fastify-type-provider-zod';
-import type { ZodSchema } from 'zod';
+import { ZodError, type ZodSchema } from 'zod';
 
 const env = getEnv();
 
 export async function buildApp() {
 	const db = await connectMongo(); //cambido a singleton
 	const loggerOptions = buildLoggerOptions();
+	const isDevelopment = env.NODE_ENV !== 'production';
+
 	const app = Fastify({
 		logger: loggerOptions ?? true,
 		disableRequestLogging: true,
@@ -44,39 +46,12 @@ export async function buildApp() {
 
 	app.decorate('db', db);
 
-	// CRÍTICO: Registrar validador de Zod SIEMPRE (no solo si Swagger está habilitado)
+	// Usar validator y serializer OFICIALES de fastify-type-provider-zod
 	app.setValidatorCompiler(validatorCompiler);
+	app.setSerializerCompiler(serializerCompiler);
 
-	// Usar serializerCompiler custom que NO valida errores automáticos de Fastify
-	// Solo serializa con Zod, sin validar estrictamente en runtime
-	// Esto permite que los schemas se conviertan para Swagger pero evita FST_ERR_FAILED_ERROR_SERIALIZATION
-	app.setSerializerCompiler(({ schema }) => {
-		return (data) => {
-			// Si el dato parece un error de Fastify (tiene statusCode/error), no validar con Zod
-			// Los errores automáticos no coinciden con nuestros schemas de respuesta
-			if (
-				data &&
-				typeof data === 'object' &&
-				('statusCode' in data || 'error' in data || 'code' in data)
-			) {
-				// Es un error, devolver sin validar contra schema
-				return JSON.stringify(data);
-			}
-
-			// Para respuestas exitosas, intentar validar con Zod
-			try {
-				const zodSchema = schema as ZodSchema;
-				return JSON.stringify(zodSchema.parse(data));
-			} catch (err) {
-				// Si falla la validación, loguear y devolver sin validar
-				app.log.warn(
-					{ schema: schema.constructor.name, error: err },
-					'SerializerCompiler: Failed to validate response with schema',
-				);
-				return JSON.stringify(data);
-			}
-		};
-	});
+	// CRÍTICO: Configurar errorHandler ANTES de registrar rutas
+	app.setErrorHandler(createErrorHandler(isDevelopment));
 
 	if (env.MONGO_BOOT === '1') {
 		try {
@@ -134,16 +109,38 @@ export async function buildApp() {
 	await app.register(pickupPointsRoutes, { prefix: base + '/pickup-points' });
 	await app.register(partnersRoutes, { prefix: base + '/partners' });
 
-	app.addHook('onResponse', async (req, reply) => {
+	// Hook para loguear el INICIO de cada request (útil para debugging y correlación)
+	app.addHook('onRequest', async (req) => {
 		req.log.info(
 			{
-				statusCode: reply.statusCode,
 				method: req.method,
 				url: req.url,
-				responseTime: reply.elapsedTime,
+				query: req.query,
+				userAgent: req.headers['user-agent'],
+				ip: req.ip,
+				userId: req.user?.userId, // Si está autenticado
 			},
-			'request completed',
+			'request started',
 		);
+	});
+
+	// Hook para loguear el FIN de cada request (con métricas de respuesta)
+	app.addHook('onResponse', async (req, reply) => {
+		const logData = {
+			statusCode: reply.statusCode,
+			method: req.method,
+			url: req.url,
+			responseTime: reply.elapsedTime,
+			userId: req.user?.userId,
+			userEmail: req.user?.email,
+		};
+
+		// Loguear como error si statusCode >= 400, info si es exitoso
+		if (reply.statusCode >= 400) {
+			req.log.error(logData, 'request completed with error');
+		} else {
+			req.log.info(logData, 'request completed');
+		}
 	});
 
 	app.addHook('onRoute', (r) => {
@@ -157,9 +154,6 @@ export async function buildApp() {
 		req.log.warn({ url: req.url, method: req.method }, 'route not found');
 		reply.code(404).send({ ok: false, error: 'Not Found' });
 	});
-
-	// Centralized error handler
-	app.setErrorHandler(createErrorHandler(env.NODE_ENV !== 'production'));
 
 	app.ready((e) => {
 		if (e) app.log.error(e);

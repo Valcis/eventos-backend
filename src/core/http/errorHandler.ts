@@ -167,25 +167,35 @@ function handleJWTError(err: Error): ErrorResponse {
  */
 function handleFastifyValidationError(err: FastifyError): ErrorResponse {
 	const validation = err as FastifyError & {
-		validation?: Array<{ instancePath?: string; message?: string }>;
+		validation?: Array<{
+			instancePath?: string;
+			message?: string;
+			path?: string;
+			code?: string;
+		}>;
 	};
 
-	let message = err.message || 'Error de validación';
-
+	// Si tenemos detalles de validación, devolverlos estructurados
 	if (validation.validation && validation.validation.length > 0) {
-		const first = validation.validation[0];
-		if (first) {
-			const field =
-				first.instancePath?.replace(/^\//, '').replace(/\//g, '.') || 'campo desconocido';
-			message = `Error de validación en "${field}": ${first.message || 'formato inválido'}. Revisa el formato esperado en la documentación.`;
-		}
+		return {
+			statusCode: 400,
+			code: 'VALIDATION_ERROR',
+			error: 'Bad Request',
+			message: 'Error de validación en los datos enviados',
+			details: validation.validation.map((e: any) => ({
+				path: e.params?.path || e.path || e.instancePath?.replace(/^\//, '').replace(/\//g, '.') || 'unknown',
+				message: e.message || 'Error de validación',
+				code: e.params?.code || e.code,
+			})),
+		};
 	}
 
+	// Fallback si no hay detalles
 	return {
 		statusCode: 400,
-		code: 'FST_ERR_VALIDATION',
+		code: 'VALIDATION_ERROR',
 		error: 'Bad Request',
-		message,
+		message: err.message || 'Error de validación',
 	};
 }
 
@@ -247,26 +257,18 @@ export function errorHandler(
 	reply: FastifyReply,
 	includeStack = false,
 ): void {
-	// Log the error with more details for debugging
+	// Extract error details for logging
 	const errCode = (err as FastifyError).code;
 	const errValidation = (err as FastifyError).validation;
-	req.log.error(
-		{
-			err,
-			url: req.url,
-			method: req.method,
-			errorCode: errCode,
-			errorName: err.name,
-			hasValidation: !!errValidation,
-			isZodError: err instanceof ZodError,
-		},
-		'Request error',
-	);
+	const statusCode = (err as any).statusCode || 500;
 
 	let response: ErrorResponse;
 
 	// Handle different error types
-	if (err instanceof AppError) {
+	const zodCause = (err as any).cause;
+	if (zodCause && zodCause instanceof ZodError) {
+		response = handleZodError(zodCause);
+	} else if (err instanceof AppError) {
 		response = handleAppError(err);
 	} else if (err instanceof ZodError) {
 		response = handleZodError(err);
@@ -288,6 +290,42 @@ export function errorHandler(
 	if (includeStack && err.stack) {
 		response.stack = err.stack;
 	}
+
+	// Log enriquecido para archivos (no consola)
+	req.log.error(
+		{
+			// Error original
+			err,
+			errorType: err.name,
+			errorCode: errCode,
+			errorMessage: err.message,
+
+			// Request info
+			url: req.url,
+			method: req.method,
+			query: req.query,
+			headers: {
+				userAgent: req.headers['user-agent'],
+				referer: req.headers.referer,
+			},
+			ip: req.ip,
+			userId: (req.user as any)?.userId,
+
+			// Validation details (si existen)
+			hasValidation: !!errValidation,
+			validationErrors: errValidation?.map((v: any) => ({
+				field: v.instancePath?.replace(/^\//, ''),
+				message: v.message,
+				code: v.keyword,
+			})),
+
+			// Response info
+			responseStatusCode: response.statusCode,
+			responseCode: response.code,
+			responseMessage: response.message,
+		},
+		'Request error - detailed log',
+	);
 
 	reply.code(response.statusCode).send(response);
 }
