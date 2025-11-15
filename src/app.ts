@@ -44,75 +44,45 @@ export async function buildApp() {
 
 	app.decorate('db', db);
 
-	// CRÍTICO: Registrar validador de Zod que LANCE errores
-	// Esto asegura que los errores pasen por errorHandler
+	// Validador de Zod que lanza errores para que sean manejados por errorHandler
 	app.setValidatorCompiler(({ schema }) => {
 		return (data) => {
-			console.error('=== VALIDATOR CALLED ===');
-			console.error('Data:', JSON.stringify(data, null, 2));
-
 			try {
 				const zodSchema = schema as ZodSchema;
-				console.error('=== VALIDATOR: Parsing with Zod ===');
 				const result = zodSchema.parse(data);
-				console.error('=== VALIDATOR: Parse successful ===');
 				return { value: result };
 			} catch (error) {
-				console.error('=== VALIDATOR: Parse failed ===');
-				console.error('Error type:', error?.constructor?.name);
-				console.error('Is ZodError:', error instanceof ZodError);
-
-				// Si es ZodError, LANZARLO para que llegue a errorHandler
-				if (error instanceof ZodError) {
-					console.error('=== VALIDATOR THROWING ZodError ===');
-					console.error('ZodError issues:', JSON.stringify(error.issues, null, 2));
-					// Lanzar el error directamente - Fastify lo capturará y llamará errorHandler
-					throw error;
-				}
-				// Si es otro tipo de error, lanzarlo
-				console.error('=== VALIDATOR: Throwing non-Zod error ===');
+				// Lanzar el error para que sea manejado por errorHandler
+				// El errorHandler formateará correctamente el ZodError con mensajes en español
 				throw error;
 			}
 		};
 	});
 
-	// Serializer custom: NO serializar errores, solo respuestas exitosas
-	// Evita error 500 cuando hay errores de validación
+	// Serializer: valida respuestas exitosas con Zod, permite errores sin validar
 	app.setSerializerCompiler(({ schema }) => {
 		const zodSchema = schema as ZodSchema;
 		return (data) => {
-			// DEBUG: Log EVERYTHING that comes through serializer
-			console.error('=== SERIALIZER CALLED ===');
-			console.error('Data type:', typeof data);
-			console.error('Data:', JSON.stringify(data, null, 2));
-			console.error(
-				'Data keys:',
-				data && typeof data === 'object' ? Object.keys(data) : 'N/A',
-			);
-
-			// NO serializar errores - dejar que Fastify los maneje
-			// Los errores tienen statusCode >= 400
+			// Si es una respuesta de error (statusCode >= 400), no validar con Zod
 			if (data && typeof data === 'object' && 'statusCode' in data) {
 				const statusCode = (data as { statusCode: number }).statusCode;
-				console.error('=== SERIALIZER: Detected error response, statusCode:', statusCode);
 				if (statusCode >= 400) {
-					// Es un error, NO validar con Zod
-					const result = JSON.stringify(data);
-					console.error('=== SERIALIZER: Returning error JSON:', result);
-					return result;
+					return JSON.stringify(data);
 				}
 			}
 
 			// Para respuestas exitosas, validar con Zod
 			try {
-				const result = JSON.stringify(zodSchema.parse(data));
-				console.error('=== SERIALIZER: Returning success JSON (length):', result.length);
-				return result;
+				return JSON.stringify(zodSchema.parse(data));
 			} catch (err) {
-				// Si falla la validación, loguear el error y devolver sin validar
-				console.error('=== SERIALIZER: Zod validation failed, returning raw ===');
-				console.error('Error:', err instanceof Error ? err.message : String(err));
-				// Devolver sin validar para no romper la respuesta
+				// Si falla la validación, loguear y devolver sin validar
+				app.log.error(
+					{
+						error: err instanceof Error ? err.message : String(err),
+						dataKeys: data && typeof data === 'object' ? Object.keys(data) : undefined,
+					},
+					'SerializerCompiler: Failed to validate successful response',
+				);
 				return JSON.stringify(data);
 			}
 		};
@@ -131,86 +101,8 @@ export async function buildApp() {
 	await app.register(requestId);
 	await app.register(corsPlugin);
 
-	// Hook onError: Intercepta TODOS los errores, incluyendo los de validación
-	// Este hook se ejecuta ANTES del errorHandler, permitiéndonos formatear correctamente
-	app.addHook('onError', async (req, reply, error) => {
-		console.error('=== onError HOOK CALLED ===');
-		console.error('Error type:', error?.constructor?.name);
-		console.error('Is ZodError:', error instanceof ZodError);
-
-		// Si es un ZodError lanzado por el validator
-		if (error instanceof ZodError) {
-			console.error('=== INTERCEPTING ZodError in onError ===');
-			console.error('ZodError issues:', JSON.stringify(error.issues, null, 2));
-
-			// Formatear respuesta de error con mensajes personalizados
-			const errorResponse = {
-				statusCode: 400,
-				code: 'VALIDATION_ERROR',
-				error: 'Bad Request',
-				message: 'Error de validación en los datos enviados',
-				details: error.issues.map((issue) => ({
-					path: issue.path.join('.'),
-					message: issue.message,
-					code: issue.code,
-				})),
-			};
-
-			console.error('=== Sending formatted error response ===');
-			console.error('Response:', JSON.stringify(errorResponse, null, 2));
-
-			// CRÍTICO: Usar reply.hijack() para tomar control total de la respuesta
-			// Esto evita que Fastify pase la respuesta por el serializer
-			reply.hijack();
-			reply.raw.statusCode = 400;
-			reply.raw.setHeader('Content-Type', 'application/json; charset=utf-8');
-			reply.raw.end(JSON.stringify(errorResponse));
-
-			console.error('=== Response sent via reply.raw, bypassing serializer ===');
-		}
-	});
-
 	// Sanitizar query params para prevenir operator injection
 	app.addHook('preHandler', sanitizeQueryParams);
-
-	// Hook onSend: ÚLTIMO hook antes de enviar respuesta al cliente
-	// Aquí interceptamos respuestas vacías de errores de validación
-	app.addHook('onSend', async (req, reply, payload) => {
-		console.error('=== onSend CALLED ===');
-		console.error('StatusCode:', reply.statusCode);
-		console.error('Payload type:', typeof payload);
-		console.error('Payload length:', typeof payload === 'string' ? payload.length : 'N/A');
-		console.error('Payload:', payload);
-
-		// Si es un error 400 (validación) y el payload está vacío o es "{}"
-		if (reply.statusCode === 400) {
-			const payloadStr = typeof payload === 'string' ? payload : String(payload);
-
-			console.error('=== Detected 400 error ===');
-			console.error('Payload string:', payloadStr);
-			console.error('Is empty or {}:', payloadStr === '{}' || payloadStr.trim() === '');
-
-			// Si el payload está vacío o es un objeto vacío
-			if (payloadStr === '{}' || payloadStr.trim() === '' || payloadStr === 'null') {
-				console.error('=== FIXING EMPTY VALIDATION ERROR RESPONSE ===');
-
-				// Crear respuesta de error formateada
-				const errorResponse = {
-					statusCode: 400,
-					code: 'VALIDATION_ERROR',
-					error: 'Bad Request',
-					message: 'Error de validación en los datos enviados',
-					details: [],
-				};
-
-				const fixedPayload = JSON.stringify(errorResponse);
-				console.error('=== Fixed payload:', fixedPayload);
-				return fixedPayload;
-			}
-		}
-
-		return payload;
-	});
 
 	await app.register(rateLimit, {
 		max: env.RATE_LIMIT_MAX,
@@ -298,10 +190,8 @@ export async function buildApp() {
 		reply.code(404).send({ ok: false, error: 'Not Found' });
 	});
 
-	// Centralized error handler
-	console.log('=== CONFIGURING ERROR HANDLER ===');
+	// Centralized error handler con soporte completo para ZodError
 	app.setErrorHandler(createErrorHandler(env.NODE_ENV !== 'production'));
-	console.log('=== ERROR HANDLER CONFIGURED ===');
 
 	app.ready((e) => {
 		if (e) app.log.error(e);

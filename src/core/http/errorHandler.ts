@@ -175,9 +175,6 @@ function handleFastifyValidationError(err: FastifyError): ErrorResponse {
 		}>;
 	};
 
-	console.error('=== FASTIFY VALIDATION ERROR ===');
-	console.error('Validation:', JSON.stringify(validation.validation, null, 2));
-
 	// Si tenemos detalles de validación, devolverlos estructurados
 	if (validation.validation && validation.validation.length > 0) {
 		return {
@@ -260,17 +257,9 @@ export function errorHandler(
 	reply: FastifyReply,
 	includeStack = false,
 ): void {
-	// Log the error with more details for debugging
+	// Log the error with details
 	const errCode = (err as FastifyError).code;
 	const errValidation = (err as FastifyError).validation;
-
-	// LOGGING CRÍTICO: Siempre loguear a nivel error para debug
-	console.error('=== ERROR HANDLER CALLED ===');
-	console.error('Error name:', err.name);
-	console.error('Error code:', errCode);
-	console.error('Error message:', err.message);
-	console.error('Is ZodError:', err instanceof ZodError);
-	console.error('Error cause:', (err as any).cause);
 
 	req.log.error(
 		{
@@ -288,15 +277,13 @@ export function errorHandler(
 	let response: ErrorResponse;
 
 	// Handle different error types
-	// IMPORTANTE: Revisar si el error tiene un cause que sea ZodError
+	// Revisar si el error tiene un cause que sea ZodError
 	const zodCause = (err as any).cause;
 	if (zodCause && zodCause instanceof ZodError) {
-		console.error('=== HANDLING ZodError FROM CAUSE ===');
 		response = handleZodError(zodCause);
 	} else if (err instanceof AppError) {
 		response = handleAppError(err);
 	} else if (err instanceof ZodError) {
-		console.error('=== HANDLING ZodError DIRECTLY ===');
 		response = handleZodError(err);
 	} else if (isJWTError(err)) {
 		response = handleJWTError(err);
@@ -316,9 +303,6 @@ export function errorHandler(
 	if (includeStack && err.stack) {
 		response.stack = err.stack;
 	}
-
-	console.error('=== SENDING ERROR RESPONSE ===');
-	console.error('Response:', JSON.stringify(response, null, 2));
 
 	reply.code(response.statusCode).send(response);
 }
