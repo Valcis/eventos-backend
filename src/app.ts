@@ -64,6 +64,16 @@ export async function buildApp() {
 	// Sanitizar query params para prevenir operator injection
 	app.addHook('preHandler', sanitizeQueryParams);
 
+	// DEBUG: Hook para capturar TODOS los errores
+	app.addHook('onError', async (req, reply, error) => {
+		console.error('=== onError HOOK ===');
+		console.error('Error:', error);
+		console.error('Error name:', error.name);
+		console.error('Error message:', error.message);
+		console.error('Error code:', (error as any).code);
+		console.error('Error stack (first line):', error.stack?.split('\n')[0]);
+	});
+
 	await app.register(rateLimit, {
 		max: env.RATE_LIMIT_MAX,
 		timeWindow: env.RATE_LIMIT_WINDOW,
