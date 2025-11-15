@@ -1,21 +1,36 @@
-# EVENTOS – Backend Fastify + Mongo
+# EVENTOS – Backend Fastify + MongoDB
 
-Este repositorio implementa un backend en **TypeScript estricto** con **Fastify** y **MongoDB**.
+Backend en **TypeScript estricto** para gestión de eventos multi-tenant con **Fastify** y **MongoDB**.
 
-## TL;DR
+## ✨ Características Destacadas
+
+- 🔐 **Autenticación dual**: JWT local (email/password) o Auth0 OAuth (Google, Instagram, Facebook)
+- 📊 **Multi-tenant**: Datos particionados por evento con soft delete pattern
+- 🚀 **Factory patterns**: Generic CRUD y Controllers para mínimo boilerplate
+- 📖 **OpenAPI dinámico**: Generado desde Zod schemas, disponible en `/swagger`
+- 🔒 **Seguridad completa**: Rate limiting, CORS, input validation, MongoDB operator protection
+- 📝 **Logging robusto**: Pino con niveles numéricos, rotación diaria, redacción de datos sensibles
+- 🔄 **Transacciones**: Stock operations atómicas con MongoDB transactions
+- ✅ **Validación estricta**: Zod schemas con mensajes en español, referential integrity
+
+## 🚀 Quick Start
 
 ```bash
-# 1) Configura variables de entorno
-# Crea un archivo .env con las variables requeridas (ver docs/env.md)
-# 2) Arranque en dev (tsx + watch)
-npm run dev
-# 3) Arranque en prod (compila a dist y ejecuta)
-npm run build && npm start
-# 4) Swagger UI
-open http://localhost:3000/swagger
-```
+# 1) Instalar dependencias
+npm install
 
-> **Nota:** A partir de esta versión, `tsconfig.json` **sí emite** a `dist/`.
+# 2) Configurar variables de entorno
+# Crea .env con MONGO_URL y MONGODB_DB (ver docs/env.md)
+
+# 3) Desarrollo con hot-reload
+npm run dev
+
+# 4) Abrir Swagger UI
+open http://localhost:3000/swagger
+
+# 5) Producción
+npm run build && npm start
+```
 
 ---
 
@@ -29,25 +44,52 @@ open http://localhost:3000/swagger
 
 Consulta **docs/env.md** para detalle completo. Variables principales:
 
-- `MONGO_URL` - Conexión MongoDB (requerido)
-- `MONGODB_DB` - Nombre de base de datos (requerido)
-- `NODE_ENV` - `development` | `production` | `test`
-- `PORT` - Puerto del servidor (default: 3000)
+**Requeridas:**
+- `MONGO_URL` - Conexión MongoDB
+- `MONGODB_DB` - Nombre de base de datos
+
+**Opcionales:**
+- `NODE_ENV` - `development` | `production` | `test` (default: `development`)
+- `PORT` - Puerto del servidor (default: `3000`)
 - `BASE_PATH` - Prefijo API (default: `/api`)
 - `MONGO_BOOT` - `0` | `1` - Crear índices en arranque
-- `AUTH_ENABLED` - Habilitar autenticación Bearer Token
-- `JWT_SECRET` - Secret para JWT (requerido si AUTH_ENABLED=true)
-- `LOG_LEVEL` - `debug` | `info` | `warn` | `error`
+
+**Autenticación (local JWT):**
+- `AUTH_ENABLED` - Habilitar autenticación JWT local (default: `false`)
+- `JWT_SECRET` - Secret para JWT (requerido si `AUTH_ENABLED=true`, min 32 chars)
+- `JWT_ALGORITHM` - Algoritmo JWT: HS256, HS384, HS512, RS256... (default: `HS256`)
+- `JWT_EXPIRES_IN` - Expiración del token (default: `24h`)
+
+**Autenticación (Auth0 OAuth):**
+- `AUTH0_ENABLED` - Habilitar Auth0 OAuth social (default: `false`)
+- `AUTH0_DOMAIN` - Dominio Auth0 (requerido si `AUTH0_ENABLED=true`)
+- `AUTH0_AUDIENCE` - Audience Auth0 (requerido si `AUTH0_ENABLED=true`)
+
+**Seguridad:**
+- `CORS_ORIGINS` - Orígenes CORS permitidos (separados por comas)
+- `RATE_LIMIT_MAX` - Max requests por ventana (default: `100`)
+- `RATE_LIMIT_WINDOW` - Ventana de tiempo (default: `1 minute`)
+
+**Observabilidad:**
+- `LOG_LEVEL` - `trace` | `debug` | `info` | `warn` | `error` | `fatal` (default: `info`)
+- `SWAGGER_ENABLED` - Habilitar Swagger UI (default: `true`)
 
 ## Arquitectura
 
-- **Fastify** con plugins: CORS, Swagger, Rate Limiting, Bearer Auth, Request ID, Logging
-- **MongoDB**: Conexión singleton, índices automáticos, soft delete pattern
-- **Módulos**: `events`, `reservations`, `expenses`, `products`, `promotions`, y catálogos
+**Stack:**
+- **Fastify** con plugins: CORS, Swagger, Rate Limiting, Request ID
+- **MongoDB**: Conexión singleton, índices automáticos, soft delete pattern, transacciones
+- **TypeScript estricto**: Validación con Zod, mensajes de error en español
+- **Pino logger**: Niveles numéricos (30=info, 50=error), archivo único con rotación diaria
+
+**Funcionalidades:**
+- **Autenticación dual**: JWT local (email/password) o Auth0 OAuth (Google, Instagram, Facebook)
+- **Módulos**: `events`, `reservations`, `expenses`, `products`, `promotions`, `users`, y catálogos
 - **Paginación**: Cursor-based (no offset), sorting dinámico
 - **Factory patterns**: Generic CRUD y Controllers para minimizar boilerplate
+- **Validación completa**: Referencial integrity, MongoDB operator injection protection, input sanitization
 
-Más info en **docs/architecture.md** y **docs/data-model.md**.
+Más info en **docs/overview.md**, **docs/data-model.md** y **docs/security.md**.
 
 ## Contratos API
 
@@ -95,21 +137,53 @@ Resumen de convenciones:
 
 ## Seguridad
 
-- CORS configurable por entorno
-- Rate limiting activo (100 req/min)
-- Bearer Token authentication con JWT
-- Sanitización automática de logs (tokens, passwords)
-- Soft delete pattern en todas las colecciones
+- **Autenticación dual**: JWT local con validación completa o Auth0 OAuth social
+- **Rate limiting**: 100 req/min por IP (configurable, localhost allowlisted)
+- **CORS**: Configurable por entorno, orígenes específicos o wildcard
+- **Input validation**: Zod schemas con mensajes en español, referential integrity
+- **MongoDB protection**: Sanitización de operadores peligrosos ($where, $regex, etc.)
+- **Logging seguro**: Redacción automática de tokens, passwords, headers sensibles
+- **Soft delete**: Patrón `isActive` en todas las colecciones
+- **Transacciones**: Stock operations atómicas con MongoDB transactions
 
-Ver **docs/security.md** para detalles.
+Ver **docs/security.md** y **docs/error-codes.md** para detalles.
 
 ## Herramientas de desarrollo
 
-- ESLint + Prettier configurados
-- TypeScript strict mode
-- Pino logger con request ID tracking
-- Swagger UI en `/swagger`
-- Scripts de utilidad para MongoDB
+- **Linting**: ESLint + Prettier configurados (`npm run lint`, `npm run format`)
+- **TypeScript**: Strict mode con `noImplicitAny`, `noUncheckedIndexedAccess`
+- **Testing**: Vitest configurado con coverage (`npm test`, `npm run test:coverage`)
+- **Logging**: Pino con request ID tracking, niveles numéricos, rotación diaria
+  - Consola: logs limpios (desarrollo)
+  - Archivo: `logs/app-YYYY-MM-DD.log` con todos los detalles (JSON)
+- **API Docs**: Swagger UI en `/swagger`, spec JSON en `/swagger/json`
+- **MongoDB**: Scripts de utilidad (`db:ensure`, `check:mongo`, `seed`)
+- **Auth**: Script para generar JWT tokens (`npm run generate-jwt`)
+
+## 📚 Documentación Completa
+
+Consulta la carpeta `docs/` para documentación detallada:
+
+**Esenciales:**
+- [overview.md](docs/overview.md) - **⭐ Introducción al proyecto** con arquitectura en capas
+- [api.md](docs/api.md) - Contratos API con ejemplos de requests/responses
+- [data-model.md](docs/data-model.md) - Colecciones MongoDB y relaciones
+- [env.md](docs/env.md) - Variables de entorno completas
+
+**Técnicos:**
+- [security.md](docs/security.md) - Autenticación, validación, y best practices
+- [logging.md](docs/logging.md) - Configuración Pino, niveles numéricos, rotación
+- [pagination.md](docs/pagination.md) - Cursor-based pagination
+- [error-codes.md](docs/error-codes.md) - Códigos de error y respuestas
+
+**Operaciones:**
+- [runbook.md](docs/runbook.md) - Comandos, deployment, troubleshooting
+- [db.indexes.md](docs/db.indexes.md) - Índices MongoDB y optimización
+
+**Desarrollo:**
+- [folder-structure.md](docs/folder-structure.md) - **⭐ Organización del código** (consultar antes de crear archivos)
+- [plan_cierre.md](docs/plan_cierre.md) - Estado del proyecto (85% completado)
+- [reservations-validation.md](docs/reservations-validation.md) - Validación de integridad referencial
 
 ---
 

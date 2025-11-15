@@ -65,6 +65,26 @@ src/
 
 ---
 
+## ⚙️ Arquitectura en Capas
+
+El proyecto sigue una **arquitectura en 4 capas** con separación clara de responsabilidades:
+
+```
+┌─────────────────────────────────────┐
+│   HTTP Layer (Fastify Routes)      │  ← Endpoints REST
+├─────────────────────────────────────┤
+│   Controllers (Generic Factory)    │  ← Lógica HTTP (req/res)
+├─────────────────────────────────────┤
+│   Repository Layer (CRUD Factory)  │  ← Acceso a datos
+├─────────────────────────────────────┤
+│   Infrastructure (MongoDB)         │  ← Base de datos
+└─────────────────────────────────────┘
+```
+
+**Flujo de una request**: `HTTP Request → Route → Controller → Repository → MongoDB → Response`
+
+---
+
 ## ⚙️ Cómo funciona
 
 ### 1. CRUD Genérico (`infra/mongo/crud.ts`)

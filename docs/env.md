@@ -26,7 +26,7 @@
 | `RATE_LIMIT_MAX`     | number  | `100`         | Número máximo de requests por ventana de tiempo                                |
 | `RATE_LIMIT_WINDOW`  | string  | `1 minute`    | Ventana de tiempo para rate limiting (ej: `1 minute`, `30 seconds`, `1 hour`)   |
 | `SWAGGER_ENABLED`    | boolean | `true`        | `true` = habilitar documentación Swagger en `/swagger`                         |
-| `LOG_LEVEL`          | string  | `info`        | Nivel de log: `debug`, `info`, `warn`, `error`                                  |
+| `LOG_LEVEL`          | string  | `info`        | Nivel de log: `trace`, `debug`, `info`, `warn`, `error`, `fatal` (ver sección dedicada abajo) |
 
 ## Configuración con Zod
 
@@ -204,6 +204,22 @@ Cuando `AUTH0_ENABLED=true`:
 5. Copiar el dominio del tenant
 
 **Ver**: [Auth0 Documentation](https://auth0.com/docs)
+
+### `LOG_LEVEL`
+
+Controla el nivel de detalle del logging con **Pino**.
+
+**Valores**: `trace` | `debug` | `info` (default) | `warn` | `error` | `fatal`
+
+**Logs generados**:
+- Archivo: `logs/app-YYYY-MM-DD.log` con rotación diaria (JSON)
+- Consola: Formato limpio con `pino-pretty` (solo desarrollo)
+
+**Recomendaciones**:
+- Desarrollo: `debug` o `info`
+- Producción: `info` o `warn`
+
+📖 **Ver tabla completa de niveles y códigos numéricos**: [logging.md](./logging.md#niveles-de-log)
 
 ### `BASE_PATH`
 

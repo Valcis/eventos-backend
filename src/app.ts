@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import rateLimit from '@fastify/rate-limit';
+import helmet from '@fastify/helmet';
 import { buildLoggerOptions } from './core/logging/logger';
 import corsPlugin from './plugins/cors';
 import { healthRoutes } from './system/healthCheck';
@@ -65,6 +66,11 @@ export async function buildApp() {
 
 	await app.register(requestId);
 	await app.register(corsPlugin);
+
+	// Helmet - Security headers (CSP, HSTS, X-Frame-Options, etc.)
+	await app.register(helmet, {
+		contentSecurityPolicy: false, // Deshabilitado para no interferir con Swagger UI
+	});
 
 	// Sanitizar query params para prevenir operator injection
 	app.addHook('preHandler', sanitizeQueryParams);

@@ -30,12 +30,28 @@ LOG_LEVEL=debug   # debug | info | warn | error
 
 ### Niveles de Log
 
-| Nivel   | Uso                                 |
-| ------- | ----------------------------------- |
-| `debug` | Información detallada de depuración |
-| `info`  | Información general (default)       |
-| `warn`  | Advertencias que no detienen la app |
-| `error` | Errores que requieren atención      |
+Pino usa **niveles numéricos internamente** pero acepta configuración con strings.
+
+| Nivel String | Código Numérico | Uso                                 |
+| ------------ | --------------- | ----------------------------------- |
+| `trace`      | 10              | Trazas muy detalladas               |
+| `debug`      | 20              | Información detallada de depuración |
+| `info`       | 30              | Información general (default)       |
+| `warn`       | 40              | Advertencias que no detienen la app |
+| `error`      | 50              | Errores que requieren atención      |
+| `fatal`      | 60              | Errores críticos irrecuperables     |
+
+**Configuración**: Usa strings (`LOG_LEVEL=info`)
+**Archivos de log**: Contienen números (`"level":30`)
+
+**Ejemplo de log en archivo**:
+```json
+{
+  "level": 30,
+  "time": 1705325400000,
+  "msg": "request completed"
+}
+```
 
 ---
 
@@ -279,41 +295,47 @@ serializers: {
 
 **Estado**: Implementado
 
-Logs se escriben tanto a consola como a archivos (`src/core/logging/logger.ts:38-78`):
+Logs se escriben tanto a consola como a archivos (`src/core/logging/logger.ts`).
 
-**Archivos generados**:
+#### Archivo Generado
 
-- `logs/app-YYYY-MM-DD.log` - Todos los logs (nivel `info` y superior) con rotación diaria
-- `logs/error-YYYY-MM-DD.log` - Solo errores (nivel `error`) con rotación diaria
+**Un solo archivo unificado** con todos los niveles de log:
+
+- `logs/app-YYYY-MM-DD.log` - Todos los logs según `LOG_LEVEL` (info, warn, error, fatal) con rotación diaria
+
+#### Diferencia Consola vs Archivos
+
+**Consola (desarrollo)**:
+- Formato legible con colores (`pino-pretty`)
+- **Campos filtrados** - Solo muestra lo esencial: time, level, msg, method, url, statusCode
+- **Campos ignorados**: pid, hostname, err, query, headers, ip, userId, validationErrors, etc.
+
+**Archivos**:
+- Formato JSON estructurado
+- **Todos los campos enriquecidos** - Incluye error details, request info, validation errors, response info
 
 **Configuración**:
 
 ```typescript
 transport: {
 	targets: [
-		// Consola (pretty print en desarrollo)
+		// Consola: logs limpios con pino-pretty
 		{
 			target: 'pino-pretty',
-			level: 'info',
-			options: { colorize: true, translateTime: 'HH:MM:ss' },
-		},
-		// Archivo general con rotación
-		{
-			target: 'pino-roll',
-			level: 'info',
+			level: logLevel,
 			options: {
-				file: join(process.cwd(), 'logs', 'app'),
-				frequency: 'daily',
-				size: '10m',
-				mkdir: true,
+				colorize: true,
+				translateTime: 'HH:MM:ss',
+				// Ignora campos verbose para consola limpia
+				ignore: 'pid,hostname,err,errorType,query,headers,ip,userId,validationErrors,...',
 			},
 		},
-		// Archivo de errores con rotación
+		// Archivo: logs enriquecidos con pino-roll
 		{
 			target: 'pino-roll',
-			level: 'error',
+			level: logLevel, // Captura según LOG_LEVEL env var
 			options: {
-				file: join(process.cwd(), 'logs', 'error'),
+				file: join(process.cwd(), 'logs', 'app'),
 				frequency: 'daily',
 				size: '10m',
 				mkdir: true,
@@ -322,6 +344,8 @@ transport: {
 	],
 }
 ```
+
+**Producción**: Solo archivo (sin consola pretty), todos los logs van a `logs/app-*.log` en JSON.
 
 **Creación automática**: El directorio `logs/` se crea automáticamente si no existe (`mkdir: true`).
 
@@ -335,7 +359,16 @@ transport: {
 
 - **Frecuencia**: Daily (diaria) - archivos nuevos cada día
 - **Tamaño máximo**: 10MB - si un archivo supera 10MB, se rota automáticamente
-- **Formato de nombre**: `app-YYYY-MM-DD.log` y `error-YYYY-MM-DD.log`
+- **Formato de nombre**: `app-YYYY-MM-DD.log`
+- **Niveles incluidos**: Todos (trace, debug, info, warn, error, fatal) según `LOG_LEVEL`
+
+**Ejemplo de archivos generados**:
+```
+logs/
+  app-2025-01-15.log
+  app-2025-01-16.log
+  app-2025-01-17.log
+```
 
 **Ventajas**:
 
@@ -343,6 +376,7 @@ transport: {
 - Facilita análisis histórico
 - Archivos de tamaño manejable
 - Integración nativa con Pino (sin herramientas externas)
+- Un solo archivo simplifica búsquedas y análisis
 
 ---
 

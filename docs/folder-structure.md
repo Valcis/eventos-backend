@@ -32,14 +32,11 @@ docs/
 ├── error-codes.md           # Códigos de error de la API
 ├── folder-structure.md      # ⭐ Este documento
 ├── logging.md               # Configuración de logging
-├── operations.md            # Guía de operaciones
 ├── overview.md              # Visión general del proyecto
 ├── pagination.md            # Estrategia de paginación
 ├── reservations-validation.md # Validación de reservas
-├── runbook.md               # Troubleshooting y mantenimiento
-├── security.md              # Consideraciones de seguridad
-├── ciclo_de_vida.md         # Ciclo de vida del desarrollo
-└── plan_cierre.md           # Plan de cierre del proyecto
+├── runbook.md               # Troubleshooting, operaciones y tareas pendientes
+└── security.md              # Consideraciones de seguridad
 ```
 
 **Criterio**: Documentar todo lo relevante para entender, mantener y operar el sistema.

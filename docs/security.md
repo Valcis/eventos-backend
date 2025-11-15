@@ -106,96 +106,22 @@ El sistema gestiona usuarios con tres roles:
 
 ### Endpoints de Autenticación
 
-**POST `/api/auth/register`** - Registrar nuevo usuario
+**Autenticación local (JWT)**:
+- `POST /api/auth/register` - Registrar nuevo usuario
+- `POST /api/auth/login` - Iniciar sesión
+- `POST /api/auth/refresh` - Renovar access token
+- `GET /api/auth/me` - Obtener usuario actual
+- `POST /api/auth/change-password` - Cambiar contraseña
 
-```http
-POST /api/auth/register
-Content-Type: application/json
+**Gestión de usuarios**:
+- `GET /api/users` - Listar usuarios
+- `GET /api/users/:id` - Obtener usuario
+- `POST /api/users` - Crear usuario (admin only)
+- `PUT /api/users/:id` - Actualizar usuario
+- `PATCH /api/users/:id` - Actualización parcial
+- `DELETE /api/users/:id` - Soft delete
 
-{
-  "email": "usuario@ejemplo.com",
-  "password": "contraseña-segura",
-  "name": "Juan Pérez"
-}
-```
-
-**Respuesta (201)**:
-
-```json
-{
-  "ok": true,
-  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
-  "refreshToken": "eyJhbGciOiJIUzI1NiIs...",
-  "user": {
-    "id": "6745abc123...",
-    "email": "usuario@ejemplo.com",
-    "name": "Juan Pérez",
-    "role": "user",
-    "provider": "local",
-    "isActive": true,
-    "emailVerified": false
-  },
-  "expiresIn": "24h"
-}
-```
-
-**POST `/api/auth/login`** - Iniciar sesión
-
-```http
-POST /api/auth/login
-Content-Type: application/json
-
-{
-  "email": "usuario@ejemplo.com",
-  "password": "contraseña-segura"
-}
-```
-
-**Respuesta**: Igual que `/register`
-
-**POST `/api/auth/refresh`** - Renovar access token
-
-```http
-POST /api/auth/refresh
-Content-Type: application/json
-
-{
-  "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
-}
-```
-
-**GET `/api/auth/me`** - Obtener usuario actual
-
-```http
-GET /api/auth/me
-Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
-```
-
-**POST `/api/auth/change-password`** - Cambiar contraseña
-
-```http
-POST /api/auth/change-password
-Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
-Content-Type: application/json
-
-{
-  "currentPassword": "contraseña-actual",
-  "newPassword": "nueva-contraseña"
-}
-```
-
-**Ver**: `src/modules/auth/routes.ts` - Implementación completa
-
-### Endpoints de Gestión de Usuarios
-
-**CRUD completo en `/api/users`** (requiere autenticación):
-
-- `GET /users` - Listar usuarios
-- `GET /users/:id` - Obtener usuario
-- `POST /users` - Crear usuario
-- `PUT /users/:id` - Actualizar usuario
-- `PATCH /users/:id` - Actualización parcial
-- `DELETE /users/:id` - Soft delete (isActive=false)
+📖 **Ver ejemplos de requests/responses completos**: [api.md](./api.md#autenticación)
 
 **Ver**: `src/modules/users/routes.ts` - Implementación completa
 
@@ -649,5 +575,5 @@ export async function createReservationWithStockControl(db: Db, reservationData)
 
 - [Environment Variables](./env.md) - Configuración de AUTH_ENABLED
 - [Bearer Plugin](../src/plugins/bearer.ts) - Implementación actual
-- [Plan de Cierre](./plan_cierre.md) - Mejoras de seguridad pendientes
+- [Runbook](./runbook.md) - Tareas pendientes y operaciones
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/) - Vulnerabilidades comunes

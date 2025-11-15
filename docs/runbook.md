@@ -14,9 +14,9 @@ git clone <repo-url>
 cd eventos-backend
 npm install
 
-# 2. Configurar variables
-cp .env.example .env
-# Editar .env con tus valores
+# 2. Configurar variables de entorno
+# Crear archivo .env con variables requeridas (ver docs/env.md)
+# Mínimo: MONGO_URL y MONGODB_DB
 
 # 3. Iniciar MongoDB local (si no está corriendo)
 mongod --dbpath ./data
@@ -37,14 +37,15 @@ npm run dev
 
 ### Desarrollo
 
-| Comando            | Descripción                                |
-| ------------------ | ------------------------------------------ |
-| `npm install`      | Instalar dependencias                      |
-| `npm run dev`      | Modo desarrollo con hot-reload (tsx watch) |
-| `npm run check`    | Verificar tipos y linting                  |
-| `npm run lint`     | Ejecutar ESLint                            |
-| `npm run lint:fix` | Fix automático de linting                  |
-| `npm run format`   | Formatear código con Prettier              |
+| Comando                 | Descripción                                |
+| ----------------------- | ------------------------------------------ |
+| `npm install`           | Instalar dependencias                      |
+| `npm run dev`           | Modo desarrollo con hot-reload (tsx watch) |
+| `npm run check:lint`    | Verificar tipos TypeScript + ESLint        |
+| `npm run lint`          | Ejecutar ESLint                            |
+| `npm run lint:types`    | Verificar tipos TypeScript                 |
+| `npm run lint:fix`      | Fix automático de linting                  |
+| `npm run format`        | Formatear código con Prettier              |
 
 ### Producción
 
@@ -55,11 +56,13 @@ npm run dev
 
 ### Scripts Útiles
 
-| Comando                 | Descripción                    |
-| ----------------------- | ------------------------------ |
-| `npm run seed`          | Poblar BD con datos de ejemplo |
-| `npm run check:mongo`   | Verificar conexión a MongoDB   |
-| `npm run check:imports` | Validar imports ESM            |
+| Comando                 | Descripción                           |
+| ----------------------- | ------------------------------------- |
+| `npm run db:ensure`     | Crear índices MongoDB                 |
+| `npm run check:mongo`   | Verificar conexión a MongoDB          |
+| `npm run seed`          | Poblar BD con datos de ejemplo        |
+| `npm run generate-jwt`  | Generar token JWT para testing        |
+| `npm run check:imports` | Validar imports ESM                   |
 
 ---
 
@@ -180,21 +183,30 @@ NODE_ENV=production npm start
 ### Filtrar Logs
 
 ```bash
-# Solo errores
-npm start 2>&1 | grep '"level":50'
+# Ver archivo de logs
+tail -f logs/app-$(date +%Y-%m-%d).log
+
+# Solo errores (level 50)
+tail -f logs/app-*.log | grep '"level":50'
 
 # Requests lentas (>1s)
-npm start 2>&1 | grep 'request completed' | jq 'select(.responseTime > 1000)'
+cat logs/app-*.log | jq 'select(.responseTime > 1000)'
 
 # Por request ID
-npm start 2>&1 | grep 'reqId: abc123'
+cat logs/app-*.log | jq 'select(.reqId == "abc123")'
+
+# Errores del día
+cat logs/app-$(date +%Y-%m-%d).log | jq 'select(.level >= 50)'
 ```
 
-### Nivel de Log
+### Niveles de Log
 
 ```bash
-LOG_LEVEL=debug npm run dev   # debug | info | warn | error
+LOG_LEVEL=debug npm run dev   # trace(10) | debug(20) | info(30) | warn(40) | error(50) | fatal(60)
 ```
+
+**Archivos generados**:
+- `logs/app-YYYY-MM-DD.log` - Todos los logs con rotación diaria
 
 ---
 
@@ -341,8 +353,8 @@ docker-compose down -v
 ### Pre-despliegue
 
 ```bash
-# 1. Verificar tests y linting
-npm run check
+# 1. Verificar tipos y linting
+npm run check:lint
 
 # 2. Build
 npm run build
@@ -350,7 +362,7 @@ npm run build
 # 3. Verificar que dist/ existe
 ls -la dist/
 
-# 4. Test del build
+# 4. Probar el build localmente
 NODE_ENV=production \
 MONGO_URL=mongodb://localhost:27017 \
 MONGODB_DB=eventos_dev \
@@ -403,16 +415,22 @@ export MONGO_BOOT=0
 ### Métricas Clave
 
 ```bash
-# Request rate
-grep 'request completed' logs/app.log | wc -l
+# Request rate del día
+grep 'request completed' logs/app-$(date +%Y-%m-%d).log | wc -l
 
-# Error rate
-grep '"level":50' logs/app.log | wc -l
+# Error rate del día
+grep '"level":50' logs/app-$(date +%Y-%m-%d).log | wc -l
 
 # Average response time
-grep 'request completed' logs/app.log | \
-  jq -r '.responseTime' | \
-  awk '{sum+=$1; n++} END {print sum/n}'
+cat logs/app-$(date +%Y-%m-%d).log | \
+  jq -r 'select(.responseTime) | .responseTime' | \
+  awk '{sum+=$1; n++} END {if(n>0) print sum/n; else print 0}'
+
+# P95 response time
+cat logs/app-$(date +%Y-%m-%d).log | \
+  jq -r 'select(.responseTime) | .responseTime' | \
+  sort -n | \
+  awk 'BEGIN{c=0} {val[c++]=$1} END{print val[int(c*0.95)]}'
 ```
 
 ### Alertas Recomendadas
@@ -429,13 +447,17 @@ grep 'request completed' logs/app.log | \
 ### Limpiar Logs
 
 ```bash
-# Rotar logs manualmente
-mv logs/app.log logs/app.log.$(date +%Y%m%d)
-touch logs/app.log
+# Eliminar logs antiguos (más de 30 días)
+find logs/ -name "app-*.log" -mtime +30 -delete
 
-# O truncar
-> logs/app.log
+# Ver tamaño de logs
+du -sh logs/
+
+# Limpiar todos los logs (CUIDADO)
+rm -f logs/app-*.log
 ```
+
+**Nota**: Los logs rotan automáticamente cada día con `pino-roll`
 
 ### Limpiar node_modules y reinstalar
 
@@ -459,11 +481,12 @@ npm run build
 
 ### Documentación
 
-- [Overview](./overview.md) - Visión general del proyecto
-- [API](./api.md) - Endpoints y ejemplos
-- [Architecture](./architecture.md) - Arquitectura del sistema
-- [Operations](./operations.md) - Operaciones detalladas
-- [Security](./security.md) - Seguridad y auth
+- [Overview](./overview.md) - **⭐ Visión general del proyecto** con arquitectura
+- [API](./api.md) - Endpoints y ejemplos de requests/responses
+- [Data Model](./data-model.md) - Colecciones MongoDB y relaciones
+- [Security](./security.md) - Autenticación, validación, y best practices
+- [Environment](./env.md) - Variables de entorno completas
+- [Logging](./logging.md) - Configuración Pino, niveles, rotación
 
 ### Comandos de Emergencia
 
@@ -489,8 +512,11 @@ top                # CPU y procesos
 # Logs de PM2
 pm2 logs eventos-api --lines 100
 
-# Logs de aplicación
-tail -f logs/app.log
+# Logs de aplicación (día actual)
+tail -f logs/app-$(date +%Y-%m-%d).log
+
+# Logs de aplicación (todos)
+tail -f logs/app-*.log
 
 # Logs de MongoDB (si local)
 tail -f /var/log/mongodb/mongod.log
@@ -502,10 +528,10 @@ tail -f /var/log/mongodb/mongod.log
 
 ### Pre-deploy
 
-- [ ] `npm run check` pasa sin errores
-- [ ] Tests ejecutados (si existen)
-- [ ] Variables de entorno configuradas
+- [ ] `npm run check:lint` pasa sin errores (tipos + ESLint)
+- [ ] Variables de entorno configuradas en producción
 - [ ] Backup de MongoDB creado
+- [ ] JWT_SECRET configurado (si AUTH_ENABLED=true)
 
 ### Deploy
 
@@ -520,6 +546,26 @@ tail -f /var/log/mongodb/mongod.log
 - [ ] Smoke tests de endpoints principales
 - [ ] Monitoreo activo
 - [ ] Documentación actualizada si hubo cambios
+
+---
+
+## ⚠️ Tareas Pendientes
+
+### DevOps
+
+**GitHub Actions CI/CD** (Prioridad: Alta)
+- Workflow para validación automática: `npm ci`, `npm run check:lint`, `npm run build`
+- Previene errores antes de merge
+
+### Código
+
+**Campos de auditoría** (Prioridad: Media)
+- Validar que `createdAt` se establezca automáticamente en POST
+- Validar que `updatedAt` se actualice automáticamente en PUT/PATCH
+- Revisar: expenses, reservations, products, promotions, catálogos
+
+**Tipado explícito params/querystring** (Prioridad: Baja)
+- Algunos endpoints pueden mejorar tipado con `fastify-type-provider-zod`
 
 ---
 

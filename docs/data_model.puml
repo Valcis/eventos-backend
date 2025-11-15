@@ -18,6 +18,7 @@ class Events DB {
   id: string
   createdAt: Date
   updatedAt: Date
+  isActive: boolean
   name: string
   date: Date
   capacity?: Integer
@@ -30,16 +31,16 @@ class Reservations COLLECTION {
   createdAt: Date
   updatedAt: Date
   notes?: string
-  isActive?: boolean
+  isActive: boolean
   reserver: string
   order: object //{[productId: string]: qty: Integer}
   totalAmount: Decimal (7,2)
-  salespersonId: string
+  salespersonId?: string
   consumptionTypeId: string
   pickupPointId?: string
   hasPromoApplied: boolean
-  linkedReservations: array [ReservationIds..]
-  deposit: Decimal (7,2)
+  linkedReservations?: array [ReservationIds..]
+  deposit?: Decimal (7,2)
   isDelivered: boolean
   isPaid: boolean
   paymentMethodId: string
@@ -52,13 +53,13 @@ class Products COLLECTION {
   createdAt: Date
   updatedAt: Date
   notes?: string
-  isActive?: boolean
+  isActive: boolean
   name: string
   description?: string
   stock: Integer
-  promotions: string [Promotions..]
+  promotions?: string [Promotions..]
   nominalPrice?: Decimal (7,2)
-  supplement?: object {ConsumptionTypeId:Integer}
+  supplement?: object {ConsumptionTypeId:cents}
 }
 
 class Promotions COLLECTION {
@@ -66,24 +67,16 @@ class Promotions COLLECTION {
   eventId: string
   createdAt: Date
   updatedAt: Date
-  notes?: string
-  isActive?: boolean
-  targets: TargetFilters  ' Nuevo bloque de target
+  isActive: boolean
   name: string
   description?: string
+  applicables?: string [ProductIds..]
   rule: enum Rules
-  condition: object  ' JSON/filtros
+  conditions?: object  ' JSON dinámico según rule
   startDate: Date
   endDate: Date
   priority: Integer
   isCumulative: boolean
-}
-
-class TargetFilters {
-  +productIds: string[*]
-  +categoryIds: string[*]
-  +paymentMethods: PaymentMethod[*]
-  +consumptionTypes: ConsumptionType[*]
 }
 
 
@@ -94,7 +87,7 @@ class Expenses COLLECTION {
   createdAt: Date
   updatedAt: Date
   notes?: string
-  isActive?: boolean
+  isActive: boolean
   ingredient: string
   unitId?: string
   quantity?: Decimal (5,2)
@@ -116,7 +109,7 @@ class Salespeople COLLECTION {
   createdAt: Date
   updatedAt: Date
   notes?: string
-  isActive?: boolean
+  isActive: boolean
   name: string
   phone: string
 }
@@ -127,7 +120,7 @@ class PaymentMethods COLLECTION {
    createdAt: Date
    updatedAt: Date
    notes?: string
-   isActive?: boolean
+   isActive: boolean
    name: string
 }
 
@@ -137,7 +130,7 @@ class Cashiers COLLECTION {
   createdAt: Date
   updatedAt: Date
   notes?: string
-  isActive?: boolean
+  isActive: boolean
   name: string
   phone: string
 }
@@ -148,7 +141,7 @@ class Stores COLLECTION {
   createdAt: Date
   updatedAt: Date
   notes?: string
-  isActive?: boolean
+  isActive: boolean
   name: string
   seller?: string
   phone?: string
@@ -163,7 +156,7 @@ class Units COLLECTION {
   createdAt: Date
   updatedAt: Date
   notes?: string
-  isActive?: boolean
+  isActive: boolean
   name: string
   abbreviation: string
 }
@@ -174,7 +167,7 @@ class ConsumptionTypes COLLECTION {
   createdAt: Date
   updatedAt: Date
   notes?: string
-  isActive?: boolean
+  isActive: boolean
   name: string
 }
 
@@ -184,7 +177,7 @@ class Payers COLLECTION {
   createdAt: Date
   updatedAt: Date
   notes?: string
-  isActive?: boolean
+  isActive: boolean
   name: string
   phone?: string
 }
@@ -195,7 +188,7 @@ class PickupPoints COLLECTION {
   createdAt: Date
   updatedAt: Date
   notes?: string
-  isActive?: boolean
+  isActive: boolean
   name: string
   dealerName?: string
   phone?: string
@@ -210,7 +203,7 @@ class Partners COLLECTION {
   createdAt: Date
   updatedAt: Date
   notes?: string
-  isActive?: boolean
+  isActive: boolean
   name: string
   stake: Decimal (5,2)
   phone?: string
@@ -218,12 +211,16 @@ class Partners COLLECTION {
 }
 
 Enum Rules {
-  PercentageDiscount
+  XForY
   DiscountPerUnit
   BulkPrice
+  PercentageDiscount
   ComboDiscount
   FixedPriceBundle
   BuyXGetYFree
+  MaxUnitsDiscounted
+  FirstXUnitsFree
+  TimeLimitedDiscount
 }
 
 
@@ -260,7 +257,6 @@ Expenses --> "1" Payers : payerId
 Expenses --> "0..1" Stores : storeId
 
 
-Promotions o-- TargetFilters
 Rules --o Promotions
 Conditions --o Promotions
 
@@ -274,69 +270,77 @@ class Conditions {
     ***** validar que no haya solapamiento de reglas
 }
 
-' ===== Conditions por Regla =====
-class PercentageDiscountConditions {
-  +percent: int  ' 1..99
-  +maxUnits: int [0..*]  ' opcional; límite de unidades con descuento
-  +maxDiscountAmount: int [0..*]  ' en minor units; opcional
+' ===== Conditions por Regla (simplificadas según schema real) =====
+class XForYConditions {
+  +_rule: "XForY"
+  +buyQty: int  ' Cantidad a comprar (ej: 3)
+  +payQty: int  ' Cantidad a pagar (ej: 2)
 }
 
 class DiscountPerUnitConditions {
-  +amountPerUnit: int  ' >= 1; minor units
-  +maxUnits: int [0..*]  ' opcional
-  ' Nota: precio final por unidad nunca < 0 (regla de negocio)
-}
-
-class BulkPriceTier {
-  +minQty: int  ' >= 1
-  +unitPrice: int  ' >= 1; minor units
+  +_rule: "DiscountPerUnit"
+  +amountOff: Decimal (7,2)  ' Descuento por unidad
 }
 
 class BulkPriceConditions {
-  +tiers: BulkPriceTier[*]  ' orden asc por minQty; sin solapes
-  +perSku: boolean = true  ' cantidades se computan por SKU (no agregadas)
-  +maxUnits: int [0..*]  ' opcional
+  +_rule: "BulkPrice"
+  +units: int  ' Unidades en el bloque
+  +bundlePrice: Decimal (7,2)  ' Precio total del bloque
+}
+
+class PercentageDiscountConditions {
+  +_rule: "PercentageDiscount"
+  +percent: int  ' Porcentaje de descuento (0-100)
 }
 
 class ComboDiscountConditions {
-  +minSubtotal: int  ' >= 1; minor units del combo
-  +percent: int [1..99]  ' uno de percent|amount
-  +amount: int [>=1]     ' uno de percent|amount
-  +maxDiscountAmount: int [0..*]  ' opcional
-  +maxUnits: int [0..*]  ' opcional (si aplica por ítem)
-}
-
-class BundleItem {
-  +productId: string
-  +minQty: int  ' >= 1
+  +_rule: "ComboDiscount"
+  +requiredProductIds: string[*]  ' Mínimo 2 productos
+  +percent?: int  ' Porcentaje de descuento (opcional)
+  +amountOff?: Decimal (7,2)  ' Descuento fijo (opcional)
 }
 
 class FixedPriceBundleConditions {
-  +items: BundleItem[*]  ' cantidades mínimas por ítem
-  +bundlePrice: int  ' >= 1; minor units
-  +repeatable: boolean = false
+  +_rule: "FixedPriceBundle"
+  +productIds: string[*]  ' Productos del bundle
+  +price: Decimal (7,2)  ' Precio fijo total
 }
 
 class BuyXGetYFreeConditions {
-  +buyQty: int  ' >= 1
-  +getQty: int  ' >= 1
-  +discountPercentOnY: int  ' 1..100
-  +selectCheapestY: boolean = true
-  +repeatable: boolean = true
-  +cheapestGetsDiscount: boolean = true
-  +maxUnits: int [0..*]  ' opcional
+  +_rule: "BuyXGetYFree"
+  +buyQty: int  ' Cantidad a comprar
+  +freeQty: int  ' Cantidad gratis
+}
+
+class MaxUnitsDiscountedConditions {
+  +_rule: "MaxUnitsDiscounted"
+  +maxUnits: int  ' Máximo de unidades con descuento
+  +percent?: int  ' Porcentaje de descuento (opcional)
+  +amountOff?: Decimal (7,2)  ' Descuento fijo (opcional)
+}
+
+class FirstXUnitsFreeConditions {
+  +_rule: "FirstXUnitsFree"
+  +units: int  ' Número de unidades gratis
+}
+
+class TimeLimitedDiscountConditions {
+  +_rule: "TimeLimitedDiscount"
+  +percent?: int  ' Porcentaje de descuento (opcional)
+  +amountOff?: Decimal (7,2)  ' Descuento fijo (opcional)
 }
 
 ' ===== Mapeo rule -> conditions (informativo) =====
-Conditions --> PercentageDiscountConditions : rule=PercentageDiscount
+Conditions --> XForYConditions : rule=XForY
 Conditions --> DiscountPerUnitConditions : rule=DiscountPerUnit
 Conditions --> BulkPriceConditions : rule=BulkPrice
+Conditions --> PercentageDiscountConditions : rule=PercentageDiscount
 Conditions --> ComboDiscountConditions : rule=ComboDiscount
 Conditions --> FixedPriceBundleConditions : rule=FixedPriceBundle
 Conditions --> BuyXGetYFreeConditions : rule=BuyXGetYFree
-
-BulkPriceTier --o BulkPriceConditions
-BundleItem --o FixedPriceBundleConditions
+Conditions --> MaxUnitsDiscountedConditions : rule=MaxUnitsDiscounted
+Conditions --> FirstXUnitsFreeConditions : rule=FirstXUnitsFree
+Conditions --> TimeLimitedDiscountConditions : rule=TimeLimitedDiscount
 
 
 
