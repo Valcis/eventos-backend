@@ -257,45 +257,20 @@ export function errorHandler(
 	reply: FastifyReply,
 	includeStack = false,
 ): void {
-	// Log the error with details
+	// Extract error details for logging
 	const errCode = (err as FastifyError).code;
 	const errValidation = (err as FastifyError).validation;
-
-	// DEBUG TEMPORAL - Ver qué error llega
-	console.error('=== ERROR HANDLER DEBUG ===');
-	console.error('Error name:', err.name);
-	console.error('Error message:', err.message);
-	console.error('Error code:', errCode);
-	console.error('Has validation:', !!errValidation);
-	console.error('Validation:', errValidation);
-	console.error('Is ZodError:', err instanceof ZodError);
-	console.error('Error cause:', (err as any).cause);
-
-	req.log.error(
-		{
-			err,
-			url: req.url,
-			method: req.method,
-			errorCode: errCode,
-			errorName: err.name,
-			hasValidation: !!errValidation,
-			isZodError: err instanceof ZodError,
-		},
-		'Request error',
-	);
+	const statusCode = (err as any).statusCode || 500;
 
 	let response: ErrorResponse;
 
 	// Handle different error types
-	// Revisar si el error tiene un cause que sea ZodError
 	const zodCause = (err as any).cause;
 	if (zodCause && zodCause instanceof ZodError) {
-		console.error('=== HANDLING ZodError FROM CAUSE ===');
 		response = handleZodError(zodCause);
 	} else if (err instanceof AppError) {
 		response = handleAppError(err);
 	} else if (err instanceof ZodError) {
-		console.error('=== HANDLING ZodError DIRECTLY ===');
 		response = handleZodError(err);
 	} else if (isJWTError(err)) {
 		response = handleJWTError(err);
@@ -304,10 +279,8 @@ export function errorHandler(
 	} else if (isMongoDBDuplicateError(err)) {
 		response = handleMongoDBDuplicateError(err);
 	} else if ((err as FastifyError).code === 'FST_ERR_VALIDATION') {
-		console.error('=== HANDLING FST_ERR_VALIDATION ===');
 		response = handleFastifyValidationError(err as FastifyError);
 	} else {
-		console.error('=== HANDLING GENERIC ERROR ===');
 		response = handleGenericError(
 			err as Error & { code?: string | number; statusCode?: number },
 		);
@@ -318,8 +291,41 @@ export function errorHandler(
 		response.stack = err.stack;
 	}
 
-	console.error('=== SENDING RESPONSE ===');
-	console.error('Response:', JSON.stringify(response, null, 2));
+	// Log enriquecido para archivos (no consola)
+	req.log.error(
+		{
+			// Error original
+			err,
+			errorType: err.name,
+			errorCode: errCode,
+			errorMessage: err.message,
+
+			// Request info
+			url: req.url,
+			method: req.method,
+			query: req.query,
+			headers: {
+				userAgent: req.headers['user-agent'],
+				referer: req.headers.referer,
+			},
+			ip: req.ip,
+			userId: (req.user as any)?.userId,
+
+			// Validation details (si existen)
+			hasValidation: !!errValidation,
+			validationErrors: errValidation?.map((v: any) => ({
+				field: v.instancePath?.replace(/^\//, ''),
+				message: v.message,
+				code: v.keyword,
+			})),
+
+			// Response info
+			responseStatusCode: response.statusCode,
+			responseCode: response.code,
+			responseMessage: response.message,
+		},
+		'Request error - detailed log',
+	);
 
 	reply.code(response.statusCode).send(response);
 }
