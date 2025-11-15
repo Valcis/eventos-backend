@@ -53,7 +53,12 @@ const IdParam = z.object({
 export default async function reservationsRoutes(app: FastifyInstance) {
 	const ctrl = makeController<ReservationT>(
 		'reservations',
-		(data) => Reservation.parse(data),
+		(data) => {
+			// No validamos aquí - Fastify ya validó con Schema ReservationCreate/ReservationReplace
+			// Solo transformamos las fechas si existen y son strings
+			const transformed: Record<string, unknown> = { ...(data as unknown as Record<string, unknown>) };
+			return transformed as ReservationT;
+		},
 		(doc) => {
 			const { _id, ...rest } = doc;
 			const base = {

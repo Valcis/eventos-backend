@@ -71,7 +71,15 @@ const IdParam = z.object({ id: z.string().min(1) });
 export default async function eventsRoutes(app: FastifyInstance) {
 	const ctrl = makeController<EventT>(
 		'events',
-		(data) => Event.parse(data),
+		(data) => {
+			// No validamos aquí - Fastify ya validó con EventCreate/EventReplace/EventPatch
+			// Solo transformamos las fechas si existen
+			const transformed: Record<string, unknown> = { ...data };
+			if ('date' in data && typeof data.date === 'string') {
+				transformed.date = new Date(data.date);
+			}
+			return transformed;
+		},
 		(doc) => {
 			const { _id, ...rest } = doc;
 			const base = {

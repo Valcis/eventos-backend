@@ -48,7 +48,15 @@ const IdParam = z.object({
 export default async function expensesRoutes(app: FastifyInstance) {
 	const ctrl = makeController<ExpenseT>(
 		'expenses',
-		(data) => Expense.parse(data),
+		(data) => {
+			// No validamos aquí - Fastify ya validó con ExpenseCreate/ExpenseReplace/ExpensePatch
+			// Solo transformamos las fechas si existen
+			const transformed: Record<string, unknown> = { ...data };
+			if ('date' in data && typeof data.date === 'string') {
+				transformed.date = new Date(data.date);
+			}
+			return transformed;
+		},
 		(doc) => {
 			const { _id, ...rest } = doc;
 			const base = {

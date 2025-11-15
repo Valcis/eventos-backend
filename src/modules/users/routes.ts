@@ -54,7 +54,15 @@ const IdParam = z.object({
 export default async function usersRoutes(app: FastifyInstance) {
 	const ctrl = makeController<UserT>(
 		'usuarios',
-		(data) => User.parse(data),
+		(data) => {
+			// No validamos aquí - Fastify ya validó con UserCreate/UserReplace/UserPatch
+			// Solo transformamos las fechas si existen
+			const transformed: Record<string, unknown> = { ...data };
+			if ('lastLoginAt' in data && typeof data.lastLoginAt === 'string') {
+				transformed.lastLoginAt = new Date(data.lastLoginAt);
+			}
+			return transformed;
+		},
 		(doc) => {
 			const { _id, ...rest } = doc;
 			const base = {

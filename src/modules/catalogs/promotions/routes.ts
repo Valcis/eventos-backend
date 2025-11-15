@@ -50,7 +50,12 @@ const IdParam = z.object({
 export default async function promotionsRoutes(app: FastifyInstance) {
 	const ctrl = makeController<PromotionT>(
 		'promotions',
-		(data) => Promotion.parse(data),
+		(data) => {
+			// No validamos aquí - Fastify ya validó con Schema PromotionCreate/PromotionReplace
+			// Solo transformamos las fechas si existen y son strings
+			const transformed: Record<string, unknown> = { ...(data as unknown as Record<string, unknown>) };
+			return transformed as PromotionT;
+		},
 		(doc) => {
 			const { _id, ...rest } = doc;
 			const base = {

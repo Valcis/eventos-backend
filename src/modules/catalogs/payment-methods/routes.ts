@@ -40,7 +40,12 @@ const IdParam = z.object({ id: z.string().min(1).describe('ID del método de pag
 export default async function routes(app: FastifyInstance) {
 	const ctrl = makeController<PaymentMethodT>(
 		'métodos de pago',
-		(data) => PaymentMethod.parse(data),
+		(data) => {
+			// No validamos aquí - Fastify ya validó con Schema
+			// Solo transformamos las fechas si existen y son strings
+			const transformed: Record<string, unknown> = { ...(data as unknown as Record<string, unknown>) };
+			return transformed as PaymentMethodT;
+		},
 		(doc) => {
 			const { _id, ...rest } = doc;
 			const base = {

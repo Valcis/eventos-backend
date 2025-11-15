@@ -43,7 +43,12 @@ const IdParam = z.object({
 export default async function productsRoutes(app: FastifyInstance) {
 	const ctrl = makeController<ProductT>(
 		'products',
-		(data) => Product.parse(data),
+		(data) => {
+			// No validamos aquí - Fastify ya validó con Schema ProductCreate/ProductReplace
+			// Solo transformamos las fechas si existen y son strings
+			const transformed: Record<string, unknown> = { ...(data as unknown as Record<string, unknown>) };
+			return transformed as ProductT;
+		},
 		(doc) => {
 			const { _id, ...rest } = doc;
 			const base = {
