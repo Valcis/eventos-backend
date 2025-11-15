@@ -36,6 +36,8 @@ const env = getEnv();
 export async function buildApp() {
 	const db = await connectMongo(); //cambido a singleton
 	const loggerOptions = buildLoggerOptions();
+	const isDevelopment = env.NODE_ENV !== 'production';
+
 	const app = Fastify({
 		logger: loggerOptions ?? true,
 		disableRequestLogging: true,
@@ -47,6 +49,9 @@ export async function buildApp() {
 	// Usar validator y serializer OFICIALES de fastify-type-provider-zod
 	app.setValidatorCompiler(validatorCompiler);
 	app.setSerializerCompiler(serializerCompiler);
+
+	// CRÍTICO: Configurar errorHandler ANTES de registrar rutas
+	app.setErrorHandler(createErrorHandler(isDevelopment));
 
 	if (env.MONGO_BOOT === '1') {
 		try {
@@ -149,9 +154,6 @@ export async function buildApp() {
 		req.log.warn({ url: req.url, method: req.method }, 'route not found');
 		reply.code(404).send({ ok: false, error: 'Not Found' });
 	});
-
-	// Centralized error handler con soporte completo para ZodError
-	app.setErrorHandler(createErrorHandler(env.NODE_ENV !== 'production'));
 
 	app.ready((e) => {
 		if (e) app.log.error(e);
