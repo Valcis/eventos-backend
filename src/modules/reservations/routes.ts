@@ -19,6 +19,7 @@ import {
 	InternalErrorResponse,
 	NoContentResponse,
 } from '../../shared/schemas/responses';
+import { InvoiceData } from './invoice-schema';
 
 const TAG = 'Reservas';
 
@@ -461,6 +462,46 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 			await deleteReservationWithStockRestore(db, id);
 
 			return reply.code(204).send();
+		},
+	);
+
+	// GET /reservations/:id/invoice-data - Obtener datos de facturación
+	app.get(
+		'/:id/invoice-data',
+		{
+			schema: {
+				tags: [TAG],
+				summary: 'Obtener datos de facturación',
+				description:
+					'Devuelve información detallada de facturación de una reserva incluyendo:\n\n' +
+					'- Información básica de la reserva (cliente, importes, estado)\n' +
+					'- Detalle de productos con precios originales y finales\n' +
+					'- Promociones aplicadas a cada producto (con descuentos)\n' +
+					'- Suplementos aplicados (por tipo de consumo)\n' +
+					'- Reservas vinculadas (para grupos o pedidos múltiples)\n' +
+					'- Total final\n\n' +
+					'**Nota**: Si la reserva tiene `isPaid=true` o `isDelivered=true`, los datos provienen del snapshot inmutable guardado en el momento del congelamiento. Si no, se calculan dinámicamente desde los productos actuales.',
+				params: IdParam,
+				response: {
+					200: InvoiceData.describe('Datos de facturación de la reserva'),
+					404: NotFoundResponse.describe('Reserva no encontrada'),
+					401: UnauthorizedResponse.describe('Token inválido o faltante'),
+					500: InternalErrorResponse.describe('Error interno del servidor'),
+				},
+				security: [{ bearerAuth: [] }],
+			},
+		},
+		async (req, reply) => {
+			const db = (req.server as unknown as { db: import('mongodb').Db }).db;
+			const { id } = req.params as { id: string };
+
+			// Importar función de generación de factura
+			const { generateInvoiceData } = await import('./invoice');
+
+			// Generar datos de facturación
+			const invoiceData = await generateInvoiceData(db, id);
+
+			return reply.send(invoiceData);
 		},
 	);
 }

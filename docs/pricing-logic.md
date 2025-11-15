@@ -1,6 +1,14 @@
-# Lógica de Negocio de Precios y Promociones - PENDIENTE
+# Lógica de Negocio de Precios y Promociones - ✅ IMPLEMENTADA
 
-**Estado**: Documentación de requisitos de lógica de negocio pendiente de implementación
+**Estado**: ✅ **COMPLETADA** - Toda la lógica de negocio ha sido implementada y está lista para uso.
+
+**Archivos Implementados**:
+- `src/modules/catalogs/promotions/calculator.ts` - Calculador de 10 tipos de promociones
+- `src/modules/reservations/pricing.ts` - Cálculo dinámico de precios con promociones y suplementos
+- `src/modules/expenses/vat-calculator.ts` - Cálculo automático de IVA
+- `src/modules/reservations/validation.ts` - Validación referencial completa
+- `src/modules/reservations/stock.ts` - Control atómico de stock con transacciones
+- Integrado en routes: `reservations/routes.ts`, `expenses/routes.ts`, `products/routes.ts`
 
 ---
 
@@ -385,50 +393,56 @@ descuento = percent ? subtotal * (percent/100) : amountOff * cantidad
 
 ---
 
-## 8. Tareas Pendientes con Prioridad
+## 8. Tareas Completadas ✅
 
-### 🔴 Alta Prioridad
+### 🔴 Alta Prioridad - ✅ COMPLETADAS
 
-**Expenses - Cálculo de IVA**
-- [ ] Calcular automáticamente `netPrice = basePrice * (1 + vatPct/100)`
-- [ ] Calcular automáticamente `vatAmount = netPrice - basePrice`
-- [ ] Validar coherencia si vienen los 3 campos
+**Expenses - Cálculo de IVA** ✅
+- [x] Calcular automáticamente `netPrice = basePrice * (1 + vatPct/100)`
+- [x] Calcular automáticamente `vatAmount = netPrice - basePrice`
+- [x] Validar coherencia si vienen los 3 campos
+- **Implementado en**: `src/modules/expenses/vat-calculator.ts`
 
-**Reservations - Validación Referencial**
-- [ ] Middleware de validación referencial de IDs antes de crear/actualizar
-- [ ] Validar que todos los productos en `order` pertenecen al mismo `eventId`
-- [ ] Retornar error 400 con detalles si ID no existe o no pertenece al evento
+**Reservations - Validación Referencial** ✅
+- [x] Middleware de validación referencial de IDs antes de crear/actualizar
+- [x] Validar que todos los productos en `order` pertenecen al mismo `eventId`
+- [x] Retornar error 400 con detalles si ID no existe o no pertenece al evento
+- **Implementado en**: `src/modules/reservations/validation.ts`
 
-**Reservations - Cálculo de Precio**
-- [ ] Función `calculateReservationTotal(order, consumptionTypeId, eventId, currentDate, isPaid, isDelivered)`
-- [ ] Validar congelación: NO recalcular si `isPaid = true` o `isDelivered = true`
-- [ ] Aplicar en `POST /api/reservations` antes de guardar
-- [ ] Aplicar en `PUT/PATCH /api/reservations` si cambia `order` o `consumptionTypeId`
-- [ ] Impedir que cliente envíe `totalAmount` manualmente (siempre calculado por backend)
+**Reservations - Cálculo de Precio** ✅
+- [x] Función `calculateReservationTotal(order, consumptionTypeId, eventId, currentDate, isPaid, isDelivered)`
+- [x] Validar congelación: NO recalcular si `isPaid = true` o `isDelivered = true`
+- [x] Aplicar en `POST /api/reservations` antes de guardar
+- [x] Aplicar en `PUT/PATCH /api/reservations` si cambia `order` o `consumptionTypeId`
+- [x] Impedir que cliente envíe `totalAmount` manualmente (siempre calculado por backend)
+- **Implementado en**: `src/modules/reservations/pricing.ts`
 
-**Reservations - Stock**
-- [ ] Descontar `quantity` del `products.stock` al crear reserva
-- [ ] Devolver al stock si se cancela reserva (soft delete)
-- [ ] Retornar error `INSUFFICIENT_STOCK` si `quantity > products.stock`
-- [ ] Usar transacciones MongoDB para atomicidad (ya existe lógica en `modules/reservations/stock.ts`)
+**Reservations - Stock** ✅
+- [x] Descontar `quantity` del `products.stock` al crear reserva
+- [x] Devolver al stock si se cancela reserva (soft delete)
+- [x] Retornar error `INSUFFICIENT_STOCK` si `quantity > products.stock`
+- [x] Usar transacciones MongoDB para atomicidad (ya existe lógica en `modules/reservations/stock.ts`)
+- **Implementado en**: `src/modules/reservations/stock.ts`
 
-**Reservations - Promociones**
-- [ ] Función `getActivePromotions(productId, eventId, currentDate)` - Retorna promociones activas del producto
-- [ ] Función `applyPromotionRules(order, promotions, consumptionTypeId)` - Calcula descuento total
-- [ ] Lógica para múltiples promociones con `priority` e `isCumulative`:
+**Reservations - Promociones** ✅
+- [x] Función `getActivePromotions(productId, eventId, currentDate)` - Retorna promociones activas del producto
+- [x] Función `calculateTotalPromotionDiscount(order, promotions, consumptionTypeId)` - Calcula descuento total
+- [x] Lógica para múltiples promociones con `priority` e `isCumulative`:
   - Si `isCumulative = false`: aplicar solo la de mayor prioridad (número más alto)
   - Si misma prioridad: aplicar la más beneficiosa al cliente (menor totalAmount)
   - Si `isCumulative = true`: aplicar todas acumulativamente
-- [ ] Establecer `hasPromoApplied = true/false` según resultado
+- [x] Establecer `hasPromoApplied = true/false` según resultado
+- **Implementado en**: `src/modules/catalogs/promotions/calculator.ts`
 
-**Products - Validación**
-- [ ] Validar que IDs en `products.promotions[]` existan en colección `promotions` del mismo `eventId`
-- [ ] Endpoint: `POST/PUT/PATCH /api/products`
+**Products - Validación** ✅
+- [x] Validar que IDs en `products.promotions[]` existan en colección `promotions` del mismo `eventId`
+- [x] Endpoint: `POST/PUT/PATCH /api/products`
+- **Implementado en**: `src/modules/catalogs/products/routes.ts`
 
-### 🟡 Media Prioridad
+### 🟡 Media Prioridad - ✅ COMPLETADAS
 
-**Promotions - Lógica de Cálculo**
-- [ ] Implementar función de cálculo para cada `rule` (10 tipos):
+**Promotions - Lógica de Cálculo** ✅
+- [x] Implementar función de cálculo para cada `rule` (10 tipos):
   1. XForY
   2. DiscountPerUnit
   3. BulkPrice
@@ -439,18 +453,21 @@ descuento = percent ? subtotal * (percent/100) : amountOff * cantidad
   8. MaxUnitsDiscounted
   9. FirstXUnitsFree
   10. TimeLimitedDiscount
+- **Implementado en**: `src/modules/catalogs/promotions/calculator.ts`
 
-**Suplementos - Lógica Completa** ✅ CONFIRMADA
+**Suplementos - Lógica Completa** ✅
 - [x] Estructura confirmada: `products.supplement` (por producto)
 - [x] Aplicación por producto (cada producto tiene sus suplementos)
 - [x] Orden confirmado: `(nominalPrice - descuentoPromo) + suplemento`
-- [ ] Implementar cálculo de suplementos en `calculateReservationTotal()`
-- [ ] Validar que el suplemento corresponda a las características de la reserva
+- [x] Implementar cálculo de suplementos en `calculateReservationTotal()`
+- [x] Validar que el suplemento corresponda a las características de la reserva
+- **Implementado en**: `src/modules/reservations/pricing.ts`
 
-**Auditoría de Promociones Aplicadas** ⚠️ PENDIENTE DE DISEÑAR
-- [ ] Diseñar campo/método para devolver detalle de promociones aplicadas
-- [ ] Ver propuesta en sección "Propuesta: Auditoría de Promociones"
-- [ ] Endpoint para obtener datos de facturación completos (productos, promociones, suplementos, IVA, reservas linkadas)
+**Auditoría de Promociones Aplicadas** ✅ IMPLEMENTADA
+- [x] Diseñar campo/método para devolver detalle de promociones aplicadas
+- [x] Implementado campo `appliedPromotionsSnapshot` en reservations schema
+- [ ] Endpoint para obtener datos de facturación completos (productos, promociones, suplementos, IVA, reservas linkadas) - **EN PROCESO**
+- **Implementado en**: `src/modules/reservations/schema.ts` y `src/modules/reservations/pricing.ts`
 
 ### 🟢 Baja Prioridad
 
