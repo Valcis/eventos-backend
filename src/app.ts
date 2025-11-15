@@ -40,94 +40,13 @@ export async function buildApp() {
 		logger: loggerOptions ?? true,
 		disableRequestLogging: true,
 		requestTimeout: 15000,
-		// Formateador de errores de validación personalizado
-		schemaErrorFormatter: (errors, dataVar) => {
-			console.error('=== SCHEMA ERROR FORMATTER CALLED ===');
-			console.error('Errors:', JSON.stringify(errors, null, 2));
-
-			// Crear error personalizado con nuestro formato
-			const formattedError = new Error('Error de validación en los datos enviados') as Error & {
-				statusCode: number;
-				code: string;
-				validation: any[];
-			};
-			formattedError.statusCode = 400;
-			formattedError.code = 'VALIDATION_ERROR';
-			formattedError.validation = errors.map((err) => ({
-				instancePath: err.instancePath,
-				message: err.message,
-				params: err.params,
-			}));
-
-			console.error('=== FORMATTED ERROR:', JSON.stringify(formattedError, null, 2));
-			return formattedError;
-		},
 	}).withTypeProvider<ZodTypeProvider>();
 
 	app.decorate('db', db);
 
-	// Validador de Zod que retorna errores en formato Fastify
-	app.setValidatorCompiler(({ schema }) => {
-		return (data) => {
-			try {
-				const zodSchema = schema as ZodSchema;
-				const result = zodSchema.parse(data);
-				return { value: result };
-			} catch (error) {
-				// Si es ZodError, convertirlo al formato de error de Fastify
-				if (error instanceof ZodError) {
-					return {
-						error: error.issues.map((issue) => ({
-							instancePath: '/' + issue.path.join('/'),
-							message: issue.message, // Mensaje personalizado en español
-							params: {
-								code: issue.code,
-								path: issue.path.join('.'),
-							},
-						})),
-					};
-				}
-				// Si es otro tipo de error, lanzarlo
-				throw error;
-			}
-		};
-	});
-
-	// Serializer: valida respuestas exitosas con Zod, permite errores sin validar
-	app.setSerializerCompiler(({ schema }) => {
-		const zodSchema = schema as ZodSchema;
-		return (data) => {
-			console.error('=== SERIALIZER DEBUG ===');
-			console.error('Data:', JSON.stringify(data, null, 2));
-			console.error('Has statusCode:', data && typeof data === 'object' && 'statusCode' in data);
-
-			// Si es una respuesta de error (statusCode >= 400), no validar con Zod
-			if (data && typeof data === 'object' && 'statusCode' in data) {
-				const statusCode = (data as { statusCode: number }).statusCode;
-				console.error('StatusCode:', statusCode);
-				if (statusCode >= 400) {
-					const result = JSON.stringify(data);
-					console.error('=== Returning error JSON:', result);
-					return result;
-				}
-			}
-
-			// Para respuestas exitosas, validar con Zod
-			try {
-				return JSON.stringify(zodSchema.parse(data));
-			} catch (err) {
-				// Si falla la validación, loguear y devolver sin validar
-				app.log.error(
-					{
-						error: err instanceof Error ? err.message : String(err),
-						dataKeys: data && typeof data === 'object' ? Object.keys(data) : undefined,
-					},
-					'SerializerCompiler: Failed to validate successful response',
-				);
-				return JSON.stringify(data);
-			}
-		};
-	});
+	// Usar validator y serializer OFICIALES de fastify-type-provider-zod
+	app.setValidatorCompiler(validatorCompiler);
+	app.setSerializerCompiler(serializerCompiler);
 
 	if (env.MONGO_BOOT === '1') {
 		try {

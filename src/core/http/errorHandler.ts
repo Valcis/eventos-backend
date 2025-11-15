@@ -304,9 +304,6 @@ export function errorHandler(
 		response.stack = err.stack;
 	}
 
-	console.error('=== ERROR HANDLER SENDING RESPONSE ===');
-	console.error('Response:', JSON.stringify(response, null, 2));
-
 	reply.code(response.statusCode).send(response);
 }
 
