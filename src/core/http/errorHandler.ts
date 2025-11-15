@@ -261,6 +261,16 @@ export function errorHandler(
 	const errCode = (err as FastifyError).code;
 	const errValidation = (err as FastifyError).validation;
 
+	// DEBUG TEMPORAL - Ver qué error llega
+	console.error('=== ERROR HANDLER DEBUG ===');
+	console.error('Error name:', err.name);
+	console.error('Error message:', err.message);
+	console.error('Error code:', errCode);
+	console.error('Has validation:', !!errValidation);
+	console.error('Validation:', errValidation);
+	console.error('Is ZodError:', err instanceof ZodError);
+	console.error('Error cause:', (err as any).cause);
+
 	req.log.error(
 		{
 			err,
@@ -280,10 +290,12 @@ export function errorHandler(
 	// Revisar si el error tiene un cause que sea ZodError
 	const zodCause = (err as any).cause;
 	if (zodCause && zodCause instanceof ZodError) {
+		console.error('=== HANDLING ZodError FROM CAUSE ===');
 		response = handleZodError(zodCause);
 	} else if (err instanceof AppError) {
 		response = handleAppError(err);
 	} else if (err instanceof ZodError) {
+		console.error('=== HANDLING ZodError DIRECTLY ===');
 		response = handleZodError(err);
 	} else if (isJWTError(err)) {
 		response = handleJWTError(err);
@@ -292,8 +304,10 @@ export function errorHandler(
 	} else if (isMongoDBDuplicateError(err)) {
 		response = handleMongoDBDuplicateError(err);
 	} else if ((err as FastifyError).code === 'FST_ERR_VALIDATION') {
+		console.error('=== HANDLING FST_ERR_VALIDATION ===');
 		response = handleFastifyValidationError(err as FastifyError);
 	} else {
+		console.error('=== HANDLING GENERIC ERROR ===');
 		response = handleGenericError(
 			err as Error & { code?: string | number; statusCode?: number },
 		);
@@ -303,6 +317,9 @@ export function errorHandler(
 	if (includeStack && err.stack) {
 		response.stack = err.stack;
 	}
+
+	console.error('=== SENDING RESPONSE ===');
+	console.error('Response:', JSON.stringify(response, null, 2));
 
 	reply.code(response.statusCode).send(response);
 }
