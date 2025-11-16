@@ -24,7 +24,9 @@
 		"check:imports": "tsx src/system/cli/check-import-extensions.ts",
 		"db:ensure": "tsx src/system/cli/db-ensure.ts",
 		"seed": "tsx src/system/cli/seed.ts",
-		"generate-jwt": "tsx src/system/cli/generate-jwt.ts"
+		"generate-jwt": "tsx src/system/cli/generate-jwt.ts",
+		"docs:generate": "tsx scripts/generate-api-docs.ts",
+		"docs:md-to-pdf": "npx md-to-pdf docs/API-REFERENCE.md --config-file scripts/md-to-pdf.config.js"
 	},
 	"dependencies": {
 		"@asteasolutions/zod-to-openapi": "7.3.4",
