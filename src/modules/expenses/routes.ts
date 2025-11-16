@@ -135,10 +135,14 @@ export default async function expensesRoutes(app: FastifyInstance) {
 				collection: 'expenses',
 				toDb: (data) => data,
 				fromDb: (doc) => {
-					const { _id, ...rest } = doc;
+					const { _id, eventId, payerId, unitId, storeId, ...rest } = doc;
 					const base = {
 						...(rest as Record<string, unknown>),
 						id: String(_id),
+						eventId: String(eventId),
+						payerId: String(payerId),
+						...(unitId ? { unitId: String(unitId) } : {}),
+						...(storeId ? { storeId: String(storeId) } : {}),
 						isActive: rest.isActive !== undefined ? rest.isActive : true,
 					};
 					const normalized = isoifyFields(base, ['date', 'createdAt', 'updatedAt'] as const);

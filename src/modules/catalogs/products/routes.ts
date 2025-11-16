@@ -50,10 +50,11 @@ export default async function productsRoutes(app: FastifyInstance) {
 			return transformed as ProductT;
 		},
 		(doc) => {
-			const { _id, ...rest } = doc;
+			const { _id, eventId, ...rest } = doc;
 			const base = {
 				...(rest as Record<string, unknown>),
 				id: String(_id),
+				eventId: String(eventId),
 				isActive: rest.isActive !== undefined ? rest.isActive : true,
 			};
 			const normalized = isoifyFields(base, ['date', 'createdAt', 'updatedAt'] as const);
@@ -115,10 +116,11 @@ export default async function productsRoutes(app: FastifyInstance) {
 				collection: 'products',
 				toDb: (data) => data,
 				fromDb: (doc) => {
-					const { _id, ...rest } = doc;
+					const { _id, eventId, ...rest } = doc;
 					const base = {
 						...(rest as Record<string, unknown>),
 						id: String(_id),
+						eventId: String(eventId),
 						isActive: rest.isActive !== undefined ? rest.isActive : true,
 					};
 					const normalized = isoifyFields(base, ['date', 'createdAt', 'updatedAt'] as const);

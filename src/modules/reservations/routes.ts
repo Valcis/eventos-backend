@@ -60,10 +60,16 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 			return transformed as ReservationT;
 		},
 		(doc) => {
-			const { _id, ...rest } = doc;
+			const { _id, eventId, salespersonId, consumptionTypeId, pickupPointId, paymentMethodId, cashierId, ...rest } = doc;
 			const base = {
 				...(rest as Record<string, unknown>),
 				id: String(_id),
+				eventId: String(eventId),
+				salespersonId: salespersonId ? String(salespersonId) : undefined,
+				consumptionTypeId: String(consumptionTypeId),
+				pickupPointId: pickupPointId ? String(pickupPointId) : undefined,
+				paymentMethodId: String(paymentMethodId),
+				cashierId: cashierId ? String(cashierId) : undefined,
 				isActive: rest.isActive !== undefined ? rest.isActive : true,
 			};
 			const normalized = isoifyFields(base, ['date', 'createdAt', 'updatedAt'] as const);
@@ -143,10 +149,16 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 				collection: 'reservations',
 				toDb: (data) => data,
 				fromDb: (doc) => {
-					const { _id, ...rest } = doc;
+					const { _id, eventId, salespersonId, consumptionTypeId, pickupPointId, paymentMethodId, cashierId, ...rest } = doc;
 					const base = {
 						...(rest as Record<string, unknown>),
 						id: String(_id),
+						eventId: String(eventId),
+						salespersonId: salespersonId ? String(salespersonId) : undefined,
+						consumptionTypeId: String(consumptionTypeId),
+						pickupPointId: pickupPointId ? String(pickupPointId) : undefined,
+						paymentMethodId: String(paymentMethodId),
+						cashierId: cashierId ? String(cashierId) : undefined,
 						isActive: rest.isActive !== undefined ? rest.isActive : true,
 					};
 					const normalized = isoifyFields(base, ['date', 'createdAt', 'updatedAt'] as const);

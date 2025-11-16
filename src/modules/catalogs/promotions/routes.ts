@@ -57,10 +57,11 @@ export default async function promotionsRoutes(app: FastifyInstance) {
 			return transformed as PromotionT;
 		},
 		(doc) => {
-			const { _id, ...rest } = doc;
+			const { _id, eventId, ...rest } = doc;
 			const base = {
 				...(rest as Record<string, unknown>),
 				id: String(_id),
+				eventId: String(eventId),
 				isActive: rest.isActive !== undefined ? rest.isActive : true,
 			};
 			const normalized = isoifyFields(base, [
@@ -126,10 +127,11 @@ export default async function promotionsRoutes(app: FastifyInstance) {
 				collection: 'promotions',
 				toDb: (data) => data,
 				fromDb: (doc) => {
-					const { _id, ...rest } = doc;
+					const { _id, eventId, ...rest } = doc;
 					const base = {
 						...(rest as Record<string, unknown>),
 						id: String(_id),
+						eventId: String(eventId),
 						isActive: rest.isActive !== undefined ? rest.isActive : true,
 					};
 					const normalized = isoifyFields(base, [

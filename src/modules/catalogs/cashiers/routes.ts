@@ -47,10 +47,11 @@ export default async function cashiersRoutes(app: FastifyInstance) {
 			return transformed as CashierT;
 		},
 		(doc) => {
-			const { _id, ...rest } = doc;
+			const { _id, eventId, ...rest } = doc;
 			const base = {
 				...(rest as Record<string, unknown>),
 				id: String(_id),
+				eventId: String(eventId),
 				isActive: rest.isActive !== undefined ? rest.isActive : true,
 			};
 			const normalized = isoifyFields(base, ['date', 'createdAt', 'updatedAt'] as const);
@@ -110,10 +111,11 @@ export default async function cashiersRoutes(app: FastifyInstance) {
 				collection: 'cashiers',
 				toDb: (data) => data,
 				fromDb: (doc) => {
-					const { _id, ...rest } = doc;
+					const { _id, eventId, ...rest } = doc;
 					const base = {
 						...(rest as Record<string, unknown>),
 						id: String(_id),
+						eventId: String(eventId),
 						isActive: rest.isActive !== undefined ? rest.isActive : true,
 					};
 					const normalized = isoifyFields(base, ['date', 'createdAt', 'updatedAt'] as const);
