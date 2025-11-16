@@ -80,12 +80,22 @@ export function makeCrud<
 		async create(db, data) {
 			const col = db.collection(collection);
 			const now = new Date();
+
+			const transformed = toDb(data);
+
+			// Eliminar campos de sistema que no deben ser enviados por el usuario
+			// (se establecen automáticamente)
+			delete transformed.createdAt;
+			delete transformed.updatedAt;
+			delete transformed.isActive;
+
 			const doc = {
-				...toDb(data),
+				...transformed,
 				createdAt: now,
 				updatedAt: now,
 				...(softDelete ? { isActive: true } : {}),
 			};
+
 			const res = await col.insertOne(doc);
 			const inserted = await col.findOne({ _id: res.insertedId });
 			if (!inserted) throw new Error('Insert failed: document not found');
@@ -167,14 +177,27 @@ export function makeCrud<
 		async update(db: Db, id: string, data: TUpdate): Promise<TDomain | null> {
 			const col = db.collection(collection);
 			const _id = ensureObjectId(id);
-			const doc = toDb(data);
+
+			// Obtener documento original para preservar createdAt e isActive
+			const original = await col.findOne({ _id });
+			if (!original) return null;
+
+			const transformed = toDb(data);
+
+			// Eliminar campos de sistema que no deben ser modificados por el usuario
+			delete transformed.createdAt;
+			delete transformed.updatedAt;
+			delete transformed.isActive;
 
 			// En MongoDB driver v6+, findOneAndReplace devuelve el documento directamente
+			// Preservamos createdAt, isActive del original
 			const updated = await col.findOneAndReplace(
 				{ _id },
 				{
-					...doc,
-					updatedAt: new Date(),
+					...transformed,
+					createdAt: original.createdAt,  // Preservar createdAt original
+					updatedAt: new Date(),          // Actualizar updatedAt
+					...(softDelete ? { isActive: original.isActive } : {}), // Preservar isActive
 				},
 				{ returnDocument: 'after' as const },
 			);
@@ -187,8 +210,16 @@ export function makeCrud<
 		async patch(db: Db, id: string, data: Partial<TUpdate>): Promise<TDomain | null> {
 			const col = db.collection(collection);
 			const _id = ensureObjectId(id);
+
+			const transformed = toDb(data as Partial<TUpdate>);
+
+			// Eliminar campos de sistema que no deben ser modificados por el usuario
+			// (updatedAt se establece automáticamente, createdAt nunca debe cambiar)
+			delete transformed.createdAt;
+			delete transformed.updatedAt;
+
 			const update: UpdateFilter<Document> = {
-				$set: { ...toDb(data as Partial<TUpdate>), updatedAt: new Date() },
+				$set: { ...transformed, updatedAt: new Date() },
 			};
 
 			// En MongoDB driver v6+, findOneAndUpdate devuelve el documento directamente
