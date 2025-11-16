@@ -169,7 +169,8 @@ export function makeCrud<
 			const _id = ensureObjectId(id);
 			const doc = toDb(data);
 
-			const res = await col.findOneAndReplace(
+			// En MongoDB driver v6+, findOneAndReplace devuelve el documento directamente
+			const updated = await col.findOneAndReplace(
 				{ _id },
 				{
 					...doc,
@@ -178,7 +179,6 @@ export function makeCrud<
 				{ returnDocument: 'after' as const },
 			);
 
-			const updated = res?.value;
 			if (!updated) return null;
 
 			return fromDb(updated as WithId<Document>);
@@ -190,10 +190,12 @@ export function makeCrud<
 			const update: UpdateFilter<Document> = {
 				$set: { ...toDb(data as Partial<TUpdate>), updatedAt: new Date() },
 			};
-			const res = await col.findOneAndUpdate({ _id }, update, {
+
+			// En MongoDB driver v6+, findOneAndUpdate devuelve el documento directamente
+			const updated = await col.findOneAndUpdate({ _id }, update, {
 				returnDocument: 'after' as const,
 			});
-			const updated = res?.value;
+
 			if (!updated) return null;
 
 			return fromDb(updated as WithId<Document>);
