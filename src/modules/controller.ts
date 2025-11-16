@@ -89,6 +89,7 @@ export function makeController<
 			const { id } = req.params as { id: string };
 			validateObjectId(id); // Validar antes de actualizar
 			const updated = await repo.update(db, id, req.body as TUpdate);
+			if (!updated) throw new NotFoundError(collection, id);
 			return reply.send(updated);
 		},
 
@@ -97,6 +98,7 @@ export function makeController<
 			const { id } = req.params as { id: string };
 			validateObjectId(id); // Validar antes de patchear
 			const updated = await repo.patch(db, id, req.body as Partial<TUpdate>);
+			if (!updated) throw new NotFoundError(collection, id);
 			return reply.send(updated);
 		},
 
