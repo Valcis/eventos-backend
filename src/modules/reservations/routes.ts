@@ -98,6 +98,40 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 		async (doc, db) => {
 			const { _id, eventId, salespersonId, consumptionTypeId, pickupPointId, paymentMethodId, cashierId, ...rest } = doc;
 
+			// Migrar appliedPromotionsSnapshot del formato antiguo al nuevo (retrocompatibilidad)
+			// Formato antiguo: [{ promotionId, promotionName, productId, productName, quantity, discountCents, rule }]
+			// Formato nuevo: [{ productId, productName, quantity, unitPriceOriginal, unitPriceFinal, subtotal, promotionsApplied: [...] }]
+			if (rest.appliedPromotionsSnapshot && Array.isArray(rest.appliedPromotionsSnapshot)) {
+				const snapshot = rest.appliedPromotionsSnapshot as Array<Record<string, unknown>>;
+				// Detectar formato antiguo: tiene discountCents pero no tiene unitPriceOriginal
+				if (snapshot.length > 0 && 'discountCents' in snapshot[0] && !('unitPriceOriginal' in snapshot[0])) {
+					// Migrar al nuevo formato agrupando por productId
+					const productMap = new Map<string, any>();
+					for (const oldItem of snapshot) {
+						const productId = String(oldItem.productId);
+						if (!productMap.has(productId)) {
+							productMap.set(productId, {
+								productId,
+								productName: String(oldItem.productName || 'Producto'),
+								quantity: Number(oldItem.quantity || 1),
+								unitPriceOriginal: '0.00', // No tenemos esta info en formato antiguo
+								unitPriceFinal: '0.00', // Se calculará después
+								subtotal: '0.00', // Se calculará después
+								promotionsApplied: [],
+							});
+						}
+						// Agregar promoción al producto
+						productMap.get(productId)!.promotionsApplied.push({
+							promotionId: String(oldItem.promotionId),
+							promotionName: String(oldItem.promotionName || 'Promoción'),
+							rule: String(oldItem.rule || 'Unknown'),
+							discountPerUnit: '0.00', // No podemos calcular sin más info
+						});
+					}
+					rest.appliedPromotionsSnapshot = Array.from(productMap.values());
+				}
+			}
+
 			// Lookup salesperson (optional)
 			let salesperson: { id: string; name: string; phone?: string; isActive: boolean } | undefined;
 			if (salespersonId) {
@@ -254,6 +288,40 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 				toDb: (data) => data,
 				fromDb: async (doc, db) => {
 					const { _id, eventId, salespersonId, consumptionTypeId, pickupPointId, paymentMethodId, cashierId, ...rest } = doc;
+
+					// Migrar appliedPromotionsSnapshot del formato antiguo al nuevo (retrocompatibilidad)
+					// Formato antiguo: [{ promotionId, promotionName, productId, productName, quantity, discountCents, rule }]
+					// Formato nuevo: [{ productId, productName, quantity, unitPriceOriginal, unitPriceFinal, subtotal, promotionsApplied: [...] }]
+					if (rest.appliedPromotionsSnapshot && Array.isArray(rest.appliedPromotionsSnapshot)) {
+						const snapshot = rest.appliedPromotionsSnapshot as Array<Record<string, unknown>>;
+						// Detectar formato antiguo: tiene discountCents pero no tiene unitPriceOriginal
+						if (snapshot.length > 0 && 'discountCents' in snapshot[0] && !('unitPriceOriginal' in snapshot[0])) {
+							// Migrar al nuevo formato agrupando por productId
+							const productMap = new Map<string, any>();
+							for (const oldItem of snapshot) {
+								const productId = String(oldItem.productId);
+								if (!productMap.has(productId)) {
+									productMap.set(productId, {
+										productId,
+										productName: String(oldItem.productName || 'Producto'),
+										quantity: Number(oldItem.quantity || 1),
+										unitPriceOriginal: '0.00', // No tenemos esta info en formato antiguo
+										unitPriceFinal: '0.00', // Se calculará después
+										subtotal: '0.00', // Se calculará después
+										promotionsApplied: [],
+									});
+								}
+								// Agregar promoción al producto
+								productMap.get(productId)!.promotionsApplied.push({
+									promotionId: String(oldItem.promotionId),
+									promotionName: String(oldItem.promotionName || 'Promoción'),
+									rule: String(oldItem.rule || 'Unknown'),
+									discountPerUnit: '0.00', // No podemos calcular sin más info
+								});
+							}
+							rest.appliedPromotionsSnapshot = Array.from(productMap.values());
+						}
+					}
 
 					// Lookup salesperson (optional)
 					let salesperson: { id: string; name: string; phone?: string; isActive: boolean } | undefined;

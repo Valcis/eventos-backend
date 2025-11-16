@@ -527,20 +527,48 @@ async function run(): Promise<void> {
 			[productId2.toString()]: 2, // 2 picarones
 			[productId3.toString()]: 3, // 3 cervezas (aplica 3x2)
 		},
-		totalAmount: '43.50',
+		totalAmount: '48.00', // 30 (parrilladas) + 9 (picarones) + 9 (cervezas con 3x2)
 		salespersonId,
 		consumptionTypeId: consumptionTypeId1,
 		pickupPointId,
 		hasPromoApplied: true,
 		appliedPromotionsSnapshot: [
+			// Producto 1: Parrilladas (sin promoción)
 			{
-				promotionId: promotionId1.toString(),
-				promotionName: '3x2 en Cervezas',
+				productId: productId1.toString(),
+				productName: 'Parrillada Argentina',
+				quantity: 2,
+				unitPriceOriginal: '15.00',
+				unitPriceFinal: '15.00',
+				subtotal: '30.00',
+				promotionsApplied: [],
+			},
+			// Producto 2: Picarones (sin promoción)
+			{
+				productId: productId2.toString(),
+				productName: 'Picarones',
+				quantity: 2,
+				unitPriceOriginal: '4.50',
+				unitPriceFinal: '4.50',
+				subtotal: '9.00',
+				promotionsApplied: [],
+			},
+			// Producto 3: Cervezas (con promoción 3x2)
+			{
 				productId: productId3.toString(),
 				productName: 'Cerveza Artesanal',
 				quantity: 3,
-				discountCents: 450, // 4.50€ en céntimos (precio de 1 cerveza gratis)
-				rule: 'XForY',
+				unitPriceOriginal: '4.50',
+				unitPriceFinal: '3.00', // 9.00 total / 3 unidades = 3.00 por unidad
+				subtotal: '9.00', // Solo pagas 2 cervezas gracias al 3x2
+				promotionsApplied: [
+					{
+						promotionId: promotionId1.toString(),
+						promotionName: '3x2 en Cervezas',
+						rule: 'XForY',
+						discountPerUnit: '1.50', // 4.50 - 3.00 = 1.50 de descuento por unidad
+					},
+				],
 			},
 		],
 		linkedReservations: [],
@@ -561,14 +589,36 @@ async function run(): Promise<void> {
 		eventId,
 		reserver: 'María González',
 		order: {
-			[productId1.toString()]: 1, // 1 parrillada con suplemento
+			[productId1.toString()]: 1, // 1 parrillada
 			[productId4.toString()]: 2, // 2 refrescos
 		},
-		totalAmount: '22.00', // 15 + 2 (suplemento) + 2.50*2
+		totalAmount: '20.00', // 15 (parrillada) + 5 (2 refrescos)
 		salespersonId,
-		consumptionTypeId: consumptionTypeId2, // "En el sitio" - tiene suplemento de 2€
+		consumptionTypeId: consumptionTypeId2, // "En el sitio"
 		pickupPointId,
 		hasPromoApplied: false,
+		appliedPromotionsSnapshot: [
+			// Producto 1: Parrillada (sin promoción)
+			{
+				productId: productId1.toString(),
+				productName: 'Parrillada Argentina',
+				quantity: 1,
+				unitPriceOriginal: '15.00',
+				unitPriceFinal: '15.00',
+				subtotal: '15.00',
+				promotionsApplied: [],
+			},
+			// Producto 4: Refrescos (sin promoción)
+			{
+				productId: productId4.toString(),
+				productName: 'Refresco',
+				quantity: 2,
+				unitPriceOriginal: '2.50',
+				unitPriceFinal: '2.50',
+				subtotal: '5.00',
+				promotionsApplied: [],
+			},
+		],
 		linkedReservations: [],
 		deposit: '0.00',
 		isDelivered: true,

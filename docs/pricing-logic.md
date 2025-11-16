@@ -600,22 +600,26 @@ descuento = percent ? subtotal * (percent/100) : amountOff * cantidad
 Añadir campo `appliedPromotionsSnapshot` en la colección `reservations`:
 
 ```typescript
-// En schema de reservations
+// En schema de reservations (IMPLEMENTADO)
 appliedPromotionsSnapshot?: {
-  productId: string,
-  productName: string,        // Para mostrar en factura
-  originalPrice: Money,        // Precio sin promoción
-  finalPrice: Money,           // Precio con promoción aplicada
-  promotions: [
+  productId: string,              // ID del producto
+  productName: string,            // Nombre del producto (snapshot para factura)
+  quantity: number,               // Cantidad pedida
+  unitPriceOriginal: Money,       // Precio unitario sin promoción
+  unitPriceFinal: Money,          // Precio unitario con promociones aplicadas
+  subtotal: Money,                // Subtotal de la línea (unitPriceFinal * quantity)
+  promotionsApplied: [            // Array de promociones aplicadas a este producto
     {
-      promotionId: string,
-      promotionName: string,   // Para mostrar en factura
-      rule: string,            // Tipo de promoción
-      discount: Money          // Descuento generado por esta promo
+      promotionId: string,        // ID de la promoción
+      promotionName: string,      // Nombre de la promoción (snapshot)
+      rule: string,               // Tipo de regla (XForY, PercentageDiscount, etc.)
+      discountPerUnit: Money      // Descuento por unidad (unitPriceOriginal - unitPriceFinal)
     }
   ]
 }[]
 ```
+
+**Nota**: Este formato es **jerárquico** (productos → promociones) a diferencia del formato antiguo que era plano. Cada elemento del array representa un **producto con sus precios**, y dentro de cada producto hay un array de **promociones aplicadas a ese producto específico**.
 
 **Ventajas**:
 - ✅ Historial inmutable: aunque cambien precios/promociones, la reserva mantiene el snapshot
