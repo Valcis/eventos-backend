@@ -76,7 +76,67 @@ export default async function cashiersRoutes(app: FastifyInstance) {
 				security: [{ bearerAuth: [] }],
 			},
 		},
-		ctrl.list,
+		async (req, reply) => {
+			// Handler personalizado para procesar filtros de cajeros
+			type QInput = z.infer<typeof CashiersQueryParams>;
+			const db = (req.server as unknown as { db: import('mongodb').Db }).db;
+			const query = req.query as QInput;
+			const { ObjectId } = await import('mongodb');
+			const { makeCrud } = await import('../../../infra/mongo/crud');
+
+			// Separar paginación, ordenación y filtros
+			const { limit: rawLimit, after, sortBy = 'createdAt', sortDir = 'desc', eventId, name } = query;
+			const limit = rawLimit || 15;
+
+			// Construir filtros de MongoDB
+			const mongoFilters: Record<string, unknown> = { isActive: true };
+
+			// Filtro por eventId: convertir a ObjectId
+			if (eventId) {
+				if (!ObjectId.isValid(eventId)) {
+					const { BadRequestError } = await import('../../../core/http/errors');
+					throw new BadRequestError(`eventId inválido: "${eventId}" no es un ObjectId válido`);
+				}
+				mongoFilters.eventId = new ObjectId(eventId);
+			}
+
+			// Filtro por nombre: búsqueda parcial case-insensitive
+			if (name) {
+				mongoFilters.name = { $regex: name, $options: 'i' };
+			}
+
+			// Usar makeCrud directamente para aprovechar la paginación genérica
+			const crud = makeCrud<CashierT>({
+				collection: 'cashiers',
+				toDb: (data) => data,
+				fromDb: (doc) => {
+					const { _id, ...rest } = doc;
+					const base = {
+						...(rest as Record<string, unknown>),
+						id: String(_id),
+						isActive: rest.isActive !== undefined ? rest.isActive : true,
+					};
+					const normalized = isoifyFields(base, ['date', 'createdAt', 'updatedAt'] as const);
+					return Cashier.parse(normalized);
+				},
+				softDelete: true,
+				defaultSortBy: 'createdAt',
+				defaultSortDir: 'desc',
+			});
+
+			const result = await crud.list(
+				db,
+				mongoFilters as import('mongodb').Filter<import('mongodb').Document>,
+				{
+					limit,
+					after: after || null,
+					sortBy,
+					sortDir,
+				},
+			);
+
+			return reply.send(result);
+		},
 	);
 
 	app.get(
