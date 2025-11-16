@@ -1,5 +1,12 @@
 import { z } from 'zod';
 import { Id, DateTime, Money } from '../catalogs/zod.schemas';
+import {
+	EmbeddedSalesperson,
+	EmbeddedConsumptionType,
+	EmbeddedPickupPoint,
+	EmbeddedPaymentMethod,
+	EmbeddedCashier,
+} from '../../shared/schemas/embedded';
 
 /**
  * Schema de snapshot de promoción aplicada
@@ -52,14 +59,14 @@ export const Reservation = z.object({
 	totalAmount: Money.describe(
 		'Importe total de la reserva con promociones y suplementos aplicados. Ejemplo: "43.50"',
 	),
-	salespersonId: Id.optional().describe(
-		'ID del vendedor que gestionó la reserva. Opcional si la reserva es online.',
+	salesperson: EmbeddedSalesperson.optional().describe(
+		'Vendedor embebido que gestionó la reserva. Opcional si la reserva es online.',
 	),
-	consumptionTypeId: Id.describe(
-		'ID del tipo de consumo (para llevar, en el sitio, etc.). Afecta a los suplementos del precio.',
+	consumptionType: EmbeddedConsumptionType.describe(
+		'Tipo de consumo embebido (para llevar, en el sitio, etc.). Afecta a los suplementos del precio.',
 	),
-	pickupPointId: Id.optional().describe(
-		'ID del punto de recogida donde el cliente recogerá su pedido. Opcional.',
+	pickupPoint: EmbeddedPickupPoint.optional().describe(
+		'Punto de recogida embebido donde el cliente recogerá su pedido. Opcional.',
 	),
 	hasPromoApplied: z
 		.boolean()
@@ -85,10 +92,10 @@ export const Reservation = z.object({
 		.describe(
 			'Indica si la reserva ha sido pagada completamente (true) o está pendiente (false)',
 		),
-	paymentMethodId: Id.describe(
-		'ID del método de pago utilizado o previsto (Efectivo, Tarjeta, Bizum, etc.)',
+	paymentMethod: EmbeddedPaymentMethod.describe(
+		'Método de pago embebido utilizado o previsto (Efectivo, Tarjeta, Bizum, etc.)',
 	),
-	cashierId: Id.optional().describe('ID del cajero que gestionó el pago. Opcional.'),
+	cashier: EmbeddedCashier.optional().describe('Cajero embebido que gestionó el pago. Opcional.'),
 	notes: z
 		.string()
 		.optional()
@@ -119,16 +126,16 @@ export const ReservationCreate = z.object({
 		.record(z.string(), z.number().int().positive())
 		.describe('Mapa productId -> cantidad. Ejemplo: {"507f...": 2, "608f...": 3}'),
 	totalAmount: Money.describe('Importe total de la reserva. Ejemplo: "43.50"'),
-	salespersonId: Id.optional().describe('ID del vendedor (opcional)'),
-	consumptionTypeId: Id.describe('ID del tipo de consumo'),
-	pickupPointId: Id.optional().describe('ID del punto de recogida (opcional)'),
+	salesperson: EmbeddedSalesperson.optional().describe('Vendedor embebido (opcional)'),
+	consumptionType: EmbeddedConsumptionType.describe('Tipo de consumo embebido'),
+	pickupPoint: EmbeddedPickupPoint.optional().describe('Punto de recogida embebido (opcional)'),
 	hasPromoApplied: z.boolean().describe('¿Se aplicó promoción? true/false'),
 	linkedReservations: z.array(Id).optional().describe('IDs de reservas relacionadas (opcional)'),
 	deposit: Money.optional().describe('Anticipo pagado. Ejemplo: "20.00"'),
 	isDelivered: z.boolean().default(false).optional().describe('¿Pedido entregado? true/false'),
 	isPaid: z.boolean().default(false).optional().describe('¿Reserva pagada? true/false'),
-	paymentMethodId: Id.describe('ID del método de pago'),
-	cashierId: Id.optional().describe('ID del cajero (opcional)'),
+	paymentMethod: EmbeddedPaymentMethod.describe('Método de pago embebido'),
+	cashier: EmbeddedCashier.optional().describe('Cajero embebido (opcional)'),
 	notes: z.string().optional().describe('Notas adicionales'),
 	appliedPromotionsSnapshot: z
 		.array(ProductPromotionSnapshot)
@@ -147,16 +154,16 @@ export const ReservationReplace = z.object({
 	reserver: z.string().min(1).describe('Nombre del cliente'),
 	order: z.record(z.string(), z.number().int().positive()).describe('Mapa productId -> cantidad'),
 	totalAmount: Money.describe('Importe total'),
-	salespersonId: Id.optional().describe('ID del vendedor'),
-	consumptionTypeId: Id.describe('ID del tipo de consumo'),
-	pickupPointId: Id.optional().describe('ID del punto de recogida'),
+	salesperson: EmbeddedSalesperson.optional().describe('Vendedor embebido'),
+	consumptionType: EmbeddedConsumptionType.describe('Tipo de consumo embebido'),
+	pickupPoint: EmbeddedPickupPoint.optional().describe('Punto de recogida embebido'),
 	hasPromoApplied: z.boolean().describe('¿Promoción aplicada?'),
 	linkedReservations: z.array(Id).optional().describe('IDs de reservas relacionadas'),
 	deposit: Money.optional().describe('Anticipo pagado'),
 	isDelivered: z.boolean().default(false).optional().describe('¿Pedido entregado?'),
 	isPaid: z.boolean().default(false).optional().describe('¿Reserva pagada?'),
-	paymentMethodId: Id.describe('ID del método de pago'),
-	cashierId: Id.optional().describe('ID del cajero'),
+	paymentMethod: EmbeddedPaymentMethod.describe('Método de pago embebido'),
+	cashier: EmbeddedCashier.optional().describe('Cajero embebido'),
 	notes: z.string().optional().describe('Notas adicionales'),
 	appliedPromotionsSnapshot: z
 		.array(ProductPromotionSnapshot)
@@ -178,16 +185,16 @@ export const ReservationPatch = z.object({
 		.optional()
 		.describe('Mapa productId -> cantidad'),
 	totalAmount: Money.optional().describe('Importe total'),
-	salespersonId: Id.optional().describe('ID del vendedor'),
-	consumptionTypeId: Id.optional().describe('ID del tipo de consumo'),
-	pickupPointId: Id.optional().describe('ID del punto de recogida'),
+	salesperson: EmbeddedSalesperson.optional().describe('Vendedor embebido'),
+	consumptionType: EmbeddedConsumptionType.optional().describe('Tipo de consumo embebido'),
+	pickupPoint: EmbeddedPickupPoint.optional().describe('Punto de recogida embebido'),
 	hasPromoApplied: z.boolean().optional().describe('¿Promoción aplicada?'),
 	linkedReservations: z.array(Id).optional().describe('IDs de reservas relacionadas'),
 	deposit: Money.optional().describe('Anticipo pagado'),
 	isDelivered: z.boolean().optional().describe('¿Pedido entregado?'),
 	isPaid: z.boolean().optional().describe('¿Reserva pagada?'),
-	paymentMethodId: Id.optional().describe('ID del método de pago'),
-	cashierId: Id.optional().describe('ID del cajero'),
+	paymentMethod: EmbeddedPaymentMethod.optional().describe('Método de pago embebido'),
+	cashier: EmbeddedCashier.optional().describe('Cajero embebido'),
 	notes: z.string().optional().describe('Notas adicionales'),
 	appliedPromotionsSnapshot: z
 		.array(ProductPromotionSnapshot)

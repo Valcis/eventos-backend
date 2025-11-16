@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Id, DateTime, Money, Quantity } from '../catalogs/zod.schemas';
+import { EmbeddedPayer, EmbeddedStore, EmbeddedUnit } from '../../shared/schemas/embedded';
 
 /**
  * Schema completo de Gasto
@@ -15,8 +16,8 @@ export const Expense = z.object({
 		.describe(
 			'Nombre del ingrediente o material comprado. Ejemplo: "Carne de res", "Carbón", "Servilletas"',
 		),
-	unitId: Id.optional().describe(
-		'ID de la unidad de medida (kg, L, ud, etc.). Opcional si no aplica unidad específica.',
+	unit: EmbeddedUnit.optional().describe(
+		'Unidad de medida embebida (kg, L, ud, etc.). Opcional si no aplica unidad específica.',
 	),
 	quantity: Quantity.optional().describe(
 		'Cantidad comprada en la unidad especificada. Ejemplo: "25.00" para 25 kg',
@@ -49,9 +50,9 @@ export const Expense = z.object({
 	unitPrice: Money.optional().describe(
 		'Precio por unidad individual. Calculado como netPrice / (quantity * unitsPerPack) si isPackage=true, o netPrice / quantity si isPackage=false. Ejemplo: "0.07"',
 	),
-	payerId: Id.describe('ID del pagador que realizó el gasto'),
-	storeId: Id.optional().describe(
-		'ID de la tienda/proveedor donde se realizó la compra. Opcional.',
+	payer: EmbeddedPayer.describe('Pagador embebido que realizó el gasto'),
+	store: EmbeddedStore.optional().describe(
+		'Tienda/proveedor embebido donde se realizó la compra. Opcional.',
 	),
 	isVerified: z
 		.boolean()
@@ -79,7 +80,7 @@ export const ExpenseCreate = z.object({
 		.string()
 		.min(1)
 		.describe('Nombre del ingrediente o material. Ejemplo: "Carne de res"'),
-	unitId: Id.optional().describe('ID de la unidad de medida (opcional)'),
+	unit: EmbeddedUnit.optional().describe('Unidad de medida embebida (opcional)'),
 	quantity: Quantity.optional().describe('Cantidad comprada. Ejemplo: "25.00"'),
 	basePrice: Money.describe('Precio base sin IVA. Ejemplo: "192.31"'),
 	vatPct: z
@@ -95,8 +96,8 @@ export const ExpenseCreate = z.object({
 		.optional()
 		.describe('Unidades por paquete (si isPackage=true). Ejemplo: 100'),
 	unitPrice: Money.optional().describe('Precio por unidad individual. Ejemplo: "0.07"'),
-	payerId: Id.describe('ID del pagador'),
-	storeId: Id.optional().describe('ID de la tienda/proveedor (opcional)'),
+	payer: EmbeddedPayer.describe('Pagador embebido'),
+	store: EmbeddedStore.optional().describe('Tienda/proveedor embebido (opcional)'),
 	isVerified: z.boolean().describe('¿Gasto verificado? true/false'),
 	notes: z.string().optional().describe('Notas adicionales'),
 });
@@ -110,7 +111,7 @@ export type ExpenseCreateT = z.infer<typeof ExpenseCreate>;
 export const ExpenseReplace = z.object({
 	isActive: z.boolean().default(true).optional().describe('Estado de activación del gasto'),
 	ingredient: z.string().min(1).describe('Nombre del ingrediente o material'),
-	unitId: Id.optional().describe('ID de la unidad de medida'),
+	unit: EmbeddedUnit.optional().describe('Unidad de medida embebida'),
 	quantity: Quantity.optional().describe('Cantidad comprada'),
 	basePrice: Money.describe('Precio base sin IVA'),
 	vatPct: z
@@ -121,8 +122,8 @@ export const ExpenseReplace = z.object({
 	isPackage: z.boolean().describe('¿Es compra por paquetes?'),
 	unitsPerPack: z.number().int().positive().optional().describe('Unidades por paquete'),
 	unitPrice: Money.optional().describe('Precio por unidad individual'),
-	payerId: Id.describe('ID del pagador'),
-	storeId: Id.optional().describe('ID de la tienda/proveedor'),
+	payer: EmbeddedPayer.describe('Pagador embebido'),
+	store: EmbeddedStore.optional().describe('Tienda/proveedor embebido'),
 	isVerified: z.boolean().describe('¿Gasto verificado?'),
 	notes: z.string().optional().describe('Notas adicionales'),
 });
@@ -136,7 +137,7 @@ export type ExpenseReplaceT = z.infer<typeof ExpenseReplace>;
 export const ExpensePatch = z.object({
 	isActive: z.boolean().optional().describe('Estado de activación. Ejemplo: true'),
 	ingredient: z.string().min(1).optional().describe('Nombre del ingrediente'),
-	unitId: Id.optional().describe('ID de la unidad de medida'),
+	unit: EmbeddedUnit.optional().describe('Unidad de medida embebida'),
 	quantity: Quantity.optional().describe('Cantidad comprada'),
 	basePrice: Money.optional().describe('Precio base sin IVA'),
 	vatPct: z
@@ -148,8 +149,8 @@ export const ExpensePatch = z.object({
 	isPackage: z.boolean().optional().describe('¿Es compra por paquetes?'),
 	unitsPerPack: z.number().int().positive().optional().describe('Unidades por paquete'),
 	unitPrice: Money.optional().describe('Precio por unidad'),
-	payerId: Id.optional().describe('ID del pagador'),
-	storeId: Id.optional().describe('ID de la tienda'),
+	payer: EmbeddedPayer.optional().describe('Pagador embebido'),
+	store: EmbeddedStore.optional().describe('Tienda/proveedor embebido'),
 	isVerified: z.boolean().optional().describe('¿Gasto verificado?'),
 	notes: z.string().optional().describe('Notas adicionales'),
 });

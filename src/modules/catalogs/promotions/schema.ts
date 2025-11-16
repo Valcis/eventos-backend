@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Id, DateTime, Money, Percentage } from '../zod.schemas';
+import { EmbeddedProduct } from '../../../shared/schemas/embedded';
 
 export const PromotionRule = z.enum([
 	'XForY',
@@ -197,10 +198,10 @@ export const Promotion = z.object({
 		'Condiciones específicas de la promoción según la regla seleccionada',
 	),
 	applicables: z
-		.array(Id)
+		.array(EmbeddedProduct)
 		.optional()
 		.describe(
-			'Array de IDs de productos a los que aplica la promoción. Si está vacío o no se proporciona, puede aplicar a todos. Ejemplo: ["507f1f77bcf86cd799439011"]',
+			'Array de productos embebidos a los que aplica la promoción. Si está vacío o no se proporciona, puede aplicar a todos.',
 		),
 	startDate: DateTime.describe(
 		'Fecha y hora de inicio de la promoción. Ejemplo: "2025-06-15T12:00:00.000Z"',
@@ -236,7 +237,7 @@ export const PromotionCreate = z.object({
 	description: z.string().optional().describe('Descripción detallada'),
 	rule: PromotionRule.describe('Tipo de regla de promoción'),
 	conditions: PromotionConditions.optional().describe('Condiciones específicas'),
-	applicables: z.array(Id).optional().describe('IDs de productos aplicables'),
+	applicables: z.array(EmbeddedProduct).optional().describe('Productos embebidos aplicables'),
 	startDate: DateTime.describe('Fecha de inicio. Ejemplo: "2025-06-15T12:00:00.000Z"'),
 	endDate: DateTime.describe('Fecha de fin. Ejemplo: "2025-06-15T23:59:59.000Z"'),
 	priority: z.number().int().describe('Prioridad. Ejemplo: 1'),
@@ -255,7 +256,7 @@ export const PromotionReplace = z.object({
 	description: z.string().optional().describe('Descripción'),
 	rule: PromotionRule.describe('Tipo de regla'),
 	conditions: PromotionConditions.optional().describe('Condiciones'),
-	applicables: z.array(Id).optional().describe('IDs de productos'),
+	applicables: z.array(EmbeddedProduct).optional().describe('Productos embebidos'),
 	startDate: DateTime.describe('Fecha de inicio'),
 	endDate: DateTime.describe('Fecha de fin'),
 	priority: z.number().int().describe('Prioridad'),
@@ -274,7 +275,7 @@ export const PromotionPatch = z.object({
 	description: z.string().optional().describe('Descripción'),
 	rule: PromotionRule.optional().describe('Tipo de regla'),
 	conditions: PromotionConditions.optional().describe('Condiciones'),
-	applicables: z.array(Id).optional().describe('IDs de productos'),
+	applicables: z.array(EmbeddedProduct).optional().describe('Productos embebidos'),
 	startDate: DateTime.optional().describe('Fecha de inicio'),
 	endDate: DateTime.optional().describe('Fecha de fin'),
 	priority: z.number().int().optional().describe('Prioridad'),

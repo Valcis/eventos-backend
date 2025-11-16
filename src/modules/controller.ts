@@ -24,7 +24,7 @@ export function makeController<
 >(
 	collection: string,
 	mapIn: (d: TCreate | TUpdate | Partial<TUpdate>) => Document,
-	mapOut: (d: WithId<Document>) => TDomain,
+	mapOut: (d: WithId<Document>, db: Db) => TDomain | Promise<TDomain>,
 	options?: {
 		softDelete?: boolean;
 		defaultSortBy?: SortBy;

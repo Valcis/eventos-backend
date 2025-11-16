@@ -46,22 +46,91 @@ const IdParam = z.object({
 });
 
 export default async function expensesRoutes(app: FastifyInstance) {
+	const { ObjectId } = await import('mongodb');
+
 	const ctrl = makeController<ExpenseT>(
 		'expenses',
 		(data) => {
-			// No validamos aquí - Fastify ya validó con ExpenseCreate/ExpenseReplace/ExpensePatch
-			// Solo transformamos las fechas si existen
+			// Transform incoming data: extract IDs from embedded objects
 			const transformed: Record<string, unknown> = { ...data };
+
+			// Convert payer embedded object to payerId
+			if ('payer' in data && data.payer && typeof data.payer === 'object') {
+				const payer = data.payer as { id: string };
+				transformed.payerId = new ObjectId(payer.id);
+				delete transformed.payer;
+			}
+
+			// Convert store embedded object to storeId (optional)
+			if ('store' in data && data.store && typeof data.store === 'object') {
+				const store = data.store as { id: string };
+				transformed.storeId = new ObjectId(store.id);
+				delete transformed.store;
+			}
+
+			// Convert unit embedded object to unitId (optional)
+			if ('unit' in data && data.unit && typeof data.unit === 'object') {
+				const unit = data.unit as { id: string };
+				transformed.unitId = new ObjectId(unit.id);
+				delete transformed.unit;
+			}
+
 			if ('date' in data && typeof data.date === 'string') {
 				transformed.date = new Date(data.date);
 			}
 			return transformed;
 		},
-		(doc) => {
-			const { _id, ...rest } = doc;
+		async (doc, db) => {
+			const { _id, eventId, payerId, storeId, unitId, ...rest } = doc;
+
+			// Lookup payer (required)
+			const payerDoc = await db.collection('payers').findOne({ _id: payerId });
+			if (!payerDoc) {
+				throw new Error(`Payer not found: ${String(payerId)}`);
+			}
+			const payer = {
+				id: String(payerDoc._id),
+				name: payerDoc.name as string,
+				phone: payerDoc.phone as string | undefined,
+				isActive: (payerDoc.isActive ?? true) as boolean,
+			};
+
+			// Lookup store (optional)
+			let store: { id: string; name: string; seller?: string; phone?: string; isActive: boolean } | undefined;
+			if (storeId) {
+				const storeDoc = await db.collection('stores').findOne({ _id: storeId });
+				if (storeDoc) {
+					store = {
+						id: String(storeDoc._id),
+						name: storeDoc.name as string,
+						seller: storeDoc.seller as string | undefined,
+						phone: storeDoc.phone as string | undefined,
+						isActive: (storeDoc.isActive ?? true) as boolean,
+					};
+				}
+			}
+
+			// Lookup unit (optional)
+			let unit: { id: string; name: string; abbreviation: string; isActive: boolean } | undefined;
+			if (unitId) {
+				const unitDoc = await db.collection('units').findOne({ _id: unitId });
+				if (unitDoc) {
+					unit = {
+						id: String(unitDoc._id),
+						name: unitDoc.name as string,
+						abbreviation: unitDoc.abbreviation as string,
+						isActive: (unitDoc.isActive ?? true) as boolean,
+					};
+				}
+			}
+
 			const base = {
 				...(rest as Record<string, unknown>),
 				id: String(_id),
+				eventId: String(eventId),
+				payer,
+				...(store ? { store } : {}),
+				...(unit ? { unit } : {}),
 				isActive: rest.isActive !== undefined ? rest.isActive : true,
 			};
 			const normalized = isoifyFields(base, ['date', 'createdAt', 'updatedAt'] as const);
@@ -134,15 +203,57 @@ export default async function expensesRoutes(app: FastifyInstance) {
 			const crud = makeCrud<ExpenseT>({
 				collection: 'expenses',
 				toDb: (data) => data,
-				fromDb: (doc) => {
-					const { _id, eventId, payerId, unitId, storeId, ...rest } = doc;
+				fromDb: async (doc, db) => {
+					const { _id, eventId, payerId, storeId, unitId, ...rest } = doc;
+
+					// Lookup payer (required)
+					const payerDoc = await db.collection('payers').findOne({ _id: payerId });
+					if (!payerDoc) {
+						throw new Error(`Payer not found: ${String(payerId)}`);
+					}
+					const payer = {
+						id: String(payerDoc._id),
+						name: payerDoc.name as string,
+						phone: payerDoc.phone as string | undefined,
+						isActive: (payerDoc.isActive ?? true) as boolean,
+					};
+
+					// Lookup store (optional)
+					let store: { id: string; name: string; seller?: string; phone?: string; isActive: boolean } | undefined;
+					if (storeId) {
+						const storeDoc = await db.collection('stores').findOne({ _id: storeId });
+						if (storeDoc) {
+							store = {
+								id: String(storeDoc._id),
+								name: storeDoc.name as string,
+								seller: storeDoc.seller as string | undefined,
+								phone: storeDoc.phone as string | undefined,
+								isActive: (storeDoc.isActive ?? true) as boolean,
+							};
+						}
+					}
+
+					// Lookup unit (optional)
+					let unit: { id: string; name: string; abbreviation: string; isActive: boolean } | undefined;
+					if (unitId) {
+						const unitDoc = await db.collection('units').findOne({ _id: unitId });
+						if (unitDoc) {
+							unit = {
+								id: String(unitDoc._id),
+								name: unitDoc.name as string,
+								abbreviation: unitDoc.abbreviation as string,
+								isActive: (unitDoc.isActive ?? true) as boolean,
+							};
+						}
+					}
+
 					const base = {
 						...(rest as Record<string, unknown>),
 						id: String(_id),
 						eventId: String(eventId),
-						payerId: String(payerId),
-						...(unitId ? { unitId: String(unitId) } : {}),
-						...(storeId ? { storeId: String(storeId) } : {}),
+						payer,
+						...(store ? { store } : {}),
+						...(unit ? { unit } : {}),
 						isActive: rest.isActive !== undefined ? rest.isActive : true,
 					};
 					const normalized = isoifyFields(base, ['date', 'createdAt', 'updatedAt'] as const);

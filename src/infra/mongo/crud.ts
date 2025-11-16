@@ -44,8 +44,8 @@ export interface CrudOptions<TDomain, TCreate, TUpdate> {
 	collection: string;
 	/** Map incoming create/update payloads to a MongoDB document */
 	toDb: (data: TCreate | TUpdate | Partial<TUpdate>) => Document;
-	/** Map a MongoDB document to a domain object */
-	fromDb: (doc: WithId<Document>) => TDomain;
+	/** Map a MongoDB document to a domain object (can be async for population) */
+	fromDb: (doc: WithId<Document>, db: Db) => TDomain | Promise<TDomain>;
 	/** Default sort field; defaults to 'createdAt' */
 	defaultSortBy?: SortBy;
 	/** Default sort direction; defaults to 'desc' */
@@ -99,14 +99,14 @@ export function makeCrud<
 			const res = await col.insertOne(doc);
 			const inserted = await col.findOne({ _id: res.insertedId });
 			if (!inserted) throw new Error('Insert failed: document not found');
-			return fromDb(inserted as WithId<Document>);
+			return await fromDb(inserted as WithId<Document>, db);
 		},
 
 		async getById(db, id) {
 			const col = db.collection(collection);
 			const _id = ensureObjectId(id);
 			const doc = await col.findOne({ _id });
-			return doc ? fromDb(doc as WithId<Document>) : null;
+			return doc ? await fromDb(doc as WithId<Document>, db) : null;
 		},
 
 		async list(db: Db, query: TQuery, options?: ListOptions): Promise<CursorPage<TDomain>> {
@@ -163,8 +163,8 @@ export function makeCrud<
 				.limit(limit)
 				.toArray();
 
-			// Mapear items
-			const items: TDomain[] = docs.map((d) => fromDb(d));
+			// Mapear items (await if fromDb is async)
+			const items: TDomain[] = await Promise.all(docs.map((d) => fromDb(d, db)));
 
 			// Calcular nextCursor
 			const lastDoc = docs.at(-1);
@@ -204,7 +204,7 @@ export function makeCrud<
 
 			if (!updated) return null;
 
-			return fromDb(updated as WithId<Document>);
+			return await fromDb(updated as WithId<Document>, db);
 		},
 
 		async patch(db: Db, id: string, data: Partial<TUpdate>): Promise<TDomain | null> {
@@ -229,7 +229,7 @@ export function makeCrud<
 
 			if (!updated) return null;
 
-			return fromDb(updated as WithId<Document>);
+			return await fromDb(updated as WithId<Document>, db);
 		},
 
 		async softDelete(db, id) {

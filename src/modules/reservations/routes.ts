@@ -51,25 +51,129 @@ const IdParam = z.object({
 });
 
 export default async function reservationsRoutes(app: FastifyInstance) {
+	const { ObjectId } = await import('mongodb');
+
 	const ctrl = makeController<ReservationT>(
 		'reservations',
 		(data) => {
-			// No validamos aquí - Fastify ya validó con Schema ReservationCreate/ReservationReplace
-			// Solo transformamos las fechas si existen y son strings
 			const transformed: Record<string, unknown> = { ...(data as unknown as Record<string, unknown>) };
-			return transformed as ReservationT;
+
+			// Convert salesperson embedded object to salespersonId (optional)
+			if ('salesperson' in data && data.salesperson && typeof data.salesperson === 'object') {
+				const salesperson = data.salesperson as { id: string };
+				transformed.salespersonId = new ObjectId(salesperson.id);
+				delete transformed.salesperson;
+			}
+
+			// Convert consumptionType embedded object to consumptionTypeId (required)
+			if ('consumptionType' in data && data.consumptionType && typeof data.consumptionType === 'object') {
+				const consumptionType = data.consumptionType as { id: string };
+				transformed.consumptionTypeId = new ObjectId(consumptionType.id);
+				delete transformed.consumptionType;
+			}
+
+			// Convert pickupPoint embedded object to pickupPointId (optional)
+			if ('pickupPoint' in data && data.pickupPoint && typeof data.pickupPoint === 'object') {
+				const pickupPoint = data.pickupPoint as { id: string };
+				transformed.pickupPointId = new ObjectId(pickupPoint.id);
+				delete transformed.pickupPoint;
+			}
+
+			// Convert paymentMethod embedded object to paymentMethodId (required)
+			if ('paymentMethod' in data && data.paymentMethod && typeof data.paymentMethod === 'object') {
+				const paymentMethod = data.paymentMethod as { id: string };
+				transformed.paymentMethodId = new ObjectId(paymentMethod.id);
+				delete transformed.paymentMethod;
+			}
+
+			// Convert cashier embedded object to cashierId (optional)
+			if ('cashier' in data && data.cashier && typeof data.cashier === 'object') {
+				const cashier = data.cashier as { id: string };
+				transformed.cashierId = new ObjectId(cashier.id);
+				delete transformed.cashier;
+			}
+
+			return transformed;
 		},
-		(doc) => {
+		async (doc, db) => {
 			const { _id, eventId, salespersonId, consumptionTypeId, pickupPointId, paymentMethodId, cashierId, ...rest } = doc;
+
+			// Lookup salesperson (optional)
+			let salesperson: { id: string; name: string; phone?: string; isActive: boolean } | undefined;
+			if (salespersonId) {
+				const salespersonDoc = await db.collection('salespeople').findOne({ _id: salespersonId });
+				if (salespersonDoc) {
+					salesperson = {
+						id: String(salespersonDoc._id),
+						name: salespersonDoc.name as string,
+						phone: salespersonDoc.phone as string | undefined,
+						isActive: (salespersonDoc.isActive ?? true) as boolean,
+					};
+				}
+			}
+
+			// Lookup consumptionType (required)
+			const consumptionTypeDoc = await db.collection('consumption_types').findOne({ _id: consumptionTypeId });
+			if (!consumptionTypeDoc) {
+				throw new Error(`ConsumptionType not found: ${String(consumptionTypeId)}`);
+			}
+			const consumptionType = {
+				id: String(consumptionTypeDoc._id),
+				name: consumptionTypeDoc.name as string,
+				notes: consumptionTypeDoc.notes as string | undefined,
+				isActive: (consumptionTypeDoc.isActive ?? true) as boolean,
+			};
+
+			// Lookup pickupPoint (optional)
+			let pickupPoint: { id: string; name: string; dealerName?: string; phone?: string; isActive: boolean } | undefined;
+			if (pickupPointId) {
+				const pickupPointDoc = await db.collection('pickup_points').findOne({ _id: pickupPointId });
+				if (pickupPointDoc) {
+					pickupPoint = {
+						id: String(pickupPointDoc._id),
+						name: pickupPointDoc.name as string,
+						dealerName: pickupPointDoc.dealerName as string | undefined,
+						phone: pickupPointDoc.phone as string | undefined,
+						isActive: (pickupPointDoc.isActive ?? true) as boolean,
+					};
+				}
+			}
+
+			// Lookup paymentMethod (required)
+			const paymentMethodDoc = await db.collection('payment_methods').findOne({ _id: paymentMethodId });
+			if (!paymentMethodDoc) {
+				throw new Error(`PaymentMethod not found: ${String(paymentMethodId)}`);
+			}
+			const paymentMethod = {
+				id: String(paymentMethodDoc._id),
+				name: paymentMethodDoc.name as string,
+				notes: paymentMethodDoc.notes as string | undefined,
+				isActive: (paymentMethodDoc.isActive ?? true) as boolean,
+			};
+
+			// Lookup cashier (optional)
+			let cashier: { id: string; name: string; phone?: string; isActive: boolean } | undefined;
+			if (cashierId) {
+				const cashierDoc = await db.collection('cashiers').findOne({ _id: cashierId });
+				if (cashierDoc) {
+					cashier = {
+						id: String(cashierDoc._id),
+						name: cashierDoc.name as string,
+						phone: cashierDoc.phone as string | undefined,
+						isActive: (cashierDoc.isActive ?? true) as boolean,
+					};
+				}
+			}
+
 			const base = {
 				...(rest as Record<string, unknown>),
 				id: String(_id),
 				eventId: String(eventId),
-				salespersonId: salespersonId ? String(salespersonId) : undefined,
-				consumptionTypeId: String(consumptionTypeId),
-				pickupPointId: pickupPointId ? String(pickupPointId) : undefined,
-				paymentMethodId: String(paymentMethodId),
-				cashierId: cashierId ? String(cashierId) : undefined,
+				...(salesperson ? { salesperson } : {}),
+				consumptionType,
+				...(pickupPoint ? { pickupPoint } : {}),
+				paymentMethod,
+				...(cashier ? { cashier } : {}),
 				isActive: rest.isActive !== undefined ? rest.isActive : true,
 			};
 			const normalized = isoifyFields(base, ['date', 'createdAt', 'updatedAt'] as const);
@@ -148,17 +252,85 @@ export default async function reservationsRoutes(app: FastifyInstance) {
 			const crud = makeCrud<ReservationT>({
 				collection: 'reservations',
 				toDb: (data) => data,
-				fromDb: (doc) => {
+				fromDb: async (doc, db) => {
 					const { _id, eventId, salespersonId, consumptionTypeId, pickupPointId, paymentMethodId, cashierId, ...rest } = doc;
+
+					// Lookup salesperson (optional)
+					let salesperson: { id: string; name: string; phone?: string; isActive: boolean } | undefined;
+					if (salespersonId) {
+						const salespersonDoc = await db.collection('salespeople').findOne({ _id: salespersonId });
+						if (salespersonDoc) {
+							salesperson = {
+								id: String(salespersonDoc._id),
+								name: salespersonDoc.name as string,
+								phone: salespersonDoc.phone as string | undefined,
+								isActive: (salespersonDoc.isActive ?? true) as boolean,
+							};
+						}
+					}
+
+					// Lookup consumptionType (required)
+					const consumptionTypeDoc = await db.collection('consumption_types').findOne({ _id: consumptionTypeId });
+					if (!consumptionTypeDoc) {
+						throw new Error(`ConsumptionType not found: ${String(consumptionTypeId)}`);
+					}
+					const consumptionType = {
+						id: String(consumptionTypeDoc._id),
+						name: consumptionTypeDoc.name as string,
+						notes: consumptionTypeDoc.notes as string | undefined,
+						isActive: (consumptionTypeDoc.isActive ?? true) as boolean,
+					};
+
+					// Lookup pickupPoint (optional)
+					let pickupPoint: { id: string; name: string; dealerName?: string; phone?: string; isActive: boolean } | undefined;
+					if (pickupPointId) {
+						const pickupPointDoc = await db.collection('pickup_points').findOne({ _id: pickupPointId });
+						if (pickupPointDoc) {
+							pickupPoint = {
+								id: String(pickupPointDoc._id),
+								name: pickupPointDoc.name as string,
+								dealerName: pickupPointDoc.dealerName as string | undefined,
+								phone: pickupPointDoc.phone as string | undefined,
+								isActive: (pickupPointDoc.isActive ?? true) as boolean,
+							};
+						}
+					}
+
+					// Lookup paymentMethod (required)
+					const paymentMethodDoc = await db.collection('payment_methods').findOne({ _id: paymentMethodId });
+					if (!paymentMethodDoc) {
+						throw new Error(`PaymentMethod not found: ${String(paymentMethodId)}`);
+					}
+					const paymentMethod = {
+						id: String(paymentMethodDoc._id),
+						name: paymentMethodDoc.name as string,
+						notes: paymentMethodDoc.notes as string | undefined,
+						isActive: (paymentMethodDoc.isActive ?? true) as boolean,
+					};
+
+					// Lookup cashier (optional)
+					let cashier: { id: string; name: string; phone?: string; isActive: boolean } | undefined;
+					if (cashierId) {
+						const cashierDoc = await db.collection('cashiers').findOne({ _id: cashierId });
+						if (cashierDoc) {
+							cashier = {
+								id: String(cashierDoc._id),
+								name: cashierDoc.name as string,
+								phone: cashierDoc.phone as string | undefined,
+								isActive: (cashierDoc.isActive ?? true) as boolean,
+							};
+						}
+					}
+
 					const base = {
 						...(rest as Record<string, unknown>),
 						id: String(_id),
 						eventId: String(eventId),
-						salespersonId: salespersonId ? String(salespersonId) : undefined,
-						consumptionTypeId: String(consumptionTypeId),
-						pickupPointId: pickupPointId ? String(pickupPointId) : undefined,
-						paymentMethodId: String(paymentMethodId),
-						cashierId: cashierId ? String(cashierId) : undefined,
+						...(salesperson ? { salesperson } : {}),
+						consumptionType,
+						...(pickupPoint ? { pickupPoint } : {}),
+						paymentMethod,
+						...(cashier ? { cashier } : {}),
 						isActive: rest.isActive !== undefined ? rest.isActive : true,
 					};
 					const normalized = isoifyFields(base, ['date', 'createdAt', 'updatedAt'] as const);

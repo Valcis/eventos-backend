@@ -41,20 +41,63 @@ const IdParam = z.object({
 });
 
 export default async function productsRoutes(app: FastifyInstance) {
+	const { ObjectId } = await import('mongodb');
+
 	const ctrl = makeController<ProductT>(
 		'products',
 		(data) => {
-			// No validamos aquí - Fastify ya validó con Schema ProductCreate/ProductReplace
-			// Solo transformamos las fechas si existen y son strings
 			const transformed: Record<string, unknown> = { ...(data as unknown as Record<string, unknown>) };
-			return transformed as ProductT;
+
+			// Convert promotions embedded objects to array of promotion IDs
+			if ('promotions' in data && Array.isArray(data.promotions)) {
+				const promotions = data.promotions as Array<{ id: string } | string>;
+				transformed.promotions = promotions.map((p) =>
+					typeof p === 'object' && 'id' in p ? new ObjectId(p.id) : new ObjectId(p as string)
+				);
+			}
+
+			return transformed;
 		},
-		(doc) => {
-			const { _id, eventId, ...rest } = doc;
+		async (doc, db) => {
+			const { _id, eventId, promotions, ...rest } = doc;
+
+			// Lookup promotions (optional array)
+			let populatedPromotions: Array<{
+				id: string;
+				name: string;
+				description?: string;
+				rule: string;
+				priority: number;
+				isCumulative: boolean;
+				startDate: string;
+				endDate: string;
+				isActive: boolean;
+			}> = [];
+
+			if (promotions && Array.isArray(promotions) && promotions.length > 0) {
+				const promotionDocs = await db
+					.collection('promotions')
+					.find({ _id: { $in: promotions } })
+					.toArray();
+
+				populatedPromotions = promotionDocs.map((p) => ({
+					id: String(p._id),
+					name: p.name as string,
+					description: p.description as string | undefined,
+					rule: p.rule as string,
+					priority: p.priority as number,
+					isCumulative: p.isCumulative as boolean,
+					startDate: (p.startDate as Date).toISOString(),
+					endDate: (p.endDate as Date).toISOString(),
+					isActive: (p.isActive ?? true) as boolean,
+				}));
+			}
+
 			const base = {
 				...(rest as Record<string, unknown>),
 				id: String(_id),
 				eventId: String(eventId),
+				promotions: populatedPromotions,
 				isActive: rest.isActive !== undefined ? rest.isActive : true,
 			};
 			const normalized = isoifyFields(base, ['date', 'createdAt', 'updatedAt'] as const);
@@ -115,12 +158,46 @@ export default async function productsRoutes(app: FastifyInstance) {
 			const crud = makeCrud<ProductT>({
 				collection: 'products',
 				toDb: (data) => data,
-				fromDb: (doc) => {
-					const { _id, eventId, ...rest } = doc;
+				fromDb: async (doc, db) => {
+					const { _id, eventId, promotions, ...rest } = doc;
+
+					// Lookup promotions (optional array)
+					let populatedPromotions: Array<{
+						id: string;
+						name: string;
+						description?: string;
+						rule: string;
+						priority: number;
+						isCumulative: boolean;
+						startDate: string;
+						endDate: string;
+						isActive: boolean;
+					}> = [];
+
+					if (promotions && Array.isArray(promotions) && promotions.length > 0) {
+						const promotionDocs = await db
+							.collection('promotions')
+							.find({ _id: { $in: promotions } })
+							.toArray();
+
+						populatedPromotions = promotionDocs.map((p) => ({
+							id: String(p._id),
+							name: p.name as string,
+							description: p.description as string | undefined,
+							rule: p.rule as string,
+							priority: p.priority as number,
+							isCumulative: p.isCumulative as boolean,
+							startDate: (p.startDate as Date).toISOString(),
+							endDate: (p.endDate as Date).toISOString(),
+							isActive: (p.isActive ?? true) as boolean,
+						}));
+					}
+
 					const base = {
 						...(rest as Record<string, unknown>),
 						id: String(_id),
 						eventId: String(eventId),
+						promotions: populatedPromotions,
 						isActive: rest.isActive !== undefined ? rest.isActive : true,
 					};
 					const normalized = isoifyFields(base, ['date', 'createdAt', 'updatedAt'] as const);
@@ -195,11 +272,14 @@ export default async function productsRoutes(app: FastifyInstance) {
 				const { ObjectId } = await import('mongodb');
 				const { AppError } = await import('../../../core/http/errors');
 
+				// Extract IDs from embedded promotion objects
+				const promotionIds = body.promotions.map((p) => new ObjectId(p.id));
+
 				// Buscar todas las promociones
 				const promotions = await db
 					.collection('promotions')
 					.find({
-						_id: { $in: body.promotions.map((id) => new ObjectId(id)) },
+						_id: { $in: promotionIds },
 						eventId: new ObjectId(body.eventId),
 						isActive: true,
 					})
@@ -208,7 +288,8 @@ export default async function productsRoutes(app: FastifyInstance) {
 				// Verificar que todas existen
 				if (promotions.length !== body.promotions.length) {
 					const foundIds = promotions.map((p) => p._id.toString());
-					const missing = body.promotions.filter((id) => !foundIds.includes(id));
+					const inputIds = body.promotions.map((p) => p.id);
+					const missing = inputIds.filter((id) => !foundIds.includes(id));
 
 					throw new AppError(
 						'VALIDATION_ERROR',
@@ -265,11 +346,14 @@ export default async function productsRoutes(app: FastifyInstance) {
 
 			// Validar promociones si existen
 			if (body.promotions && body.promotions.length > 0) {
+				// Extract IDs from embedded promotion objects
+				const promotionIds = body.promotions.map((p) => new ObjectId(p.id));
+
 				// Buscar todas las promociones
 				const promotions = await db
 					.collection('promotions')
 					.find({
-						_id: { $in: body.promotions.map((pid) => new ObjectId(pid)) },
+						_id: { $in: promotionIds },
 						eventId: new ObjectId(eventId),
 						isActive: true,
 					})
@@ -278,7 +362,8 @@ export default async function productsRoutes(app: FastifyInstance) {
 				// Verificar que todas existen
 				if (promotions.length !== body.promotions.length) {
 					const foundIds = promotions.map((p) => p._id.toString());
-					const missing = body.promotions.filter((pid) => !foundIds.includes(pid));
+					const inputIds = body.promotions.map((p) => p.id);
+					const missing = inputIds.filter((id) => !foundIds.includes(id));
 
 					throw new AppError(
 						'VALIDATION_ERROR',
@@ -335,11 +420,14 @@ export default async function productsRoutes(app: FastifyInstance) {
 
 			// Validar promociones solo si se están modificando
 			if (body.promotions && body.promotions.length > 0) {
+				// Extract IDs from embedded promotion objects
+				const promotionIds = body.promotions.map((p) => new ObjectId(p.id));
+
 				// Buscar todas las promociones
 				const promotions = await db
 					.collection('promotions')
 					.find({
-						_id: { $in: body.promotions.map((pid) => new ObjectId(pid)) },
+						_id: { $in: promotionIds },
 						eventId: new ObjectId(eventId),
 						isActive: true,
 					})
@@ -348,7 +436,8 @@ export default async function productsRoutes(app: FastifyInstance) {
 				// Verificar que todas existen
 				if (promotions.length !== body.promotions.length) {
 					const foundIds = promotions.map((p) => p._id.toString());
-					const missing = body.promotions.filter((pid) => !foundIds.includes(pid));
+					const inputIds = body.promotions.map((p) => p.id);
+					const missing = inputIds.filter((id) => !foundIds.includes(id));
 
 					throw new AppError(
 						'VALIDATION_ERROR',

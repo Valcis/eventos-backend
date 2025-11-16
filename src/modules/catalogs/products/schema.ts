@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Id, DateTime, Money } from '../zod.schemas';
+import { EmbeddedPromotion } from '../../../shared/schemas/embedded';
 
 /**
  * Schema completo de Producto
@@ -22,11 +23,11 @@ export const Product = z.object({
 		.nonnegative()
 		.describe('Cantidad disponible en inventario. Ejemplo: 50'),
 	promotions: z
-		.array(Id)
+		.array(EmbeddedPromotion)
 		.optional()
 		.default([])
 		.describe(
-			'Array de IDs de promociones aplicables a este producto. Ejemplo: ["507f1f77bcf86cd799439011", "507f1f77bcf86cd799439012"]',
+			'Array de promociones embebidas aplicables a este producto',
 		),
 	nominalPrice: Money.optional().describe(
 		'Precio nominal/base del producto sin suplementos ni promociones. Ejemplo: "5.50"',
@@ -65,10 +66,10 @@ export const ProductCreate = z.object({
 		),
 	stock: z.number().int().nonnegative().describe('Cantidad inicial en inventario. Ejemplo: 50'),
 	promotions: z
-		.array(Id)
+		.array(EmbeddedPromotion)
 		.optional()
 		.default([])
-		.describe('Array de IDs de promociones aplicables. Ejemplo: ["507f1f77bcf86cd799439011"]'),
+		.describe('Array de promociones embebidas aplicables'),
 	nominalPrice: Money.optional().describe('Precio nominal/base del producto. Ejemplo: "5.50"'),
 	supplement: z
 		.record(Id, z.number().int())
@@ -94,10 +95,10 @@ export const ProductReplace = z.object({
 		.describe('Descripción del producto. Ejemplo: "Bocadillo de jamón con tomate"'),
 	stock: z.number().int().nonnegative().describe('Cantidad en inventario. Ejemplo: 50'),
 	promotions: z
-		.array(Id)
+		.array(EmbeddedPromotion)
 		.optional()
 		.default([])
-		.describe('IDs de promociones aplicables. Ejemplo: ["507f1f77bcf86cd799439011"]'),
+		.describe('Array de promociones embebidas aplicables'),
 	nominalPrice: Money.optional().describe('Precio nominal del producto. Ejemplo: "5.50"'),
 	supplement: z
 		.record(Id, z.number().int())
@@ -123,9 +124,9 @@ export const ProductPatch = z.object({
 		.optional()
 		.describe('Cantidad en inventario. Ejemplo: 25'),
 	promotions: z
-		.array(Id)
+		.array(EmbeddedPromotion)
 		.optional()
-		.describe('IDs de promociones aplicables. Ejemplo: ["507f1f77bcf86cd799439011"]'),
+		.describe('Array de promociones embebidas aplicables'),
 	nominalPrice: Money.optional().describe('Precio nominal. Ejemplo: "5.50"'),
 	supplement: z
 		.record(Id, z.number().int())

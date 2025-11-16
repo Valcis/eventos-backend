@@ -48,20 +48,57 @@ const IdParam = z.object({
 });
 
 export default async function promotionsRoutes(app: FastifyInstance) {
+	const { ObjectId } = await import('mongodb');
+
 	const ctrl = makeController<PromotionT>(
 		'promotions',
 		(data) => {
-			// No validamos aquí - Fastify ya validó con Schema PromotionCreate/PromotionReplace
-			// Solo transformamos las fechas si existen y son strings
 			const transformed: Record<string, unknown> = { ...(data as unknown as Record<string, unknown>) };
-			return transformed as PromotionT;
+
+			// Convert applicables embedded objects to array of product IDs
+			if ('applicables' in data && Array.isArray(data.applicables)) {
+				const applicables = data.applicables as Array<{ id: string } | string>;
+				transformed.applicables = applicables.map((p) =>
+					typeof p === 'object' && 'id' in p ? new ObjectId(p.id) : new ObjectId(p as string)
+				);
+			}
+
+			return transformed;
 		},
-		(doc) => {
-			const { _id, eventId, ...rest } = doc;
+		async (doc, db) => {
+			const { _id, eventId, applicables, ...rest } = doc;
+
+			// Lookup applicables (optional array of products)
+			let populatedApplicables: Array<{
+				id: string;
+				name: string;
+				description?: string;
+				nominalPrice: string;
+				stock: number;
+				isActive: boolean;
+			}> = [];
+
+			if (applicables && Array.isArray(applicables) && applicables.length > 0) {
+				const productDocs = await db
+					.collection('products')
+					.find({ _id: { $in: applicables } })
+					.toArray();
+
+				populatedApplicables = productDocs.map((p) => ({
+					id: String(p._id),
+					name: p.name as string,
+					description: p.description as string | undefined,
+					nominalPrice: p.nominalPrice as string,
+					stock: p.stock as number,
+					isActive: (p.isActive ?? true) as boolean,
+				}));
+			}
+
 			const base = {
 				...(rest as Record<string, unknown>),
 				id: String(_id),
 				eventId: String(eventId),
+				applicables: populatedApplicables,
 				isActive: rest.isActive !== undefined ? rest.isActive : true,
 			};
 			const normalized = isoifyFields(base, [
@@ -126,12 +163,40 @@ export default async function promotionsRoutes(app: FastifyInstance) {
 			const crud = makeCrud<PromotionT>({
 				collection: 'promotions',
 				toDb: (data) => data,
-				fromDb: (doc) => {
-					const { _id, eventId, ...rest } = doc;
+				fromDb: async (doc, db) => {
+					const { _id, eventId, applicables, ...rest } = doc;
+
+					// Lookup applicables (optional array of products)
+					let populatedApplicables: Array<{
+						id: string;
+						name: string;
+						description?: string;
+						nominalPrice: string;
+						stock: number;
+						isActive: boolean;
+					}> = [];
+
+					if (applicables && Array.isArray(applicables) && applicables.length > 0) {
+						const productDocs = await db
+							.collection('products')
+							.find({ _id: { $in: applicables } })
+							.toArray();
+
+						populatedApplicables = productDocs.map((p) => ({
+							id: String(p._id),
+							name: p.name as string,
+							description: p.description as string | undefined,
+							nominalPrice: p.nominalPrice as string,
+							stock: p.stock as number,
+							isActive: (p.isActive ?? true) as boolean,
+						}));
+					}
+
 					const base = {
 						...(rest as Record<string, unknown>),
 						id: String(_id),
 						eventId: String(eventId),
+						applicables: populatedApplicables,
 						isActive: rest.isActive !== undefined ? rest.isActive : true,
 					};
 					const normalized = isoifyFields(base, [

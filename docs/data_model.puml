@@ -1,6 +1,6 @@
 @startuml
 
-title EVENTOS Data Model
+title EVENTOS Data Model (DB Schema + API Populate Strategy)
 
 skinparam shadowing true
 skinparam classAttributeIconSize 0
@@ -11,6 +11,23 @@ hide empty methods
 
 !define COLLECTION <<collection>>
 !define DB <<db>>
+
+note top of Events
+**POPULATE STRATEGY (API Responses)**
+====
+All API endpoints return **populated objects**
+instead of IDs for references:
+- Expenses: payer, store?, unit? (objects)
+- Reservations: salesperson?, consumptionType,
+  pickupPoint?, paymentMethod, cashier? (objects)
+- Products: promotions[] (objects)
+- Promotions: applicables[] (objects)
+
+**DB Storage**: Still uses ObjectId references
+**API Output**: Returns full embedded objects
+
+See docs/populate-strategy.md for details
+end note
 
 ' ================= ENTIDADES =================
 
